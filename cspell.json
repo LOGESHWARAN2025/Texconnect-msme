@@ -1,0 +1,35 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "MSME",
+    "MSMEs", 
+    "msme",
+    "texconnect",
+    "firestore",
+    "Firestore",
+    "Stockout"
+  ],
+  "dictionaries": ["custom-words"],
+  "dictionaryDefinitions": [
+    {
+      "name": "custom-words",
+      "path": "./custom-words.txt"
+    }
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**", 
+    "build/**",
+    "*.min.js",
+    "package-lock.json"
+  ],
+  "enableFiletypes": [
+    "typescript",
+    "javascript", 
+    "tsx",
+    "jsx",
+    "json",
+    "rules"
+  ]
+}
