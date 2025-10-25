@@ -5,8 +5,10 @@ import DashboardView from './components/DashboardView';
 import InventoryView from './components/InventoryView';
 import OrdersView from './components/OrdersView';
 import ProductManagementView from './components/msme/ProductManagementView';
-import InventoryDashboard from './components/msme/InventoryDashboard';
+import MSMECombinedDashboard from './components/msme/MSMECombinedDashboard';
 import ProfileView from './components/msme/ProfileView';
+import MSMEIssuesView from './components/msme/MSMEIssuesView';
+import MSMEResolvedView from './components/msme/MSMEResolvedView';
 import type { View } from './types';
 
 const MSMEApp: React.FC = () => {
@@ -15,7 +17,7 @@ const MSMEApp: React.FC = () => {
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <DashboardView />;
+        return <MSMECombinedDashboard />;
       case 'inventory':
         return <InventoryView />;
       case 'orders':
@@ -23,7 +25,11 @@ const MSMEApp: React.FC = () => {
       case 'products':
         return <ProductManagementView />;
       case 'inventory-dashboard':
-        return <InventoryDashboard />;
+        return <MSMECombinedDashboard />;
+      case 'issues':
+        return <MSMEIssuesView />;
+      case 'resolved':
+        return <MSMEResolvedView />;
       case 'profile':
         return <ProfileView />;
       default:

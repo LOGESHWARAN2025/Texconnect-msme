@@ -11,6 +11,38 @@ interface InvoiceTemplateProps {
     items: (InventoryItem & { quantity: number })[];
 }
 
+// Helper function to convert number to words
+function convertNumberToWords(num: number): string {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+  if (num === 0) return 'Zero';
+
+  const crore = Math.floor(num / 10000000);
+  const lakh = Math.floor((num % 10000000) / 100000);
+  const thousand = Math.floor((num % 100000) / 1000);
+  const hundred = Math.floor((num % 1000) / 100);
+  const remainder = Math.floor(num % 100);
+
+  let words = '';
+
+  if (crore > 0) words += convertNumberToWords(crore) + ' Crore ';
+  if (lakh > 0) words += convertNumberToWords(lakh) + ' Lakh ';
+  if (thousand > 0) words += convertNumberToWords(thousand) + ' Thousand ';
+  if (hundred > 0) words += ones[hundred] + ' Hundred ';
+  if (remainder >= 20) {
+    words += tens[Math.floor(remainder / 10)] + ' ';
+    if (remainder % 10 > 0) words += ones[remainder % 10];
+  } else if (remainder >= 10) {
+    words += teens[remainder - 10];
+  } else if (remainder > 0) {
+    words += ones[remainder];
+  }
+
+  return words.trim();
+}
+
 const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ order, seller, buyer, items }) => {
     const { t, formatDate } = useLocalization();
 
@@ -19,7 +51,26 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ order, seller, buyer,
     const grandTotal = subtotal + gstAmount;
 
     return (
-        <div className="bg-white p-8 font-sans text-sm text-slate-800 shadow-lg" id="invoice-to-print">
+        <div className="bg-white p-8 font-sans text-sm text-slate-800 shadow-lg" id="invoice-to-print" style={{ width: '210mm', minHeight: '297mm' }}>
+            {/* Print Styles */}
+            <style>{`
+                @media print {
+                    @page {
+                        size: A4;
+                        margin: 0;
+                    }
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                    #invoice-to-print {
+                        width: 210mm;
+                        min-height: 297mm;
+                        padding: 20mm;
+                        box-shadow: none;
+                    }
+                }
+            `}</style>
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center">
@@ -112,13 +163,41 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ order, seller, buyer,
                 </div>
             </div>
             
+            {/* Amount in Words */}
+            <div className="bg-slate-50 p-4 rounded-lg mt-6">
+                <p className="text-sm text-slate-600">
+                    <span className="font-semibold">Amount in Words: </span>
+                    <span className="capitalize">{convertNumberToWords(grandTotal)} Rupees Only</span>
+                </p>
+            </div>
+
+            {/* Terms and Conditions */}
+            <div className="mt-6">
+                <h3 className="text-sm font-semibold text-slate-700 uppercase mb-2">Terms & Conditions</h3>
+                <ul className="text-xs text-slate-600 space-y-1">
+                    <li>• Payment is due within 30 days of invoice date.</li>
+                    <li>• Please include invoice number with payment.</li>
+                    <li>• Goods once sold will not be taken back or exchanged.</li>
+                    <li>• All disputes are subject to local jurisdiction only.</li>
+                </ul>
+            </div>
+
             {/* Footer */}
-            <div className="mt-16 pt-8 border-t text-center text-xs text-slate-500">
-                 <p>This is a computer-generated invoice and does not require a signature.</p>
-                 <p className="font-bold text-primary mt-2">Thank you for your business with TexConnect!</p>
-                <div className="mt-12">
-                    <p className="border-t border-slate-400 inline-block px-8 pt-2">{t('authorized_signatory')}</p>
+            <div className="mt-8 pt-6 border-t">
+                <div className="flex justify-between items-end">
+                    <div className="text-sm text-slate-600">
+                        <p>Thank you for your business!</p>
+                        <p className="mt-2">For any queries, contact: support@texconnect.com</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-sm text-slate-600 mb-8">Authorized Signature</p>
+                        <div className="border-t border-slate-400 w-48"></div>
+                    </div>
                 </div>
+            </div>
+
+            <div className="text-center text-xs text-slate-500 mt-6">
+                <p>This is a computer-generated invoice and does not require a signature.</p>
             </div>
 
         </div>

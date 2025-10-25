@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import { useLocalization } from '../../hooks/useLocalization';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/SupabaseContext';
 import { MSME_DOMAINS } from '../../constants';
 import type { MSMEDomain, User } from '../../types';
 

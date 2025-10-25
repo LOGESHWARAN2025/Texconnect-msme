@@ -1,13 +1,11 @@
-
-
-
-
 import React, { useState } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 import { useLocalization } from '../hooks/useLocalization';
 import type { UserRole, MSMEDomain } from '../types';
 import { MSME_DOMAINS } from '../constants';
 import CompleteProfileModal from '../components/CompleteProfileModal';
+import EmailVerificationNotice from '../components/EmailVerificationNotice';
+import { supabase } from '../src/lib/supabase';
 
 interface RegistrationPageProps {
   onSwitchToLogin: () => void;
@@ -36,7 +34,7 @@ const InputField: React.FC<{id: string, name: string, type?: string, value: stri
 );
 
 const RegistrationPage: React.FC<RegistrationPageProps> = ({ onSwitchToLogin, onRegistrationSuccess }) => {
-  const { register } = useAppContext();
+  const { register, socialLogin } = useAppContext();
   const { t } = useLocalization();
   
   const [currentRole, setCurrentRole] = useState<UserRole>('buyer'); 
@@ -57,6 +55,8 @@ const RegistrationPage: React.FC<RegistrationPageProps> = ({ onSwitchToLogin, on
 
   const [isCompleteProfileModalOpen, setIsCompleteProfileModalOpen] = useState(false);
   const [socialUserData] = useState<{ email: string; username: string; firstname: string } | null>(null);
+  const [showVerificationNotice, setShowVerificationNotice] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -81,7 +81,8 @@ const RegistrationPage: React.FC<RegistrationPageProps> = ({ onSwitchToLogin, on
     try {
       const result = await register(userData as any);
       if (result.success && result.user) {
-        onRegistrationSuccess(result.user.email);
+        setRegisteredEmail(result.user.email);
+        setShowVerificationNotice(true);
       } else {
         alert(result.reason === 'EMAIL_EXISTS' ? "User with this email already exists." : "Registration failed.");
       }
@@ -95,15 +96,48 @@ const RegistrationPage: React.FC<RegistrationPageProps> = ({ onSwitchToLogin, on
     }
   };
   
-  const handleSocialSignup = (_provider: 'google' | 'apple' | 'facebook') => {
-    // This is a mock-up. Real social sign-up would involve Firebase's signInWithPopup here
-    // and then checking if the user is new. If new, open the completion modal.
-    alert("Social sign-up is not fully implemented in this demo. Please use email/password registration.");
+  const handleSocialSignup = async (provider: 'google' | 'apple' | 'facebook') => {
+    setIsLoading(true);
+    
+    try {
+      const result = await socialLogin(provider);
+      setIsLoading(false);
+
+      if (!result.success) {
+        if (result.reason === 'USER_NOT_FOUND') {
+          alert('No account found with this social profile. Creating a new account...');
+        } else {
+          alert(`${provider.charAt(0).toUpperCase() + provider.slice(1)} signup is not configured yet. Please use email/password registration or contact support.`);
+        }
+      }
+      // On success, AppContext handles navigation
+    } catch (error) {
+      setIsLoading(false);
+      alert(`${provider.charAt(0).toUpperCase() + provider.slice(1)} signup is not available. Please use email/password registration.`);
+    }
   };
 
   const handleCompleteProfile = (_details: any) => {
     // This function would be called after a successful social sign-up for a NEW user
     // to collect the remaining details (phone, address, etc.)
+  };
+
+  const handleResendVerificationEmail = async () => {
+    try {
+      await supabase.auth.resend({
+        type: 'signup',
+        email: registeredEmail,
+      });
+      alert('Verification email sent! Please check your inbox.');
+    } catch (error) {
+      console.error('Error resending email:', error);
+      alert('Failed to resend verification email. Please try again.');
+    }
+  };
+
+  const handleCloseVerificationNotice = () => {
+    setShowVerificationNotice(false);
+    onRegistrationSuccess(registeredEmail);
   };
 
 
@@ -185,6 +219,7 @@ const RegistrationPage: React.FC<RegistrationPageProps> = ({ onSwitchToLogin, on
             </div>
         </form>
 
+        {/* Social Signup */}
         <div className="mt-6">
           <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -209,8 +244,10 @@ const RegistrationPage: React.FC<RegistrationPageProps> = ({ onSwitchToLogin, on
               </div>
               <div>
                    <button onClick={() => handleSocialSignup('apple')} className="w-full inline-flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-500 hover:bg-slate-50">
-                      <span className="sr-only">Sign up with Apple</span>
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.993.883L4 8v10a1 1 0 001 1h10a1 1 0 001-1V8a1 1 0 00-1-1h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zM8.22 12.78a.75.75 0 001.06 1.06l1.22-1.22 1.22 1.22a.75.75 0 101.06-1.06L11.06 11.5l1.22-1.22a.75.75 0 00-1.06-1.06L10 10.44l-1.22-1.22a.75.75 0 00-1.06 1.06l1.22 1.22-1.22 1.22z" clipRule="evenodd" /></svg>
+                      <span className="sr-only">Sign up as Guest</span>
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
                   </button>
               </div>
               <div>
@@ -238,6 +275,14 @@ const RegistrationPage: React.FC<RegistrationPageProps> = ({ onSwitchToLogin, on
             userData={socialUserData}
             onComplete={handleCompleteProfile}
         />
+
+        {showVerificationNotice && (
+          <EmailVerificationNotice
+            email={registeredEmail}
+            onResendEmail={handleResendVerificationEmail}
+            onClose={handleCloseVerificationNotice}
+          />
+        )}
     </div>
   );
 };

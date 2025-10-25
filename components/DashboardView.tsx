@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import Card from './common/Card';
 import { useLocalization } from '../hooks/useLocalization';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 import { getDailySalesTrends, subscribeToInventoryUpdates } from '../services/dashboardService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { Order } from '../types';
@@ -19,9 +19,16 @@ const DashboardView: React.FC = () => {
     getDailySalesTrends(currentUser.id).then(setSalesTrends);
 
     // Subscribe to real-time stock level updates
-    const unsubscribe = subscribeToInventoryUpdates(currentUser.id, setStockLevels);
+    const subscription = subscribeToInventoryUpdates(currentUser.id, setStockLevels);
 
-    return () => unsubscribe();
+    return () => {
+      if (typeof subscription === 'function') {
+        // Backward compatibility if previous signature returned a function
+        subscription();
+      } else if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
+    };
   }, [currentUser]);
 
   const userProducts = useMemo(() => {
@@ -29,7 +36,7 @@ const DashboardView: React.FC = () => {
       console.log('❌ No current user in DashboardView');
       return [];
     }
-    const filtered = products.filter(product => product.msmeId === currentUser.id);
+    const filtered = products.filter((product: any) => (product.msmeId || product.msmeid) === currentUser.id);
     console.log('📦 User products in DashboardView:', filtered.length, 'out of', products.length, 'total products');
     return filtered;
   }, [products, currentUser]);
@@ -40,13 +47,27 @@ const DashboardView: React.FC = () => {
 
   const userOrders = useMemo(() => {
     if (!currentUser) return [];
-    return orders.filter((order: Order) => order.items.some((item: { productId: string }) => userProductIds.has(item.productId)));
+    return orders.filter((order: any) => (order.items || []).some((item: any) => userProductIds.has(item.productId || item.productid)));
   }, [orders, userProductIds, currentUser]);
 
-  const totalStockValue = userProducts.reduce((acc, product) => acc + product.stock * product.price, 0);
+  const totalStockValue = userProducts.reduce((acc: number, product: any) => acc + (product.stock || 0) * (product.price || 0), 0);
   const pendingOrders = userOrders.filter(o => o.status === 'Pending').length;
-  const totalItems = userProducts.reduce((acc, product) => acc + product.stock, 0);
-  const revenueThisMonth = userOrders.filter(o => o.status === 'Delivered').reduce((acc, order) => acc + order.total, 0);
+  const totalItems = userProducts.reduce((acc: number, product: any) => acc + (product.stock || 0), 0);
+  
+  // Calculate revenue only from MSME's products in delivered orders
+  const revenueThisMonth = userOrders
+    .filter((o: any) => o.status === 'Delivered')
+    .reduce((acc: number, order: any) => {
+      const items = order.items || [];
+      const msmeRevenue = items.reduce((itemAcc: number, item: any) => {
+        const productId = item.productId || item.productid;
+        if (userProductIds.has(productId)) {
+          return itemAcc + ((item.quantity || 0) * (item.price || 0));
+        }
+        return itemAcc;
+      }, 0);
+      return acc + msmeRevenue;
+    }, 0);
 
   console.log('📊 Dashboard calculations:', {
     totalStockValue,

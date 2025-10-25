@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
+import { useTranslate } from '../../hooks/useTranslator';
 import type { Product } from '../../types';
 import { InventoryService, type InventoryStats } from '../../services/inventoryService';
+import { supabase } from '../../src/lib/supabase';
 import InventoryProgressBar from '../common/InventoryProgressBar';
 import Modal from '../common/Modal';
+
+// Component for translated product name
+const TranslatedProductName: React.FC<{ name: string; className?: string }> = ({ name, className }) => {
+  const translatedName = useTranslate(name);
+  return <span className={className}>{translatedName}</span>;
+};
 
 const InventoryDashboard: React.FC = () => {
   const { t } = useLocalization();
@@ -19,7 +27,7 @@ const InventoryDashboard: React.FC = () => {
   // Filter products for current MSME user
   const msmeProducts = useMemo(() => {
     if (!currentUser) return [];
-    return products.filter(product => product.msmeId === currentUser.id);
+    return products.filter((product: any) => (product.msmeId || product.msmeid) === currentUser.id);
   }, [products, currentUser]);
 
   // Load inventory statistics
@@ -54,6 +62,37 @@ const InventoryDashboard: React.FC = () => {
 
     loadInventoryStats();
   }, [currentUser, products]);
+
+  // Realtime: refresh stats when products change for this MSME
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const reload = async () => {
+      try {
+        const [stats, lowStock] = await Promise.all([
+          InventoryService.getInventoryStats(currentUser.id),
+          InventoryService.getLowStockProducts(currentUser.id, 10)
+        ]);
+        setInventoryStats(stats);
+        setLowStockProducts(lowStock);
+      } catch (e) {
+        console.error('❌ Error refreshing inventory stats (realtime):', e);
+      }
+    };
+
+    const channel = supabase
+      .channel(`inv-msme-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products', filter: `msmeid=eq.${currentUser.id}` },
+        () => reload()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser]);
 
   const handleRestock = (product: Product) => {
     setSelectedProduct(product);
@@ -221,7 +260,9 @@ const InventoryDashboard: React.FC = () => {
             {lowStockProducts.map(product => (
               <div key={product.id} className="bg-white rounded-lg p-4 border border-yellow-200">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium text-slate-900">{product.name}</h4>
+                  <h4 className="font-medium text-slate-900">
+                    <TranslatedProductName name={product.name} />
+                  </h4>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStockStatusColor(product)}`}>
                     {getStockStatusText(product)}
                   </span>
@@ -251,7 +292,9 @@ const InventoryDashboard: React.FC = () => {
           {msmeProducts.map(product => (
             <div key={product.id} className="border border-slate-200 rounded-lg p-4">
               <div className="flex justify-between items-start mb-3">
-                <h4 className="font-medium text-slate-900">{product.name}</h4>
+                <h4 className="font-medium text-slate-900">
+                  <TranslatedProductName name={product.name} />
+                </h4>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStockStatusColor(product)}`}>
                   {getStockStatusText(product)}
                 </span>

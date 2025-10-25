@@ -1,5 +1,5 @@
-import { db } from '../firebase';
 import type { Product, Order } from '../types';
+import { supabase } from '../src/lib/supabase';
 
 export interface StockUpdateResult {
   success: boolean;
@@ -24,11 +24,11 @@ export class InventoryService {
    */
   static async approveBuyer(buyerId: string): Promise<boolean> {
     try {
-      await db.collection('users').doc(buyerId).update({
-        isApproved: true,
-        approvedAt: new Date(),
-        approvedBy: 'system'
-      });
+      const { error } = await supabase
+        .from('users')
+        .update({ isapproved: true, approvedat: new Date().toISOString(), approvedby: 'system' })
+        .eq('id', buyerId);
+      if (error) throw error;
       console.log('✅ Buyer approved:', buyerId);
       return true;
     } catch (error) {
@@ -61,114 +61,61 @@ export class InventoryService {
         buyerGst
       });
 
-      // Start a batch operation for atomicity
-      const batch = db.batch();
-      
-      // Test: Try to create order first without batch to isolate the issue
-      console.log('🧪 Testing order creation without batch...');
-      try {
-        const testOrderRef = db.collection('orders').doc();
-        const testOrderData = {
-          buyerId,
-          buyerName,
-          buyerGst,
-          date: new Date().toISOString(),
-          status: 'Pending',
-          total: 100, // Test value
-          items: [{ productId, quantity }]
-        };
-        console.log('🧪 Test order data:', testOrderData);
-        // Don't actually create it, just log the data
-      } catch (testError) {
-        console.error('🧪 Test order creation failed:', testError);
-      }
-
       // 0. Verify buyer user exists and has correct role
-      const buyerDoc = await db.collection('users').doc(buyerId).get();
-      if (!buyerDoc.exists) {
-        throw new Error('Buyer user not found');
-      }
-      const buyerData = buyerDoc.data();
-      if (buyerData?.role !== 'buyer') {
-        throw new Error('User is not a buyer');
-      }
-      // Check and approve buyer if not approved
-      if (!buyerData?.isApproved) {
-        console.log('⚠️ Buyer not approved, attempting to approve...');
+      const { data: buyerData, error: buyerErr } = await supabase
+        .from('users')
+        .select('id, role, isapproved, email')
+        .eq('id', buyerId)
+        .single();
+      if (buyerErr || !buyerData) throw new Error('Buyer user not found');
+      if ((buyerData as any).role !== 'buyer') throw new Error('User is not a buyer');
+      if (!(buyerData as any).isapproved) {
         const approved = await this.approveBuyer(buyerId);
-        if (!approved) {
-          throw new Error('Buyer user is not approved and could not be approved');
-        }
+        if (!approved) throw new Error('Buyer user is not approved and could not be approved');
       }
-      console.log('✅ Buyer verification passed:', {
-        buyerId,
-        role: buyerData.role,
-        isApproved: buyerData.isApproved,
-        email: buyerData.email,
-        fullBuyerData: buyerData
-      });
 
       // 1. Get the product to check current stock
-      const productRef = db.collection('products').doc(productId);
-      console.log('🔍 Attempting to read product:', productId);
-      const productDoc = await productRef.get();
-
-      if (!productDoc.exists) {
-        throw new Error('Product not found');
-      }
-      console.log('✅ Product found:', productDoc.data());
-
-      const productData = productDoc.data() as Product;
-      const currentStock = productData.stock;
-      const initialStock = productData.initialStock || productData.stock;
+      const { data: productData, error: productErr } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+        .single();
+      if (productErr || !productData) throw new Error('Product not found');
+      const currentStock = (productData as any).stock || 0;
+      const initialStock = (productData as any).initialstock ?? (productData as any).stock;
 
       // 2. Check if there's enough stock
       if (currentStock < quantity) {
         throw new Error(`Insufficient stock. Available: ${currentStock}, Requested: ${quantity}`);
       }
 
-      // 3. Calculate new stock
+      // 3. Attempt to decrement stock atomically by filtering on stock >= quantity
       const newStock = currentStock - quantity;
+      const { data: updatedProducts, error: updateErr } = await supabase
+        .from('products')
+        .update({ stock: newStock, updatedat: new Date().toISOString(), initialstock: Math.max(initialStock, newStock) })
+        .eq('id', productId)
+        .gte('stock', quantity)
+        .select('*');
+      if (updateErr) throw updateErr;
+      if (!updatedProducts || updatedProducts.length === 0) {
+        throw new Error(`Insufficient stock. Available: ${currentStock}, Requested: ${quantity}`);
+      }
 
-      // 4. Create the order
-      const orderRef = db.collection('orders').doc();
-      const orderData: Omit<Order, 'id'> = {
-        buyerId,
-        buyerName,
-        buyerGst,
-        date: new Date().toISOString(),
+      // 4. Create the order (use camelCase to match database)
+      const orderPayload: any = {
+        buyerId: buyerId,
+        buyerName: buyerName,
+        buyerGst: buyerGst,
         status: 'Pending',
-        total: productData.price * quantity,
+        total: ((productData as any).price || 0) * quantity,
+        date: new Date().toISOString(),
         items: [{ productId, quantity }]
       };
-
-      console.log('📝 Creating order with data:', orderData);
-      batch.set(orderRef, orderData);
-
-      // 5. Update product stock
-      console.log('📦 Updating stock:', {
-        productId,
-        oldStock: currentStock,
-        newStock: newStock,
-        quantity: quantity
-      });
-      batch.update(productRef, {
-        stock: newStock,
-        updatedAt: new Date()
-      });
-
-      // 6. Commit the batch
-      console.log('💾 Committing batch...');
-      console.log('Batch operations:', {
-        orderRef: orderRef.path,
-        productRef: productRef.path,
-        orderData: orderData,
-        stockUpdate: { stock: newStock, updatedAt: new Date() }
-      });
-      await batch.commit();
+      const { error: orderErr } = await supabase.from('orders').insert(orderPayload);
+      if (orderErr) throw orderErr;
 
       console.log('✅ Order placed and stock updated successfully:', {
-        orderId: orderRef.id,
         newStock,
         quantity
       });
@@ -185,9 +132,9 @@ export class InventoryService {
         quantity,
         buyerId,
         buyerName,
-        errorCode: error.code,
-        errorMessage: error.message,
-        errorStack: error.stack
+        errorCode: (error as any)?.code,
+        errorMessage: (error as any)?.message,
+        errorStack: (error as any)?.stack
       });
       return {
         success: false,
@@ -204,10 +151,11 @@ export class InventoryService {
    */
   static async getInventoryStats(msmeId: string): Promise<InventoryStats> {
     try {
-      const productsSnapshot = await db
-        .collection('products')
-        .where('msmeId', '==', msmeId)
-        .get();
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('msmeid', msmeId);
+      if (error) throw error;
 
       let totalProducts = 0;
       let totalStock = 0;
@@ -215,17 +163,16 @@ export class InventoryService {
       let lowStockProducts = 0;
       let outOfStockProducts = 0;
 
-      productsSnapshot.forEach(doc => {
-        const data = doc.data() as Product;
+      (products || []).forEach((data: any) => {
         totalProducts++;
-        totalStock += data.stock;
-        totalInitialStock += data.initialStock || data.stock;
+        totalStock += data.stock || 0;
+        totalInitialStock += data.initialstock ?? data.stock ?? 0;
 
         // Check for low stock (below 10% of initial stock)
-        const initialStock = data.initialStock || data.stock;
-        const stockPercentage = initialStock > 0 ? (data.stock / initialStock) * 100 : 0;
+        const initialStock = data.initialstock ?? data.stock ?? 0;
+        const stockPercentage = initialStock > 0 ? ((data.stock || 0) / initialStock) * 100 : 0;
 
-        if (data.stock === 0) {
+        if ((data.stock || 0) === 0) {
           outOfStockProducts++;
         } else if (stockPercentage <= 10) {
           lowStockProducts++;
@@ -259,24 +206,30 @@ export class InventoryService {
    */
   static async getLowStockProducts(msmeId: string, threshold: number = 10): Promise<Product[]> {
     try {
-      const productsSnapshot = await db
-        .collection('products')
-        .where('msmeId', '==', msmeId)
-        .get();
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('msmeid', msmeId);
+      if (error) throw error;
 
-      const lowStockProducts: Product[] = [];
-
-      productsSnapshot.forEach(doc => {
-        const data = { id: doc.id, ...doc.data() } as Product;
-        const initialStock = data.initialStock || data.stock;
-        const stockPercentage = initialStock > 0 ? (data.stock / initialStock) * 100 : 0;
-
-        if (stockPercentage <= threshold && data.stock > 0) {
-          lowStockProducts.push(data);
+      const results: Product[] = [] as any;
+      (products || []).forEach((data: any) => {
+        const initialStock = data.initialstock ?? data.stock ?? 0;
+        const stock = data.stock ?? 0;
+        const stockPercentage = initialStock > 0 ? (stock / initialStock) * 100 : 0;
+        if (stockPercentage <= threshold && stock > 0) {
+          results.push({
+            id: data.id,
+            name: data.name,
+            stock: stock,
+            price: data.price,
+            initialStock: initialStock,
+            msmeId: data.msmeid,
+          } as Product);
         }
       });
 
-      return lowStockProducts;
+      return results;
 
     } catch (error) {
       console.error('❌ Error getting low stock products:', error);
@@ -297,28 +250,28 @@ export class InventoryService {
     msmeId: string
   ): Promise<StockUpdateResult> {
     try {
-      const productRef = db.collection('products').doc(productId);
-      const productDoc = await productRef.get();
+      const { data: product, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+        .single();
+      if (error || !product) throw new Error('Product not found');
 
-      if (!productDoc.exists) {
-        throw new Error('Product not found');
-      }
-
-      const productData = productDoc.data() as Product;
-
-      // Verify ownership
-      if (productData.msmeId !== msmeId) {
+      if ((product as any).msmeid !== msmeId) {
         throw new Error('Unauthorized: You can only restock your own products');
       }
 
-      const newStock = productData.stock + additionalStock;
-      const newInitialStock = Math.max(productData.initialStock || productData.stock, newStock);
+      const currentStock = (product as any).stock || 0;
+      const currentInitial = (product as any).initialstock ?? currentStock;
+      const newStock = currentStock + additionalStock;
+      const newInitialStock = Math.max(currentInitial, newStock);
 
-      await productRef.update({
-        stock: newStock,
-        initialStock: newInitialStock,
-        updatedAt: new Date()
-      });
+      const { error: upErr } = await supabase
+        .from('products')
+        .update({ stock: newStock, initialstock: newInitialStock, updatedat: new Date().toISOString() })
+        .eq('id', productId)
+        .eq('msmeid', msmeId);
+      if (upErr) throw upErr;
 
       console.log('✅ Product restocked successfully:', {
         productId,
@@ -350,14 +303,13 @@ export class InventoryService {
    */
   static async checkStockAvailability(productId: string, quantity: number): Promise<boolean> {
     try {
-      const productDoc = await db.collection('products').doc(productId).get();
-      
-      if (!productDoc.exists) {
-        return false;
-      }
-
-      const productData = productDoc.data() as Product;
-      return productData.stock >= quantity;
+      const { data: product, error } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', productId)
+        .single();
+      if (error || !product) return false;
+      return ((product as any).stock || 0) >= quantity;
 
     } catch (error) {
       console.error('❌ Error checking stock availability:', error);

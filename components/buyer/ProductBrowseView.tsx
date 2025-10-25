@@ -1,29 +1,49 @@
 import React, { useState, useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
+import { useTranslate } from '../../hooks/useTranslator';
 import type { Product, MSMEDomain, User } from '../../types';
 import Modal from '../common/Modal';
 import InventoryProgressBar from '../common/InventoryProgressBar';
+import StarRating from '../common/StarRating';
 import { MSME_DOMAINS } from '../../constants';
 
 const ProductCard: React.FC<{ item: Product; supplierName: string; supplierDomain: MSMEDomain | undefined; onOrder: () => void }> = ({ item, supplierName, supplierDomain, onOrder }) => {
-    const { t } = useLocalization();
+    const { t, language } = useLocalization();
     const domainText = supplierDomain ? t(supplierDomain.toLowerCase().replace(/ /g, '_')) : 'Product';
+    
+    // Always call hooks (React rule)
+    const translatedNameRaw = useTranslate(item.name);
+    const translatedDescriptionRaw = useTranslate(item.description || '');
+    const translatedSupplierRaw = useTranslate(supplierName);
+    
+    // Use translated or original based on language
+    const translatedName = language === 'ta' ? translatedNameRaw : item.name;
+    const translatedDescription = language === 'ta' ? translatedDescriptionRaw : (item.description || '');
+    const translatedSupplier = language === 'ta' ? translatedSupplierRaw : supplierName;
 
     return (
         <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105 flex flex-col">
             <div className="p-5 flex-grow">
                 <p className="text-xs text-secondary font-semibold uppercase">{domainText}</p>
-                <h3 className="text-lg font-bold text-slate-800 mt-1">{item.name}</h3>
-                <p className="text-sm text-slate-500 mt-2">By <span className="font-semibold text-slate-600">{supplierName}</span></p>
+                <h3 className="text-lg font-bold text-slate-800 mt-1">{translatedName}</h3>
+                <p className="text-sm text-slate-500 mt-2">By <span className="font-semibold text-slate-600">{translatedSupplier}</span></p>
                 <p className="text-2xl font-extrabold text-slate-900 mt-3">₹{item.price.toLocaleString()}</p>
-                <p className="text-sm text-slate-500 mt-1">{item.description}</p>
+                <p className="text-sm text-slate-500 mt-1">{translatedDescription}</p>
                 <div className="mt-3">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-600 font-medium">Stock: {item.stock}/{item.initialStock || item.stock}</span>
+                        <StarRating 
+                            rating={item.averageRating || 0} 
+                            totalRatings={item.totalRatings || 0}
+                            size="sm"
+                        />
+                    </div>
                     <InventoryProgressBar
                         currentStock={item.stock}
                         initialStock={item.initialStock || item.stock}
                         size="sm"
-                        showNumbers={true}
+                        showNumbers={false}
                     />
                 </div>
             </div>
@@ -39,7 +59,7 @@ const ProductCard: React.FC<{ item: Product; supplierName: string; supplierDomai
 
 export const ProductBrowseView: React.FC = () => {
     const { t } = useLocalization();
-    const { products, placeOrder, users } = useAppContext();
+    const { products, placeOrder, users, currentUser } = useAppContext();
     const [domainFilter, setDomainFilter] = useState<MSMEDomain | 'all'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<'price' | 'stock' | 'name'>('name');
@@ -54,6 +74,19 @@ export const ProductBrowseView: React.FC = () => {
         users.forEach(u => map.set(u.id, u));
         return map;
     }, [users]);
+
+    // Get the current user's domain if they are an MSME user
+    const currentUserDomain = useMemo(() => {
+        return currentUser?.role === 'msme' ? currentUser.domain : undefined;
+    }, [currentUser]);
+
+    // Filter available domains to exclude MSME user's own domain
+    const availableDomains = useMemo(() => {
+        if (!currentUserDomain) {
+            return MSME_DOMAINS;
+        }
+        return MSME_DOMAINS.filter(domain => domain !== currentUserDomain);
+    }, [currentUserDomain]);
 
     const filteredProducts = useMemo(() => {
         // Debug info (production-safe)
@@ -82,12 +115,37 @@ export const ProductBrowseView: React.FC = () => {
         
         if (process.env.NODE_ENV === 'development') {
             console.log('Valid products count after filtering:', validProducts.length);
+            console.log('Current user domain (if MSME):', currentUserDomain);
+            console.log('Current user ID:', currentUser?.id);
+        }
+
+        // Exclude current user's own products (users cannot buy from themselves)
+        const notOwnProducts = validProducts.filter(item => {
+            return item.msmeId !== currentUser?.id;
+        });
+
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🚫 Excluded own products. Remaining:', notOwnProducts.length);
+        }
+
+        // If current user is an MSME (toggled to buyer mode), exclude products from their own domain
+        const domainExcludedProducts = currentUserDomain
+            ? notOwnProducts.filter(item => {
+                if (!item.msmeId) return false;
+                const supplier = allUsersMap.get(item.msmeId);
+                // Exclude products from the same domain as the MSME user
+                return supplier?.domain !== currentUserDomain;
+            })
+            : notOwnProducts;
+
+        if (process.env.NODE_ENV === 'development' && currentUserDomain) {
+            console.log(`🚫 Excluded products from domain "${currentUserDomain}". Remaining:`, domainExcludedProducts.length);
         }
 
         // Then apply domain filter
         const domainFiltered = domainFilter === 'all' 
-            ? validProducts 
-            : validProducts.filter(item => {
+            ? domainExcludedProducts 
+            : domainExcludedProducts.filter(item => {
                 if (!item.msmeId) return false; // Skip items without msmeId
                 const supplier = allUsersMap.get(item.msmeId);
                 return supplier?.domain === domainFilter;
@@ -120,7 +178,7 @@ export const ProductBrowseView: React.FC = () => {
                     return a.name.localeCompare(b.name);
             }
         });
-    }, [products, domainFilter, searchQuery, sortBy, allUsersMap]);
+    }, [products, domainFilter, searchQuery, sortBy, allUsersMap, currentUserDomain]);
 
 
     const handleOrderClick = (item: Product) => {
@@ -175,7 +233,7 @@ export const ProductBrowseView: React.FC = () => {
                             className="block appearance-none w-full bg-white border border-slate-300 hover:border-slate-400 px-4 py-2 pr-8 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         >
                             <option value="all">{t('all_domains')}</option>
-                            {MSME_DOMAINS.map(domain => (
+                            {availableDomains.map(domain => (
                                 <option key={domain} value={domain}>
                                     {t(domain.toLowerCase().replace(/ /g, '_'))}
                                 </option>
@@ -209,8 +267,15 @@ export const ProductBrowseView: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="mt-4 text-sm text-slate-600">
-                    {t('products_found')} ({filteredProducts.length})
+                <div className="mt-4 flex items-center justify-between">
+                    <div className="text-sm text-slate-600">
+                        {/* Removed products_found text */}
+                    </div>
+                    {currentUserDomain && (
+                        <div className="text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
+                            ℹ️ Showing products from other domains only
+                        </div>
+                    )}
                 </div>
             </div>
 

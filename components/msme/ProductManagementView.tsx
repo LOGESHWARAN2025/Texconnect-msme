@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
 import type { Product } from '../../types';
 import Modal from '../common/Modal';

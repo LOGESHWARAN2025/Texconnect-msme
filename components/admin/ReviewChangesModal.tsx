@@ -2,7 +2,7 @@ import React from 'react';
 import Modal from '../common/Modal';
 import type { User } from '../../types';
 import { useLocalization } from '../../hooks/useLocalization';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/SupabaseContext';
 
 interface ReviewChangesModalProps {
     isOpen: boolean;

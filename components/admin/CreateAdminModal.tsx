@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/SupabaseContext';
 import Modal from '../common/Modal';
 
 interface CreateAdminModalProps {

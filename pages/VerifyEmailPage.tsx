@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocalization } from '../hooks/useLocalization';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 
 interface VerifyEmailPageProps {
     email: string;

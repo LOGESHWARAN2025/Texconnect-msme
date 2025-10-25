@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useLocalization } from '../hooks/useLocalization';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 import Modal from './common/Modal';
 import type { InventoryItem } from '../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";

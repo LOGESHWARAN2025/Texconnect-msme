@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import MSMEApp from './MSMEApp';
 import BuyerApp from './BuyerApp';
 import ViewSwitcher from './components/common/ViewSwitcher';
-import { useAppContext } from './context/AppContext';
+import { useAppContext } from './context/SupabaseContext';
 import type { UserRole } from './types';
 
 const DemoApp: React.FC = () => {

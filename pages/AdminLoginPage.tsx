@@ -1,9 +1,7 @@
-
 import React, { useState } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 import { useLocalization } from '../hooks/useLocalization';
 import { MOCK_USERS } from '../constants';
-import { auth, db } from '../firebase';
 // fix: Removed unused v9 modular imports for auth and firestore.
 
 interface AdminLoginPageProps {

@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Fix for text-size-adjust browser compatibility */
+html,
+:host {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}

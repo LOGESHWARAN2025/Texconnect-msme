@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
-import { storage } from '../../firebase';
 import Modal from '../common/Modal';
 import { User } from '../../types';
+import { supabase } from '../../src/lib/supabase';
 
 const BuyerProfileView: React.FC = () => {
   const { t } = useLocalization();
@@ -19,6 +19,7 @@ const BuyerProfileView: React.FC = () => {
     gstNumber: '',
     companyName: ''
   });
+  const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(null);
   
   // Function to get the effective value (pending changes or current value)
   const getEffectiveValue = (field: keyof Pick<User, 'username' | 'phone' | 'address' | 'gstNumber' | 'companyName'>) => {
@@ -38,15 +39,29 @@ const BuyerProfileView: React.FC = () => {
       setError(null);
       setSuccess(false);
 
-      // Upload to Firebase Storage
-      const storageRef = storage.ref();
-      const fileRef = storageRef.child(`profile-pictures/${currentUser.id}/${file.name}`);
-      await fileRef.put(file);
-      const downloadURL = await fileRef.getDownloadURL();
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const uniqueFileName = `${currentUser.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(uniqueFileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(uniqueFileName);
+
+      const profilePictureUrl = urlData.publicUrl;
 
       // Update user profile
       await requestProfileUpdate(currentUser.id, {
-        profilePictureUrl: downloadURL
+        profilePictureUrl
       });
 
       setSuccess(true);
@@ -74,6 +89,25 @@ const BuyerProfileView: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleGstCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please upload a JPEG or PDF file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB');
+        return;
+      }
+      setGstCertificateFile(file);
+      setError(null);
+    }
+  };
+
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -87,12 +121,35 @@ const BuyerProfileView: React.FC = () => {
       if (formData.gstNumber !== currentUser.gstNumber) changes.gstNumber = formData.gstNumber;
       if (formData.companyName !== currentUser.companyName) changes.companyName = formData.companyName;
 
+      // Upload GST certificate if provided
+      if (gstCertificateFile) {
+        const fileExt = gstCertificateFile.name.split('.').pop();
+        const uniqueFileName = `${currentUser.id}/gst-certificate-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('gst-certificates')
+          .upload(uniqueFileName, gstCertificateFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('gst-certificates')
+          .getPublicUrl(uniqueFileName);
+
+        changes.gstCertificateUrl = urlData.publicUrl;
+      }
+
       if (Object.keys(changes).length > 0) {
         await requestProfileUpdate(currentUser.id, changes);
         setSuccess(true);
         setError(null);
       }
       setIsEditModalOpen(false);
+      setGstCertificateFile(null);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -164,6 +221,15 @@ const BuyerProfileView: React.FC = () => {
                 </p>
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700">Contact Person</label>
+                <p className="mt-1 text-lg">
+                  {getEffectiveValue('username')}
+                  {currentUser?.pendingChanges?.username && (
+                    <span className="ml-2 text-sm text-yellow-600">(Pending Approval)</span>
+                  )}
+                </p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700">Email</label>
                 <p className="mt-1 text-lg">{currentUser.email}</p>
               </div>
@@ -193,6 +259,24 @@ const BuyerProfileView: React.FC = () => {
                     <span className="ml-2 text-sm text-yellow-600">(Pending Approval)</span>
                   )}
                 </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">GST Certificate</label>
+                {currentUser?.gstCertificateUrl ? (
+                  <a 
+                    href={currentUser.gstCertificateUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="mt-1 text-primary hover:underline inline-flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    View Certificate
+                  </a>
+                ) : (
+                  <p className="mt-1 text-gray-400">Not uploaded</p>
+                )}
               </div>
             </div>
           </div>
@@ -268,6 +352,32 @@ const BuyerProfileView: React.FC = () => {
               aria-label="GST Registration Number"
               className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
             />
+          </div>
+          <div>
+            <label htmlFor="edit-gstCertificate" className="block text-sm font-medium text-slate-700">GST Certificate (JPEG/PDF)</label>
+            <input
+              id="edit-gstCertificate"
+              type="file"
+              accept=".jpg,.jpeg,.pdf"
+              onChange={handleGstCertificateUpload}
+              aria-label="Upload GST Certificate"
+              className="mt-1 block w-full text-sm text-slate-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-primary/10 file:text-primary
+                hover:file:bg-primary/20"
+            />
+            {currentUser?.gstCertificateUrl && (
+              <a 
+                href={currentUser.gstCertificateUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-2 text-sm text-primary hover:underline inline-block"
+              >
+                View current certificate
+              </a>
+            )}
           </div>
           <div className="flex justify-end space-x-3 pt-2">
             <button

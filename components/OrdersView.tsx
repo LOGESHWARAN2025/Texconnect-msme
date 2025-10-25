@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useLocalization } from '../hooks/useLocalization';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 import type { OrderStatus, Order } from '../types';
 import InvoiceModal from './invoice/InvoiceModal';
 
 const getStatusColor = (status: OrderStatus) => {
   switch (status) {
     case 'Pending': return 'bg-yellow-100 text-yellow-800';
+    case 'Accepted': return 'bg-cyan-100 text-cyan-800';
     case 'Shipped': return 'bg-blue-100 text-blue-800';
     case 'Delivered': return 'bg-green-100 text-green-800';
     case 'Cancelled': return 'bg-red-100 text-red-800';
@@ -18,6 +19,7 @@ const OrdersView: React.FC = () => {
   const { t, formatDate } = useLocalization();
   const { orders, updateOrderStatus, currentUser, products } = useAppContext();
   const [viewingInvoiceOrder, setViewingInvoiceOrder] = useState<Order | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const userProductIds = useMemo(() => {
     if (!currentUser || currentUser.role !== 'msme') return new Set();
@@ -28,23 +30,36 @@ const OrdersView: React.FC = () => {
   const userOrders = useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === 'msme') {
-       return orders.filter(order => order.items.some(item => userProductIds.has(item.productId)));
+       return orders.filter(order => 
+         order.items && Array.isArray(order.items) && order.items.some(item => userProductIds.has(item.productId))
+       );
     }
     // For other roles, orders are already filtered in context, but this is a safeguard.
     return orders;
   }, [orders, userProductIds, currentUser]);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    // Prevent duplicate calls
+    if (updatingOrderId === orderId) {
+      console.log('⏳ Already updating this order, skipping...');
+      return;
+    }
+
     try {
+      setUpdatingOrderId(orderId);
+      console.log('📝 Changing status to:', newStatus);
       await updateOrderStatus(orderId, newStatus);
+      console.log('✅ Status changed successfully');
     } catch (error: any) {
       const errorMessage = error?.message || error?.code || 'Unknown error occurred';
-      console.error('Failed to update order status:', errorMessage);
+      console.error('❌ Failed to update order status:', errorMessage);
       alert(`Failed to update status: ${errorMessage}. Please try again.`);
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
   
-  const orderStatuses: OrderStatus[] = ['Pending', 'Shipped', 'Delivered', 'Cancelled'];
+  const orderStatuses: OrderStatus[] = ['Pending', 'Accepted', 'Shipped', 'Delivered', 'Cancelled'];
 
   return (
     <>
@@ -81,7 +96,10 @@ const OrdersView: React.FC = () => {
                     <select
                         value={order.status}
                         onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                        className="block w-32 pl-3 pr-8 py-1 text-sm border-slate-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md"
+                        disabled={updatingOrderId === order.id}
+                        className={`block w-32 pl-3 pr-8 py-1 text-sm border-slate-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md ${
+                          updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                         aria-label={`Update status for order ${order.id}`}
                     >
                         {orderStatuses.map(status => <option key={status} value={status}>{status}</option>)}

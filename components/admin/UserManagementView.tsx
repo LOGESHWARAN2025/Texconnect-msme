@@ -1,16 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useLocalization } from '../../hooks/useLocalization';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/SupabaseContext';
 import type { User } from '../../types';
 import UserProfileModal from './UserProfileModal';
 import CreateAdminModal from './CreateAdminModal';
 import AuditLogView from './AuditLogView';
+import IssueLogView from './IssueLogView';
 import ReviewChangesModal from './ReviewChangesModal';
+import DeleteUserModal from './DeleteUserModal';
+import FeedbackLogsView from './FeedbackLogsView';
 
-type AdminViewTab = 'msme' | 'buyer' | 'admin' | 'audit';
+type AdminViewTab = 'msme' | 'buyer' | 'admin' | 'audit' | 'feedback-logs' | 'issues';
 
 // User Table Component for MSMEs and Buyers
-const UserTable: React.FC<{ users: User[], onView: (user: User) => void, onReview: (user: User) => void }> = ({ users, onView, onReview }) => {
+const UserTable: React.FC<{ users: User[], onView: (user: User) => void, onReview: (user: User) => void, onDelete: (user: User) => void }> = ({ users, onView, onReview, onDelete }) => {
   const { t } = useLocalization();
 
 
@@ -63,6 +66,12 @@ const UserTable: React.FC<{ users: User[], onView: (user: User) => void, onRevie
                     {hasPendingChanges && (
                         <button onClick={() => onReview(user)} className="text-blue-600 hover:text-blue-800 font-semibold">{t('review_changes')}</button>
                     )}
+                    <button 
+                    onClick={() => onDelete(user)}
+                    className="text-red-600 hover:text-red-800 font-semibold"
+                    >
+                    Delete
+                    </button>
                 </td>
                 </tr>
             )
@@ -74,8 +83,10 @@ const UserTable: React.FC<{ users: User[], onView: (user: User) => void, onRevie
 };
 
 // Admin Table Component
-const AdminTable: React.FC<{ users: User[] }> = ({ users }) => {
+const AdminTable: React.FC<{ users: User[], currentUser: User | null, onDelete: (user: User) => void }> = ({ users, currentUser, onDelete }) => {
     const { t } = useLocalization();
+    const isMainAdmin = currentUser?.isMainAdmin === true;
+    
     return (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
@@ -83,7 +94,11 @@ const AdminTable: React.FC<{ users: User[] }> = ({ users }) => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('user_name')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('email_address')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Admin ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Admin Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                {isMainAdmin && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
@@ -91,7 +106,30 @@ const AdminTable: React.FC<{ users: User[] }> = ({ users }) => {
                 <tr key={user.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{user.username}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{user.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{user.adminId || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                    {user.isMainAdmin ? (
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Main Admin</span>
+                    ) : (
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Sub Admin</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.isEmailVerified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      {user.isEmailVerified ? 'Verified' : 'Unverified'}
+                    </span>
+                  </td>
+                  {isMainAdmin && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {!user.isMainAdmin && user.id !== currentUser?.id && (
+                        <button 
+                          onClick={() => onDelete(user)}
+                          className="text-red-600 hover:text-red-800 font-semibold"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -102,12 +140,15 @@ const AdminTable: React.FC<{ users: User[] }> = ({ users }) => {
 
 const UserManagementView: React.FC = () => {
   const { t } = useLocalization();
-  const { users } = useAppContext();
+  const { users, currentUser } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<AdminViewTab>('msme');
   const [viewingUser, setViewingUser] = useState<User | null>(null);
   const [reviewingUser, setReviewingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [isCreateAdminModalOpen, setIsCreateAdminModalOpen] = useState(false);
+  
+  const isMainAdmin = currentUser?.isMainAdmin === true;
 
 
 
@@ -125,13 +166,17 @@ const UserManagementView: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'msme':
-        return <UserTable users={msmeUsers} onView={setViewingUser} onReview={setReviewingUser} />;
+        return <UserTable users={msmeUsers} onView={setViewingUser} onReview={setReviewingUser} onDelete={setDeletingUser} />;
       case 'buyer':
-        return <UserTable users={buyerUsers} onView={setViewingUser} onReview={setReviewingUser} />;
+        return <UserTable users={buyerUsers} onView={setViewingUser} onReview={setReviewingUser} onDelete={setDeletingUser} />;
       case 'admin':
-        return <AdminTable users={adminUsers} />;
+        return <AdminTable users={adminUsers} currentUser={currentUser} onDelete={setDeletingUser} />;
       case 'audit':
         return <AuditLogView />;
+      case 'feedback-logs':
+        return <FeedbackLogsView />;
+      case 'issues':
+        return <IssueLogView />;
       default:
         return null;
     }
@@ -171,15 +216,16 @@ const UserManagementView: React.FC = () => {
       </div>
 
       <div className="border-b border-slate-200 mb-4">
-        <nav className="flex space-x-2">
+        <nav className="flex flex-wrap space-x-2 gap-y-2">
             <TabButton tab="msme" label="MSME Approvals"/>
             <TabButton tab="buyer" label="Buyer Approvals"/>
             <TabButton tab="admin" label="Admin Management"/>
             <TabButton tab="audit" label="Audit Log"/>
+            <TabButton tab="feedback-logs" label="Feedback Logs"/>
+            <TabButton tab="issues" label="Issue Log"/>
         </nav>
       </div>
-
-      {activeTab === 'admin' && (
+      {activeTab === 'admin' && isMainAdmin && (
         <div className="flex justify-end mb-4">
             <button
                 onClick={() => setIsCreateAdminModalOpen(true)}
@@ -207,6 +253,11 @@ const UserManagementView: React.FC = () => {
         isOpen={!!reviewingUser}
         onClose={() => setReviewingUser(null)}
         user={reviewingUser}
+      />
+      <DeleteUserModal
+        isOpen={!!deletingUser}
+        onClose={() => setDeletingUser(null)}
+        user={deletingUser}
       />
     </div>
   );

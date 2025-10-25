@@ -1,10 +1,9 @@
 
 import React, { useState } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 import { useLocalization } from '../hooks/useLocalization';
 import Modal from '../components/common/Modal';
-import { auth } from '../firebase';
-// fix: Removed unused import from `firebase/auth` as `sendPasswordResetEmail` is called via the `auth` object in v8.
+import { supabase } from '../src/lib/supabase';
 
 interface LoginPageProps {
   onSwitchToRegister: () => void;
@@ -73,28 +72,36 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
     setError('');
     setUnverifiedEmail(null);
     setIsLoading(true);
-    const result = await socialLogin(provider);
-    setIsLoading(false);
+    
+    try {
+      const result = await socialLogin(provider);
+      setIsLoading(false);
 
-    if (!result.success) {
-      if (result.reason === 'USER_NOT_FOUND') {
-         setError('No account found with this social profile. Please sign up first.');
-      } else {
-         setError('An error occurred during social login. Please try again.');
+      if (!result.success) {
+        if (result.reason === 'USER_NOT_FOUND') {
+           setError('No account found with this social profile. Please sign up first.');
+        } else {
+           setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} login is not configured yet. Please use email/password login or contact support.`);
+        }
       }
+      // On success, AppContext handles navigation
+    } catch (error) {
+      setIsLoading(false);
+      setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} login is not available. Please use email/password login.`);
     }
-    // On success, AppContext handles navigation
   };
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsResettingPassword(true);
     try {
-      // fix: Use Firebase v8 `auth.sendPasswordResetEmail` syntax.
-      await auth.sendPasswordResetEmail(resetEmail);
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
       setResetEmailSent(true);
     } catch (error) {
-      console.error(`Error sending password reset email: ${(error as any).code} - ${(error as any).message}`);
+      console.error(`Error sending password reset email:`, error);
       // For security, show the success message even on failure to prevent email enumeration.
       setResetEmailSent(true);
     } finally {
@@ -196,6 +203,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
           </div>
         </form>
 
+        {/* Social Login */}
         <div className="mt-6">
           <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -220,8 +228,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
               </div>
               <div>
                   <button onClick={() => handleSocialLogin('apple')} className="w-full inline-flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-500 hover:bg-slate-50">
-                      <span className="sr-only">Sign in with Apple</span>
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.993.883L4 8v10a1 1 0 001 1h10a1 1 0 001-1V8a1 1 0 00-1-1h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zM8.22 12.78a.75.75 0 001.06 1.06l1.22-1.22 1.22 1.22a.75.75 0 101.06-1.06L11.06 11.5l1.22-1.22a.75.75 0 00-1.06-1.06L10 10.44l-1.22-1.22a.75.75 0 00-1.06 1.06l1.22 1.22-1.22 1.22z" clipRule="evenodd" /></svg>
+                      <span className="sr-only">Sign in as Guest</span>
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
                   </button>
               </div>
               <div>

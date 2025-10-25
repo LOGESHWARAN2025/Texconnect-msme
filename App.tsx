@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppProvider, useAppContext } from './context/AppContext';
+import { AppProvider, useAppContext } from './context/SupabaseContext';
 import { LocalizationProvider } from './context/LocalizationContext';
 import AdminApp from './AdminApp';
 import LoginPage from './pages/LoginPage';
@@ -20,6 +20,15 @@ const AppRouter: React.FC = () => {
   const [authView, setAuthView] = useState<'login' | 'register' | 'adminLogin' | 'verifyEmail'>('login');
   const [userToVerify, setUserToVerify] = useState<string | null>(null);
 
+  console.log('AppRouter: isLoading=', isLoading, 'currentUser=', currentUser);
+  console.log('AppRouter: currentUser details:', currentUser ? {
+    id: currentUser.id,
+    email: currentUser.email,
+    role: currentUser.role,
+    isEmailVerified: currentUser.isEmailVerified,
+    isApproved: currentUser.isApproved
+  } : 'null');
+
   const handleRegistrationSuccess = (email: string) => {
     setUserToVerify(email);
     setAuthView('verifyEmail');
@@ -31,6 +40,7 @@ const AppRouter: React.FC = () => {
   }
   
   if (isLoading) {
+    console.log('AppRouter: Showing loading spinner');
     return <LoadingSpinner />;
   }
 
@@ -56,13 +66,19 @@ const AppRouter: React.FC = () => {
     return <VerifyEmailPage email={currentUser.email} onVerificationComplete={() => window.location.reload()} />;
   }
 
+  console.log('App.tsx: Current user role:', currentUser.role);
+  console.log('App.tsx: Current user data:', currentUser);
+  
   switch (currentUser.role) {
     case 'msme':
     case 'buyer':
+      console.log('App.tsx: Rendering DemoApp');
       return <DemoApp />;
     case 'admin':
+      console.log('App.tsx: Rendering AdminApp');
       return <AdminApp />;
     default:
+      console.log('App.tsx: No role match, showing login');
       return <LoginPage onSwitchToRegister={() => setAuthView('register')} onSwitchToAdminLogin={() => setAuthView('adminLogin')} onNeedsVerification={handleNeedsVerification} />;
   }
 };
@@ -80,6 +96,8 @@ const AppUI: React.FC = () => {
 
 
 const App: React.FC = () => {
+  console.log('App.tsx: App component rendering');
+  
   return (
     <AppProvider>
       <LocalizationProvider>

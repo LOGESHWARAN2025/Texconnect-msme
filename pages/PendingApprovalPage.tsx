@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocalization } from '../hooks/useLocalization';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 
 const PendingApprovalPage: React.FC = () => {
     const { t } = useLocalization();

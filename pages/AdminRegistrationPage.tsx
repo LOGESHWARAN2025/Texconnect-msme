@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 import { useLocalization } from '../hooks/useLocalization';
+import EmailVerificationNotice from '../components/EmailVerificationNotice';
+import { supabase } from '../src/lib/supabase';
 
 interface AdminRegistrationPageProps {
   onSwitchToLogin: () => void;
@@ -43,10 +45,30 @@ const AdminRegistrationPage: React.FC<AdminRegistrationPageProps> = ({ onSwitchT
   
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showVerificationNotice, setShowVerificationNotice] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleResendVerificationEmail = async () => {
+    try {
+      await supabase.auth.resend({
+        type: 'signup',
+        email: registeredEmail,
+      });
+      alert('Verification email sent! Please check your inbox.');
+    } catch (error) {
+      console.error('Error resending email:', error);
+      alert('Failed to resend verification email. Please try again.');
+    }
+  };
+
+  const handleCloseVerificationNotice = () => {
+    setShowVerificationNotice(false);
+    onSwitchToLogin();
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -61,11 +83,15 @@ const AdminRegistrationPage: React.FC<AdminRegistrationPageProps> = ({ onSwitchT
 
     if (allFieldsFilled) {
       const result = await register({ ...formData, role: 'admin', address: '' });
-      if (result.success) {
-        alert("Admin registration successful! Please check your email to verify your account, then you can log in.");
-        onSwitchToLogin();
+      if (result.success && result.user) {
+        setRegisteredEmail(result.user.email);
+        setShowVerificationNotice(true);
       } else {
-        alert(`Registration failed. Reason: ${result.reason || 'Unknown error'}`);
+        const errorMessage = result.message || 
+          (result.reason === 'EMAIL_EXISTS' ? 'An account with this email already exists.' :
+           result.reason === 'DATABASE_ERROR' ? 'Database error. Please check console for details.' :
+           'Registration failed. Please try again.');
+        alert(`Registration failed: ${errorMessage}`);
       }
     } else {
         alert("Please fill all required fields.");
@@ -114,6 +140,14 @@ const AdminRegistrationPage: React.FC<AdminRegistrationPageProps> = ({ onSwitchT
           </button>
         </p>
       </div>
+
+      {showVerificationNotice && (
+        <EmailVerificationNotice
+          email={registeredEmail}
+          onResendEmail={handleResendVerificationEmail}
+          onClose={handleCloseVerificationNotice}
+        />
+      )}
     </div>
   );
 };

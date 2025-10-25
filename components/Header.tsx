@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocalization } from '../hooks/useLocalization';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/SupabaseContext';
 import type { View } from '../types';
 
 interface HeaderProps {
@@ -17,6 +17,7 @@ const Header: React.FC<HeaderProps> = ({ currentView }) => {
     orders: t('track_orders'),
     profile: t('your_profile'),
     products: t('manage_products'),
+    'inventory-dashboard': t('dashboard_overview'), // Legacy route, now merged with dashboard
   };
 
   return (
@@ -41,7 +42,15 @@ const Header: React.FC<HeaderProps> = ({ currentView }) => {
             <span className="font-medium text-slate-700">{currentUser?.username}</span>
             <p className="text-xs text-slate-500">{t('gst_number')}: {currentUser?.gstNumber}</p>
           </div>
-          <img src={`https://i.pravatar.cc/40?u=${currentUser?.email}`} alt="User Avatar" className="w-10 h-10 rounded-full" />
+          {currentUser?.profilePictureUrl ? (
+            <img src={currentUser.profilePictureUrl} alt="User Avatar" className="w-10 h-10 rounded-full object-cover" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
+              <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+          )}
         </div>
         <button onClick={logout} className="text-slate-500 hover:text-primary" title={t('logout')}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
