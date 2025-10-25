@@ -19,8 +19,18 @@ const InventoryView: React.FC = () => {
 
   // Filter inventory to only show items belonging to the current user
   const userInventory = useMemo(() => {
-    if (!currentUser) return [];
-    return inventory.filter(item => item.msmeId === currentUser.id);
+    if (!currentUser) {
+      console.log('❌ No current user in InventoryView');
+      return [];
+    }
+    const filtered = inventory.filter(item => item.msmeId === currentUser.id);
+    console.log('📦 Inventory View:', {
+      totalInventory: inventory.length,
+      userInventory: filtered.length,
+      currentUserId: currentUser.id,
+      inventoryItems: filtered.map(i => ({ id: i.id, name: i.name, stock: i.stock }))
+    });
+    return filtered;
   }, [inventory, currentUser]);
 
   const openModal = (item: InventoryItem | null = null) => {

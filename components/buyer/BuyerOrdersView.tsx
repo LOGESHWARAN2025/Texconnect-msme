@@ -52,11 +52,23 @@ const BuyerOrdersView: React.FC = () => {
       return;
     }
 
+    // Get productId from the first item in the order
+    const productId = feedbackOrder.items && feedbackOrder.items.length > 0 
+      ? feedbackOrder.items[0].productId 
+      : null;
+
+    if (!productId) {
+      console.error('❌ No product ID found in order');
+      alert('Error: Cannot submit feedback - product not found');
+      return;
+    }
+
     console.log('📝 Submitting feedback:', {
       userid: currentUser.id,
       username: currentUser.username,
       userrole: currentUser.role,
       orderid: feedbackOrder.id,
+      productid: productId,
       rating: data.rating,
       category: data.category
     });
@@ -69,6 +81,7 @@ const BuyerOrdersView: React.FC = () => {
           username: currentUser.username,
           userrole: currentUser.role,
           orderid: feedbackOrder.id,
+          productid: productId, // ✅ CRITICAL: Link feedback to product
           rating: data.rating,
           comment: data.comment,
           category: data.category,
@@ -82,7 +95,8 @@ const BuyerOrdersView: React.FC = () => {
       }
 
       console.log('✅ Feedback submitted successfully:', insertedData);
-      alert('Thank you for your feedback!');
+      console.log('✅ Product rating will update automatically via trigger');
+      alert('Thank you for your feedback! Product rating updated.');
       setFeedbackOrder(null); // Reset state
     } catch (error: any) {
       console.error('❌ Error submitting feedback:', error);
@@ -148,8 +162,8 @@ const BuyerOrdersView: React.FC = () => {
             {myOrders.length > 0 ? myOrders.map(order => (
               <tr key={order.id} className="hover:bg-slate-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{order.id?.substring(0, 8) || 'N/A'}...</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{order.date ? formatDate(order.date) : 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">₹{(order.total || 0).toLocaleString('en-IN')}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatDate(order.createdAt || order.date || new Date().toISOString())}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">₹{(order.totalAmount || order.total || 0).toLocaleString('en-IN')}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status || 'Pending')}`}>
                         {order.status || 'Pending'}

@@ -3,7 +3,7 @@ import Modal from '../common/Modal';
 import { useLocalization } from '../../hooks/useLocalization';
 import { useAppContext } from '../../context/SupabaseContext';
 import InvoiceTemplateA4 from './InvoiceTemplateA4';
-import type { Order, InventoryItem } from '../../types';
+import type { Order, InventoryItem, Product } from '../../types';
 
 // Declare global variables for CDN libraries to satisfy TypeScript
 declare const jspdf: any;
@@ -17,7 +17,7 @@ interface InvoiceModalProps {
 
 const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, order }) => {
     const { t } = useLocalization();
-    const { users, inventory } = useAppContext();
+    const { users, inventory, products } = useAppContext();
     const [isDownloading, setIsDownloading] = useState(false);
 
     const invoiceData = useMemo(() => {
@@ -42,9 +42,15 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, order }) =
             return null;
         }
         
-        const productInfo = inventory.find(i => i.id === firstItemInOrder.productId);
+        // Try to find in products first, then inventory
+        let productInfo: Product | InventoryItem | undefined = products.find(p => p.id === firstItemInOrder.productId);
+        if (!productInfo) {
+            productInfo = inventory.find(i => i.id === firstItemInOrder.productId);
+        }
+        
         if (!productInfo) {
             console.log('❌ Product not found. Looking for:', firstItemInOrder.productId);
+            console.log('Available products:', products.map(p => p.id));
             console.log('Available inventory:', inventory.map(i => i.id));
             return null;
         }
@@ -55,9 +61,30 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, order }) =
         }
 
         const itemsWithDetails = order.items.map(orderItem => {
-            const inventoryItem = inventory.find(i => i.id === orderItem.productId);
-            return { ...inventoryItem, quantity: orderItem.quantity } as (InventoryItem & { quantity: number });
-        }).filter(item => item.id); // Filter out any items that couldn't be found
+            // Try products first, then inventory
+            let item: Product | InventoryItem | undefined = products.find(p => p.id === orderItem.productId);
+            if (!item) {
+                item = inventory.find(i => i.id === orderItem.productId);
+            }
+            // Convert to InventoryItem format for invoice template
+            if (item) {
+                return {
+                    id: item.id,
+                    msmeId: item.msmeId,
+                    name: item.name,
+                    description: item.description,
+                    price: item.price,
+                    stock: item.stock,
+                    category: 'category' in item ? item.category : '',
+                    unitOfMeasure: 'unitOfMeasure' in item ? item.unitOfMeasure : 'unit',
+                    minStockLevel: 'minStockLevel' in item ? item.minStockLevel : 0,
+                    quantity: orderItem.quantity,
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt
+                } as InventoryItem & { quantity: number };
+            }
+            return null;
+        }).filter((item): item is InventoryItem & { quantity: number } => item !== null);
 
         if (!buyer || !seller || itemsWithDetails.length === 0) {
             console.log('❌ Missing data - Buyer:', !!buyer, 'Seller:', !!seller, 'Items:', itemsWithDetails.length);
@@ -67,7 +94,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, order }) =
         console.log('✅ Invoice data loaded successfully');
         return { order, buyer, seller, items: itemsWithDetails };
 
-    }, [order, users, inventory]);
+    }, [order, users, inventory, products]);
 
     const handleDownloadPdf = () => {
         const invoiceElement = document.getElementById('invoice-content');

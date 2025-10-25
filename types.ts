@@ -99,18 +99,25 @@ export interface Product {
 
 export type OrderStatus = 'Pending' | 'Accepted' | 'Shipped' | 'Delivered' | 'Cancelled';
 
+// Updated to match new database schema with camelCase columns
 export interface Order {
-  id: string; // Firestore Document ID
+  id: string;
   buyerId: string;
   buyerName: string;
-  buyerGst: string;
+  itemName: string;
+  buyerGst?: string;
   buyerPhone?: string;
-  date: string;
+  date?: string; // Legacy field
+  createdAt?: string;
+  updatedAt?: string;
   status: OrderStatus;
-  total: number;
+  total?: number; // Legacy field
+  totalAmount: number;
   items: {
     productId: string;
+    productName?: string;
     quantity: number;
+    price?: number;
   }[];
   shippingAddress?: Address;
 }

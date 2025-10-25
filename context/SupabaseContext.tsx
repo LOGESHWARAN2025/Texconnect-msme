@@ -409,7 +409,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
     if (data) {
       console.log('✅ Products fetched:', data.length, 'products');
+      console.log('📦 Raw products from database:', data.map(p => ({ 
+        id: p.id, 
+        name: p.name, 
+        msmeid: p.msmeid,
+        msmeId: p.msmeId 
+      })));
       const mappedProducts = data.map(mapDatabaseProductToType);
+      console.log('📦 Mapped products:', mappedProducts.map(p => ({ 
+        id: p.id, 
+        name: p.name, 
+        msmeId: p.msmeId 
+      })));
       setProducts(mappedProducts);
     }
   };
@@ -424,6 +435,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const channel = supabase
       .channel('orders-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        console.log('🔔 Orders real-time event:', payload.eventType, payload);
+        if (payload.eventType === 'DELETE') {
+          console.log('🗑️ Order deleted:', payload.old);
+        } else if (payload.eventType === 'INSERT') {
+          console.log('➕ New order:', payload.new);
+        } else if (payload.eventType === 'UPDATE') {
+          console.log('✏️ Order updated:', payload.new);
+        }
         fetchOrders();
       })
       .subscribe();
@@ -772,11 +791,16 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       throw new Error('Unauthorized');
     }
 
-    // Remove msmeId (camelCase) and use lowercase version for Supabase
-    const { msmeId, ...restData } = itemData as any;
-
+    // Map camelCase to lowercase for database
     const itemWithMetadata = {
-      ...restData,
+      name: itemData.name,
+      category: itemData.category,
+      description: itemData.description || '',
+      stock: itemData.stock,
+      price: itemData.price,
+      unitofmeasure: itemData.unitOfMeasure,
+      minstocklevel: itemData.minStockLevel,
+      status: itemData.status || 'active',
       msmeid: currentUser.id,
       createdat: new Date().toISOString(),
       updatedat: new Date().toISOString()
@@ -924,7 +948,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     
     const { data, error } = await supabase
       .from('orders')
-      .update({ status })
+      .update({ 
+        status,
+        updatedAt: new Date().toISOString() // Explicitly update timestamp
+      })
       .eq('id', orderId)
       .select();
 
@@ -951,26 +978,32 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const orderData = {
       buyerId: currentUser.id,
       buyerName: currentUser.username,
-      buyerGst: currentUser.gstNumber,
+      itemName: item.name,
       items: [{
         productId: item.id,
-        quantity: quantity
+        productName: item.name,
+        quantity: quantity,
+        price: item.price
       }],
-      total: item.price * quantity,
+      totalAmount: item.price * quantity,
       status: 'Pending' as OrderStatus,
-      date: new Date().toISOString()
+      createdAt: new Date().toISOString()
     };
 
-    const { error } = await supabase.from('orders').insert([orderData]);
-    if (error) throw error;
+    console.log('📦 Placing order with data:', orderData);
 
-    // Update stock
-    const newStock = item.stock - quantity;
-    const tableName = 'msmeId' in item ? 'inventory' : 'products';
-    await supabase
-      .from(tableName)
-      .update({ stock: newStock })
-      .eq('id', item.id);
+    const { data, error } = await supabase.from('orders').insert([orderData]).select();
+    
+    if (error) {
+      console.error('❌ Order placement error:', error);
+      throw error;
+    }
+
+    console.log('✅ Order placed successfully:', data);
+    console.log('ℹ️ Stock will be deducted when MSME accepts the order');
+    
+    // Stock deduction removed - now handled by database trigger when order is accepted
+    // This prevents stock from being locked for pending orders that may be cancelled
   };
 
   const restockProduct = async (productId: string, additionalStock: number): Promise<boolean> => {

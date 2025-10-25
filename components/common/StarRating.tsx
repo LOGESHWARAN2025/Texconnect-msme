@@ -50,11 +50,7 @@ const StarRating: React.FC<StarRatingProps> = ({
   };
 
   if (rating === 0 && totalRatings === 0) {
-    return (
-      <span className={`${sizeClasses[size]} text-slate-400`}>
-        No ratings yet
-      </span>
-    );
+    return null; // Don't show anything if no ratings
   }
 
   return (

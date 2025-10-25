@@ -50,12 +50,12 @@ export const getDailySalesTrends = async (msmeId: string, days: number = 30): Pr
     const msmeProductIds = new Set((productsData || []).map((p: any) => p.id));
 
     // Fetch orders within date range and Delivered status
-    const { data: ordersData, error: ordersError } = await supabase
+    const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('*')
       .eq('status', 'Delivered')
-      .gte('createdat', startDate.toISOString())
-      .lte('createdat', endDate.toISOString());
+      .gte('createdAt', startDate.toISOString())
+      .lte('createdAt', endDate.toISOString());
 
     if (ordersError) throw ordersError;
 
@@ -68,7 +68,7 @@ export const getDailySalesTrends = async (msmeId: string, days: number = 30): Pr
   }
 
     // Filter orders that contain MSME products and calculate sales
-    const limited = (ordersData || []).slice(0, 1000);
+    const limited = (orders || []).slice(0, 1000);
     for (const order of limited as any[]) {
       const items = order.items || [];
       let orderTotal = 0;
@@ -82,7 +82,7 @@ export const getDailySalesTrends = async (msmeId: string, days: number = 30): Pr
       }
       
       if (orderTotal > 0) {
-        const orderDateStr = format(new Date(order.createdat || order.date), 'yyyy-MM-dd');
+        const orderDateStr = format(new Date(order.createdAt || order.date), 'yyyy-MM-dd');
         const currentTotal = salesByDay.get(orderDateStr) || 0;
         salesByDay.set(orderDateStr, currentTotal + orderTotal);
       }
@@ -127,7 +127,7 @@ export const getStockLevelTrends = async (msmeId: string): Promise<FormattedStoc
     const { data: recentOrders, error: recentOrdersError } = await supabase
       .from('orders')
       .select('*')
-      .gte('createdat', thirtyDaysAgo.toISOString());
+      .gte('createdAt', thirtyDaysAgo.toISOString());
 
     if (recentOrdersError) throw recentOrdersError;
 

@@ -24,16 +24,63 @@ const OrdersView: React.FC = () => {
   const userProductIds = useMemo(() => {
     if (!currentUser || currentUser.role !== 'msme') return new Set();
     const userProducts = products.filter(item => item.msmeId === currentUser.id);
+    console.log('🏭 MSME Products:', {
+      totalProducts: products.length,
+      userProducts: userProducts.length,
+      currentUserId: currentUser.id,
+      productIds: userProducts.map(p => p.id)
+    });
     return new Set(userProducts.map(item => item.id));
   }, [products, currentUser]);
 
   const userOrders = useMemo(() => {
-    if (!currentUser) return [];
-    if (currentUser.role === 'msme') {
-       return orders.filter(order => 
-         order.items && Array.isArray(order.items) && order.items.some(item => userProductIds.has(item.productId))
-       );
+    if (!currentUser) {
+      console.log('❌ No current user in OrdersView');
+      return [];
     }
+    
+    console.log('📋 OrdersView - Filtering orders:', {
+      role: currentUser.role,
+      totalOrders: orders.length,
+      userProductIds: Array.from(userProductIds)
+    });
+    
+    if (currentUser.role === 'msme') {
+      // Debug each order
+      orders.forEach((order, index) => {
+        console.log(`Order ${index + 1}:`, {
+          id: order.id?.substring(0, 8),
+          buyerName: order.buyerName,
+          items: order.items,
+          itemsIsArray: Array.isArray(order.items),
+          itemsLength: order.items?.length,
+          productIds: order.items?.map((item: any) => item.productId)
+        });
+      });
+      
+      const filtered = orders.filter(order => {
+        if (!order.items || !Array.isArray(order.items)) {
+          console.log('⚠️ Order has no items array:', order.id);
+          return false;
+        }
+        
+        const hasMatchingProduct = order.items.some(item => {
+          const matches = userProductIds.has(item.productId);
+          console.log('  Item check:', {
+            productId: item.productId,
+            productName: item.productName,
+            matches: matches
+          });
+          return matches;
+        });
+        
+        return hasMatchingProduct;
+      });
+      
+      console.log('✅ Filtered MSME orders:', filtered.length);
+      return filtered;
+    }
+    
     // For other roles, orders are already filtered in context, but this is a safeguard.
     return orders;
   }, [orders, userProductIds, currentUser]);
@@ -84,9 +131,9 @@ const OrdersView: React.FC = () => {
               <tr key={order.id} className="hover:bg-slate-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{order.id.substring(0,8)}...</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{order.buyerName}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{order.buyerGst}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatDate(order.date)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">₹{order.total.toLocaleString('en-IN')}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{order.itemName || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatDate(order.createdAt || order.date || new Date().toISOString())}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">₹{(order.totalAmount || 0).toLocaleString('en-IN')}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
                         {order.status}

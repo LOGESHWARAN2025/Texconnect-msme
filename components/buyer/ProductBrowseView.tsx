@@ -12,6 +12,14 @@ const ProductCard: React.FC<{ item: Product; supplierName: string; supplierDomai
     const { t, language } = useLocalization();
     const domainText = supplierDomain ? t(supplierDomain.toLowerCase().replace(/ /g, '_')) : 'Product';
     
+    // Debug: Log rating values
+    console.log('🌟 Product Rating Debug:', {
+        productName: item.name,
+        averageRating: item.averageRating,
+        totalRatings: item.totalRatings,
+        hasRating: item.averageRating && item.averageRating > 0
+    });
+    
     // Always call hooks (React rule)
     const translatedNameRaw = useTranslate(item.name);
     const translatedDescriptionRaw = useTranslate(item.description || '');
