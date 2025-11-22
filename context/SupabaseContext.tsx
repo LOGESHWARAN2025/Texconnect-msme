@@ -108,6 +108,7 @@ const mapDatabaseProductToType = (dbProduct: any): Product => {
     price: dbProduct.price || 0,
     stock: dbProduct.stock || 0,
     initialStock: dbProduct.initialstock || dbProduct.initialStock || dbProduct.stock || 0,
+    recipe: dbProduct.recipe || [],
     averageRating: dbProduct.averageRating || dbProduct.averagerating || 0,
     totalRatings: dbProduct.totalRatings || dbProduct.totalratings || 0,
     createdAt: dbProduct.createdat || dbProduct.createdAt || null,
@@ -121,11 +122,13 @@ const mapDatabaseInventoryToType = (dbItem: any): InventoryItem => {
     id: dbItem.id,
     msmeId: dbItem.msmeid || dbItem.msmeId,
     name: dbItem.name,
-    category: dbItem.category,
+    category: dbItem.category || '',
     description: dbItem.description || '',
     stock: dbItem.stock || 0,
+    reserved: dbItem.reserved || 0,
+    bought: dbItem.bought || 0,
     price: dbItem.price || 0,
-    unitOfMeasure: dbItem.unitofmeasure || dbItem.unitOfMeasure || '',
+    unitOfMeasure: dbItem.unitofmeasure || dbItem.unitOfMeasure || 'unit',
     minStockLevel: dbItem.minstocklevel || dbItem.minStockLevel || 0,
     status: dbItem.status || 'active',
     createdAt: dbItem.createdat || dbItem.createdAt || null,
@@ -362,20 +365,55 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, [currentUser]);
 
   const fetchInventory = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      console.log('❌ fetchInventory: No current user');
+      return;
+    }
+
+    console.log('🔄 Fetching inventory for user:', {
+      id: currentUser.id,
+      role: currentUser.role,
+      username: currentUser.username
+    });
 
     let query = supabase.from('inventory').select('*');
 
     if (currentUser.role === 'msme') {
+      console.log('📦 Filtering inventory by msmeid:', currentUser.id);
       query = query.eq('msmeid', currentUser.id);
     } else if (currentUser.role === 'buyer') {
+      console.log('📦 Filtering inventory by status: active');
       query = query.eq('status', 'active');
     }
 
     const { data, error } = await query;
-    if (data && !error) {
+    
+    if (error) {
+      console.error('❌ Error fetching inventory:', error);
+      return;
+    }
+    
+    if (data) {
+      console.log('✅ Inventory fetched:', data.length, 'items');
+      console.log('📦 Raw inventory data:', data.map(i => ({
+        id: i.id,
+        name: i.name,
+        msmeid: i.msmeid,
+        stock: i.stock,
+        reserved: i.reserved
+      })));
       const mappedInventory = data.map(mapDatabaseInventoryToType);
+      console.log('📦 Mapped inventory:', mappedInventory.map(i => ({
+        id: i.id,
+        name: i.name,
+        msmeId: i.msmeId,
+        stock: i.stock,
+        reserved: i.reserved
+      })));
       setInventory(mappedInventory);
+    } else {
+      console.log('⚠️ No inventory data returned');
+      setInventory([]);
     }
   };
 
@@ -455,22 +493,48 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, [currentUser]);
 
   const fetchOrders = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      console.log('❌ fetchOrders: No current user');
+      return;
+    }
+
+    console.log('🔄 Fetching orders for user:', {
+      id: currentUser.id,
+      role: currentUser.role,
+      username: currentUser.username
+    });
 
     let query = supabase.from('orders').select('*');
 
     if (currentUser.role === 'buyer') {
+      console.log('📦 Filtering orders by buyerId:', currentUser.id);
       query = query.eq('buyerId', currentUser.id);
+    } else if (currentUser.role === 'msme') {
+      console.log('📦 Fetching all orders (will filter by product ownership in component)');
     }
     // For MSME users, fetch all orders (filtering will be done in the component based on product ownership)
     // For admin, fetch all orders
 
     const { data, error } = await query;
-    if (data && !error) {
-      console.log('✅ Orders fetched:', data.length, 'orders for role:', currentUser.role);
-      setOrders(data as Order[]);
-    } else if (error) {
+    
+    if (error) {
       console.error('❌ Error fetching orders:', error);
+      return;
+    }
+    
+    if (data) {
+      console.log('✅ Orders fetched:', data.length, 'orders for role:', currentUser.role);
+      console.log('📦 Orders data:', data.map(o => ({
+        id: o.id,
+        buyerId: o.buyerId,
+        buyerName: o.buyerName,
+        status: o.status,
+        items: o.items
+      })));
+      setOrders(data as Order[]);
+    } else {
+      console.log('⚠️ No orders data returned');
+      setOrders([]);
     }
   };
 
@@ -797,6 +861,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       category: itemData.category,
       description: itemData.description || '',
       stock: itemData.stock,
+      bought: itemData.bought || 0,
       price: itemData.price,
       unitofmeasure: itemData.unitOfMeasure,
       minstocklevel: itemData.minStockLevel,
@@ -819,11 +884,19 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       throw new Error('Unauthorized');
     }
 
-    const { id, msmeId, ...data } = updatedItem as any;
+    const { id, msmeId, createdAt, updatedAt, ...data } = updatedItem as any;
     
     // Map camelCase to lowercase for Supabase
     const updateData: any = {
-      ...data,
+      name: data.name,
+      category: data.category,
+      description: data.description || '',
+      stock: data.stock,
+      bought: data.bought || 0,
+      price: data.price,
+      unitofmeasure: data.unitOfMeasure,
+      minstocklevel: data.minStockLevel,
+      status: data.status || 'active',
       updatedat: new Date().toISOString()
     };
     
@@ -1000,10 +1073,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
 
     console.log('✅ Order placed successfully:', data);
-    console.log('ℹ️ Stock will be deducted when MSME accepts the order');
+    console.log('ℹ️ Stock deducted by database trigger');
     
-    // Stock deduction removed - now handled by database trigger when order is accepted
-    // This prevents stock from being locked for pending orders that may be cancelled
+    // Refresh products to show updated stock
+    await fetchProducts();
+    console.log('✅ Products refreshed after order placement');
   };
 
   const restockProduct = async (productId: string, additionalStock: number): Promise<boolean> => {

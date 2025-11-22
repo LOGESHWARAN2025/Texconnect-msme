@@ -51,9 +51,6 @@ const AdminApp: React.FC = () => {
     <div className="flex flex-col h-full">
       <AdminHeader />
       <main className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8">
-        <div style={{padding: '20px', background: 'white'}}>
-          <h1>Admin App Loaded - Current View: {currentView}</h1>
-        </div>
         {renderView()}
       </main>
     </div>

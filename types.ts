@@ -74,13 +74,20 @@ export interface InventoryItem {
   name: string;
   category: string;
   description?: string;
-  stock: number;
+  stock: number; // Total stock
+  reserved?: number; // Stock reserved for pending orders
+  bought?: number; // Stock bought/purchased
   price: number;
   unitOfMeasure: string;
   minStockLevel: number;
   status?: 'active' | 'inactive';
   createdAt?: Date | null; // Date object
   updatedAt?: Date | null; // Date object
+}
+
+export interface ProductRecipeItem {
+  inventoryId: string;
+  quantity: number;
 }
 
 export interface Product {
@@ -91,6 +98,7 @@ export interface Product {
   price: number;
   stock: number; // Current stock
   initialStock: number; // Initial stock when product was created
+  recipe?: ProductRecipeItem[]; // Links to inventory items needed to make this product
   averageRating?: number; // Average rating (0-5)
   totalRatings?: number; // Total number of ratings
   createdAt?: Date | null; // Date object

@@ -26,8 +26,14 @@ const InventoryDashboard: React.FC = () => {
 
   // Filter products for current MSME user
   const msmeProducts = useMemo(() => {
-    if (!currentUser) return [];
-    return products.filter((product: any) => (product.msmeId || product.msmeid) === currentUser.id);
+    if (!currentUser) {
+      console.log('❌ InventoryDashboard: No current user');
+      return [];
+    }
+    const filtered = products.filter((product: any) => (product.msmeId || product.msmeid) === currentUser.id);
+    console.log('📦 InventoryDashboard: Filtered products:', filtered.length, 'out of', products.length);
+    console.log('📦 InventoryDashboard: Products:', filtered.map(p => ({ id: p.id, name: p.name, stock: p.stock })));
+    return filtered;
   }, [products, currentUser]);
 
   // Load inventory statistics

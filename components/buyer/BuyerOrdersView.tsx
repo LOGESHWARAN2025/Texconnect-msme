@@ -37,7 +37,16 @@ const BuyerOrdersView: React.FC = () => {
       if (error) throw error;
 
       console.log('✅ Order deleted successfully');
-      alert('Order deleted successfully!');
+      console.log('ℹ️ Stock restored by database trigger');
+      
+      // Trigger products refetch by touching the products table
+      // This will cause the realtime subscription to fire
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      alert('Order deleted successfully! Product stock has been restored.');
+      
+      // Reload page to show updated stock
+      window.location.reload();
     } catch (error) {
       console.error('❌ Error deleting order:', error);
       alert('Failed to delete order. Please try again.');

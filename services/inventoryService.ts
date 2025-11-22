@@ -151,11 +151,25 @@ export class InventoryService {
    */
   static async getInventoryStats(msmeId: string): Promise<InventoryStats> {
     try {
+      console.log('🔄 InventoryService: Fetching stats for MSME:', msmeId);
+      
       const { data: products, error } = await supabase
         .from('products')
         .select('*')
         .eq('msmeid', msmeId);
-      if (error) throw error;
+      
+      if (error) {
+        console.error('❌ InventoryService: Error fetching products:', error);
+        throw error;
+      }
+
+      console.log('📦 InventoryService: Products fetched:', products?.length || 0);
+      console.log('📦 InventoryService: Raw products:', products?.map(p => ({
+        id: p.id,
+        name: p.name,
+        stock: p.stock,
+        initialstock: p.initialstock
+      })));
 
       let totalProducts = 0;
       let totalStock = 0;
@@ -183,7 +197,7 @@ export class InventoryService {
         ? ((totalInitialStock - totalStock) / totalInitialStock) * 100 
         : 0;
 
-      return {
+      const stats = {
         totalProducts,
         totalStock,
         totalInitialStock,
@@ -191,6 +205,10 @@ export class InventoryService {
         outOfStockProducts,
         stockUtilization: Math.round(stockUtilization * 100) / 100
       };
+
+      console.log('✅ InventoryService: Stats calculated:', stats);
+
+      return stats;
 
     } catch (error) {
       console.error('❌ Error getting inventory stats:', error);

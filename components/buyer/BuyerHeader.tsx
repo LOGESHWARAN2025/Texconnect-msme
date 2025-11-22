@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocalization } from '../../hooks/useLocalization';
 import { useAppContext } from '../../context/SupabaseContext';
 
-type BuyerView = 'browse' | 'orders' | 'issues' | 'resolved' | 'profile';
+type BuyerView = 'browse' | 'orders' | 'issues' | 'profile';
 
 interface BuyerHeaderProps {
   currentView: BuyerView;
@@ -22,7 +22,6 @@ const BuyerHeader: React.FC<BuyerHeaderProps> = ({ currentView, setView }) => {
             <button onClick={() => setView('browse')} className={`px-3 py-2 text-sm font-medium rounded-md ${currentView === 'browse' ? 'text-primary' : 'text-slate-500 hover:text-primary'}`}>{t('browse_products')}</button>
             <button onClick={() => setView('orders')} className={`px-3 py-2 text-sm font-medium rounded-md ${currentView === 'orders' ? 'text-primary' : 'text-slate-500 hover:text-primary'}`}>{t('my_orders')}</button>
             <button onClick={() => setView('issues')} className={`px-3 py-2 text-sm font-medium rounded-md ${currentView === 'issues' ? 'text-primary' : 'text-slate-500 hover:text-primary'}`}>Issues</button>
-            <button onClick={() => setView('resolved')} className={`px-3 py-2 text-sm font-medium rounded-md ${currentView === 'resolved' ? 'text-primary' : 'text-slate-500 hover:text-primary'}`}>Resolved</button>
             <button onClick={() => setView('profile')} className={`px-3 py-2 text-sm font-medium rounded-md ${currentView === 'profile' ? 'text-primary' : 'text-slate-500 hover:text-primary'}`}>{t('profile')}</button>
         </nav>
       </div>

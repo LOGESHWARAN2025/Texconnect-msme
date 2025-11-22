@@ -4,9 +4,8 @@ import { ProductBrowseView } from './components/buyer/ProductBrowseView';
 import BuyerOrdersView from './components/buyer/BuyerOrdersView';
 import BuyerProfileView from './components/buyer/BuyerProfileView';
 import BuyerIssuesView from './components/buyer/BuyerIssuesView';
-import BuyerResolvedView from './components/buyer/BuyerResolvedView';
 
-type BuyerView = 'browse' | 'orders' | 'issues' | 'resolved' | 'profile';
+type BuyerView = 'browse' | 'orders' | 'issues' | 'profile';
 
 const BuyerApp: React.FC = () => {
     const [view, setView] = useState<BuyerView>('browse');
@@ -19,8 +18,6 @@ const BuyerApp: React.FC = () => {
                 return <BuyerOrdersView />;
             case 'issues':
                 return <BuyerIssuesView />;
-            case 'resolved':
-                return <BuyerResolvedView />;
             case 'profile':
                 return <BuyerProfileView />;
             default:

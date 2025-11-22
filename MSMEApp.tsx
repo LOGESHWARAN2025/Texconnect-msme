@@ -8,7 +8,6 @@ import ProductManagementView from './components/msme/ProductManagementView';
 import MSMECombinedDashboard from './components/msme/MSMECombinedDashboard';
 import ProfileView from './components/msme/ProfileView';
 import MSMEIssuesView from './components/msme/MSMEIssuesView';
-import MSMEResolvedView from './components/msme/MSMEResolvedView';
 import type { View } from './types';
 
 const MSMEApp: React.FC = () => {
@@ -28,8 +27,6 @@ const MSMEApp: React.FC = () => {
         return <MSMECombinedDashboard />;
       case 'issues':
         return <MSMEIssuesView />;
-      case 'resolved':
-        return <MSMEResolvedView />;
       case 'profile':
         return <ProfileView />;
       default:

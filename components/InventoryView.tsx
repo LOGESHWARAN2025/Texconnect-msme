@@ -14,7 +14,7 @@ const InventoryView: React.FC = () => {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
   
-  const initialFormData = { name: '', category: '', description: '', stock: 0, price: 0, unitOfMeasure: '', minStockLevel: 0 };
+  const initialFormData = { name: '', category: '', description: '', stock: 0, bought: 0, price: 0, unitOfMeasure: '', minStockLevel: 0 };
   const [formData, setFormData] = useState(initialFormData);
 
   // Filter inventory to only show items belonging to the current user
@@ -36,7 +36,7 @@ const InventoryView: React.FC = () => {
   const openModal = (item: InventoryItem | null = null) => {
     setEditingItem(item);
     if (item) {
-      setFormData({ name: item.name, category: item.category, description: item.description || '', stock: item.stock, price: item.price, unitOfMeasure: item.unitOfMeasure, minStockLevel: item.minStockLevel });
+      setFormData({ name: item.name, category: item.category, description: item.description || '', stock: item.stock, bought: item.bought || 0, price: item.price, unitOfMeasure: item.unitOfMeasure, minStockLevel: item.minStockLevel });
     } else {
       setFormData(initialFormData);
     }
@@ -50,7 +50,7 @@ const InventoryView: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: name === 'stock' || name === 'price' || name === 'minStockLevel' ? parseFloat(value) || 0 : value }));
+    setFormData(prev => ({ ...prev, [name]: name === 'stock' || name === 'bought' || name === 'price' || name === 'minStockLevel' ? parseFloat(value) || 0 : value }));
   };
   
   const handleGenerateDescription = async () => {
@@ -128,7 +128,9 @@ const InventoryView: React.FC = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('product_name')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('category')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('stock')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Reserved</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Available</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Bought</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('price_per_unit')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('unit_of_measure')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('minimum_stock_level')}</th>
@@ -157,9 +159,12 @@ const InventoryView: React.FC = () => {
                     <div className="max-w-xs truncate" title={item.description}>{item.description || '-'}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                    <span className="text-orange-600 font-medium">{(item.reserved || 0).toLocaleString('en-IN')}</span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                     <div className="flex items-center">
-                        <span className={isLowStock ? 'text-red-600 font-bold' : ''}>
-                            {item.stock.toLocaleString('en-IN')}
+                        <span className={`${isLowStock ? 'text-red-600 font-bold' : 'text-green-600 font-medium'}`}>
+                            {(item.stock - (item.reserved || 0)).toLocaleString('en-IN')}
                         </span>
                         {isLowStock && (
                              <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
@@ -167,6 +172,9 @@ const InventoryView: React.FC = () => {
                              </span>
                         )}
                     </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                    <span className="text-blue-600 font-medium">₹{(item.bought || 0).toLocaleString('en-IN')}</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">₹{item.price.toLocaleString('en-IN')}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{item.unitOfMeasure}</td>
@@ -185,7 +193,8 @@ const InventoryView: React.FC = () => {
       </div>
 
       <Modal isOpen={isModalOpen} onClose={closeModal} title={editingItem ? t('edit_item') : t('add_new_item')}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="max-h-[70vh] overflow-y-auto pr-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700">{t('product_name')}</label>
             <input type="text" name="name" value={formData.name} onChange={handleInputChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"/>
@@ -209,6 +218,11 @@ const InventoryView: React.FC = () => {
             <input type="number" name="stock" value={formData.stock} onChange={handleInputChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"/>
           </div>
           <div>
+            <label className="block text-sm font-medium text-slate-700">Bought (Total Cost)</label>
+            <input type="number" name="bought" value={formData.bought} onChange={handleInputChange} placeholder="Total amount spent (₹)" className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"/>
+            <p className="mt-1 text-xs text-slate-500">Total cost of inventory purchased (in ₹)</p>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-slate-700">{t('price_per_unit')}</label>
             <input type="number" name="price" value={formData.price} onChange={handleInputChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"/>
           </div>
@@ -227,6 +241,7 @@ const InventoryView: React.FC = () => {
             </button>
           </div>
         </form>
+        </div>
       </Modal>
 
       <Modal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} title={`${t('delete_item')}: ${itemToDelete?.name}`}>

@@ -8,7 +8,7 @@ import type { Order } from '../types';
 
 const DashboardView: React.FC = () => {
   const { t } = useLocalization();
-  const { products, orders, currentUser } = useAppContext();
+  const { products, orders, inventory, currentUser } = useAppContext();
   const [salesTrends, setSalesTrends] = useState<any[]>([]);
   const [stockLevels, setStockLevels] = useState<any[]>([]);
 
@@ -45,14 +45,30 @@ const DashboardView: React.FC = () => {
     return new Set(userProducts.map(product => product.id));
   }, [userProducts]);
 
+  const userInventory = useMemo(() => {
+    if (!currentUser) {
+      console.log('❌ No current user in DashboardView for inventory');
+      return [];
+    }
+    const filtered = inventory.filter((item: any) => (item.msmeId || item.msmeid) === currentUser.id);
+    console.log('📦 User inventory in DashboardView:', filtered.length, 'out of', inventory.length, 'total inventory items');
+    return filtered;
+  }, [inventory, currentUser]);
+
   const userOrders = useMemo(() => {
     if (!currentUser) return [];
     return orders.filter((order: any) => (order.items || []).some((item: any) => userProductIds.has(item.productId || item.productid)));
   }, [orders, userProductIds, currentUser]);
 
-  const totalStockValue = userProducts.reduce((acc: number, product: any) => acc + (product.stock || 0) * (product.price || 0), 0);
+  // Calculate total stock value from inventory (raw materials)
+  const totalStockValue = userInventory.reduce((acc: number, item: any) => acc + (item.stock || 0) * (item.price || 0), 0);
   const pendingOrders = userOrders.filter(o => o.status === 'Pending').length;
-  const totalItems = userProducts.reduce((acc: number, product: any) => acc + (product.stock || 0), 0);
+  
+  // Count total inventory items (different types of raw materials)
+  const totalInventoryItems = userInventory.length;
+  
+  // Or count total inventory stock quantity
+  const totalInventoryStock = userInventory.reduce((acc: number, item: any) => acc + (item.stock || 0), 0);
   
   // Calculate revenue only from MSME's products in delivered orders
   const revenueThisMonth = userOrders
@@ -69,10 +85,15 @@ const DashboardView: React.FC = () => {
       return acc + msmeRevenue;
     }, 0);
 
+  // Count total products
+  const totalProducts = userProducts.length;
+
   console.log('📊 Dashboard calculations:', {
+    totalProducts,
     totalStockValue,
     pendingOrders,
-    totalItems,
+    totalInventoryItems,
+    totalInventoryStock,
     revenueThisMonth,
     userOrdersCount: userOrders.length
   });
@@ -95,7 +116,7 @@ const DashboardView: React.FC = () => {
         />
         <Card
           title={t('items_in_stock')}
-          value={totalItems.toLocaleString('en-IN')}
+          value={totalInventoryItems.toLocaleString('en-IN')}
           icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}
           colorClass="bg-green-500"
         />
