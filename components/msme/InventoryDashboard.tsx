@@ -14,7 +14,11 @@ const TranslatedProductName: React.FC<{ name: string; className?: string }> = Re
   return <span className={className}>{translatedName}</span>;
 });
 
-const InventoryDashboard: React.FC = () => {
+interface InventoryDashboardProps {
+  onAddProduct?: () => void;
+}
+
+const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct }) => {
   const { t } = useLocalization();
   const { products, currentUser } = useAppContext();
   const [inventoryStats, setInventoryStats] = useState<InventoryStats | null>(null);
@@ -299,7 +303,21 @@ const InventoryDashboard: React.FC = () => {
 
       {/* All Products Inventory */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">All Products Inventory</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-slate-900">All Products Inventory</h3>
+          {onAddProduct && (
+            <button
+              onClick={onAddProduct}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition shadow"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14"></path>
+                <path d="M12 5v14"></path>
+              </svg>
+              Add Product
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {msmeProducts.map(product => (
             <div key={product.id} className="border border-slate-200 rounded-lg p-4">
