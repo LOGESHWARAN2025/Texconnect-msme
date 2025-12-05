@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import InventoryDashboard from './InventoryDashboard';
 import ProductManagementView from './ProductManagementView';
 
@@ -17,20 +17,11 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ onBack }) => {
     }}>
       {/* Header */}
       <div className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-50">
-        <div className="px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-            </button>
-            <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
-          </div>
-          <button
-            onClick={() => setShowAddProduct(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition shadow"
-          >
-            <Plus className="h-5 w-5" />
-            Add Product
+        <div className="px-6 py-4 flex items-center gap-4">
+          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
           </button>
+          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
         </div>
       </div>
 
