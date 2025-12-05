@@ -39,7 +39,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ onBack }) => {
             <ProductManagementView />
           </div>
         ) : (
-          <InventoryDashboard onAddProduct={() => setShowAddProduct(true)} />
+          <InventoryDashboard />
         )}
       </div>
     </div>

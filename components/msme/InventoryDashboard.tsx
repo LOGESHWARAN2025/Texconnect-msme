@@ -18,15 +18,36 @@ interface InventoryDashboardProps {
   onAddProduct?: () => void;
 }
 
+interface InventoryFormData {
+  name: string;
+  category: string;
+  description: string;
+  stock: number;
+  price: number;
+  unitOfMeasure: string;
+  minStockLevel: number;
+}
+
 const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct }) => {
   const { t } = useLocalization();
-  const { products, currentUser } = useAppContext();
+  const { products, currentUser, addInventoryItem, inventory } = useAppContext();
   const [inventoryStats, setInventoryStats] = useState<InventoryStats | null>(null);
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
+  const [isAddInventoryModalOpen, setIsAddInventoryModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [restockQuantity, setRestockQuantity] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<InventoryFormData>({
+    name: '',
+    category: '',
+    description: '',
+    stock: 0,
+    price: 0,
+    unitOfMeasure: '',
+    minStockLevel: 0
+  });
 
   // Filter products for current MSME user
   const msmeProducts = useMemo(() => {
@@ -108,6 +129,55 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
     setSelectedProduct(product);
     setRestockQuantity(0);
     setIsRestockModalOpen(true);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'stock' || name === 'price' || name === 'minStockLevel' ? parseFloat(value) || 0 : value
+    }));
+  };
+
+  const handleAddInventory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    
+    setIsSubmitting(true);
+    try {
+      await addInventoryItem({
+        ...formData,
+        msmeId: currentUser.id,
+        status: 'active',
+        reserved: 0,
+        bought: 0
+      });
+      
+      alert('Inventory item added successfully!');
+      setIsAddInventoryModalOpen(false);
+      setFormData({
+        name: '',
+        category: '',
+        description: '',
+        stock: 0,
+        price: 0,
+        unitOfMeasure: '',
+        minStockLevel: 0
+      });
+      
+      // Refresh inventory stats
+      const [stats, lowStock] = await Promise.all([
+        InventoryService.getInventoryStats(currentUser.id),
+        InventoryService.getLowStockProducts(currentUser.id, 10)
+      ]);
+      setInventoryStats(stats);
+      setLowStockProducts(lowStock);
+    } catch (error: any) {
+      console.error('Error adding inventory item:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleRestockSubmit = useCallback(async () => {
@@ -305,18 +375,16 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-900">All Products Inventory</h3>
-          {onAddProduct && (
-            <button
-              onClick={onAddProduct}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition shadow"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14"></path>
-                <path d="M12 5v14"></path>
-              </svg>
-              Add Product
-            </button>
-          )}
+          <button
+            onClick={() => setIsAddInventoryModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition shadow"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14"></path>
+              <path d="M12 5v14"></path>
+            </svg>
+            Add Product
+          </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {msmeProducts.map(product => (
@@ -358,6 +426,128 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
           ))}
         </div>
       </div>
+
+      {/* Add Inventory Modal */}
+      <Modal isOpen={isAddInventoryModalOpen} onClose={() => setIsAddInventoryModalOpen(false)} title="Add Product to Inventory">
+        <div className="max-h-[70vh] overflow-y-auto pr-2">
+          <form onSubmit={handleAddInventory} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Product Name *</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="e.g., Yarn, Fabric, etc."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Category *</label>
+              <input
+                type="text"
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                required
+                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="e.g., Raw Material, Finished Goods"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Description</label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows={3}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="Product description"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Stock Quantity *</label>
+                <input
+                  type="number"
+                  name="stock"
+                  value={formData.stock}
+                  onChange={handleInputChange}
+                  required
+                  min="0"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Price per Unit (₹) *</label>
+                <input
+                  type="number"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  required
+                  min="0"
+                  step="0.01"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Unit of Measure *</label>
+                <input
+                  type="text"
+                  name="unitOfMeasure"
+                  value={formData.unitOfMeasure}
+                  onChange={handleInputChange}
+                  required
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  placeholder="e.g., Kg, Meter, Piece"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Minimum Stock Level *</label>
+                <input
+                  type="number"
+                  name="minStockLevel"
+                  value={formData.minStockLevel}
+                  onChange={handleInputChange}
+                  required
+                  min="0"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setIsAddInventoryModalOpen(false)}
+                className="px-4 py-2 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition disabled:bg-slate-300 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Adding...' : 'Add to Inventory'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
 
       {/* Restock Modal */}
       <Modal isOpen={isRestockModalOpen} onClose={() => setIsRestockModalOpen(false)} title="Restock Product">
