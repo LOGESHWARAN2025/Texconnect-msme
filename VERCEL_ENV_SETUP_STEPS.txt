@@ -1,0 +1,256 @@
+VERCEL ENVIRONMENT VARIABLES - STEP BY STEP GUIDE
+
+========================================
+YOUR SUPABASE CREDENTIALS (READY TO USE)
+========================================
+
+Project URL:
+https://qjbtnlhndoddbxqznkpw.supabase.co
+
+Anon Key:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYnRubGhuZG9kZGJ4cXpua3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2OTg3NjAsImV4cCI6MjA3NjI3NDc2MH0.Aepe201bDztDqXyBP8M748igEJERHwKCGJL5-4EneHY
+
+========================================
+STEP 1: GO TO VERCEL DASHBOARD
+========================================
+
+1. Open browser
+2. Go to: https://vercel.com/dashboard
+3. Login with your account (GitHub/Google/Email)
+4. You should see your projects list
+
+========================================
+STEP 2: SELECT YOUR PROJECT
+========================================
+
+1. In Vercel Dashboard, find "texconnect-msme" project
+2. Click on it to open project settings
+3. You should see project overview page
+
+========================================
+STEP 3: OPEN ENVIRONMENT VARIABLES
+========================================
+
+1. Click "Settings" tab at the top
+2. In left sidebar, click "Environment Variables"
+3. You should see a form to add variables
+
+========================================
+STEP 4: ADD FIRST VARIABLE (SUPABASE URL)
+========================================
+
+1. In the "Environment Variables" page:
+   - Click "Add New" or the input field
+
+2. Fill in:
+   Name: VITE_SUPABASE_URL
+   
+   Value: https://qjbtnlhndoddbxqznkpw.supabase.co
+
+3. Select Environments:
+   ☑ Production
+   ☑ Preview
+   ☑ Development
+
+4. Click "Save" or "Add"
+
+5. You should see it listed:
+   VITE_SUPABASE_URL = https://qjbtnlhndoddbxqznkpw.supabase.co
+
+========================================
+STEP 5: ADD SECOND VARIABLE (ANON KEY)
+========================================
+
+1. Click "Add New" again
+
+2. Fill in:
+   Name: VITE_SUPABASE_ANON_KEY
+   
+   Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYnRubGhuZG9kZGJ4cXpua3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2OTg3NjAsImV4cCI6MjA3NjI3NDc2MH0.Aepe201bDztDqXyBP8M748igEJERHwKCGJL5-4EneHY
+
+3. Select Environments:
+   ☑ Production
+   ☑ Preview
+   ☑ Development
+
+4. Click "Save" or "Add"
+
+5. You should see both variables listed:
+   VITE_SUPABASE_URL = https://qjbtnlhndoddbxqznkpw.supabase.co
+   VITE_SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+========================================
+STEP 6: REDEPLOY PROJECT
+========================================
+
+1. Go to "Deployments" tab
+2. Find your latest deployment
+3. Click the three dots menu (...)
+4. Click "Redeploy"
+5. Confirm "Redeploy"
+
+OR
+
+1. Go to "Settings" → "Git"
+2. Find your repository
+3. Click "Redeploy"
+
+Wait 2-3 minutes for deployment to complete.
+
+========================================
+STEP 7: VERIFY DEPLOYMENT
+========================================
+
+1. After deployment completes:
+   - Status should show "Ready"
+   - You'll see a green checkmark
+
+2. Click on your deployment URL
+3. Your app should load
+
+4. Test contact form:
+   - Go to Contact page
+   - Fill in form
+   - Click "Send Message"
+   - Should see success message
+
+5. Verify in Supabase:
+   - Go to https://app.supabase.com
+   - Select your project
+   - Click "Table Editor"
+   - Select "contact_submissions"
+   - You should see your test submission
+
+========================================
+VISUAL GUIDE - VERCEL DASHBOARD
+========================================
+
+Vercel Dashboard Layout:
+
+┌─────────────────────────────────────────┐
+│  VERCEL DASHBOARD                       │
+├─────────────────────────────────────────┤
+│                                         │
+│  Projects:                              │
+│  ┌─────────────────────────────────┐   │
+│  │ texconnect-msme                 │   │
+│  │ https://texconnect.vercel.app   │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  [Settings] [Deployments] [Analytics]  │
+│                                         │
+└─────────────────────────────────────────┘
+
+Settings Page:
+
+┌─────────────────────────────────────────┐
+│  SETTINGS                               │
+├─────────────────────────────────────────┤
+│  Left Sidebar:                          │
+│  • General                              │
+│  • Git                                  │
+│  • Environment Variables ← CLICK HERE   │
+│  • Domains                              │
+│  • Functions                            │
+│                                         │
+│  Environment Variables:                 │
+│  ┌─────────────────────────────────┐   │
+│  │ VITE_SUPABASE_URL               │   │
+│  │ https://qjbtnlhnd...            │   │
+│  │ [Edit] [Delete]                 │   │
+│  └─────────────────────────────────┘   │
+│  ┌─────────────────────────────────┐   │
+│  │ VITE_SUPABASE_ANON_KEY          │   │
+│  │ eyJhbGciOiJIUzI1NiIs...         │   │
+│  │ [Edit] [Delete]                 │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  [Add New]                              │
+│                                         │
+└─────────────────────────────────────────┘
+
+========================================
+TROUBLESHOOTING
+========================================
+
+Problem: Variables not showing up
+Solution:
+  - Refresh page (F5)
+  - Check you're in correct project
+  - Verify you clicked "Save"
+
+Problem: Deployment still failing
+Solution:
+  - Check build logs in Deployments tab
+  - Verify variable names (case-sensitive)
+  - Redeploy after adding variables
+  - Wait 2-3 minutes for deployment
+
+Problem: Contact form not working on deployed site
+Solution:
+  - Open browser console (F12)
+  - Look for errors
+  - Check environment variables are set
+  - Verify Supabase table exists
+  - Check RLS policies allow inserts
+
+Problem: "Cannot read property 'from'"
+Solution:
+  - Environment variables not loaded
+  - Redeploy project
+  - Clear browser cache (Ctrl+Shift+Delete)
+  - Wait for deployment to complete
+
+========================================
+QUICK CHECKLIST
+========================================
+
+Before Vercel Deployment:
+☐ Local build works: npm run build
+☐ .env file has credentials
+☐ Contact form works locally
+☐ All pages load correctly
+
+Vercel Setup:
+☐ Project imported to Vercel
+☐ VITE_SUPABASE_URL added
+☐ VITE_SUPABASE_ANON_KEY added
+☐ Both variables set for all environments
+☐ Project redeployed
+
+After Deployment:
+☐ Deployment shows "Ready"
+☐ App loads at deployment URL
+☐ Contact form works
+☐ Supabase receives submissions
+☐ No console errors
+
+========================================
+NEXT STEPS
+========================================
+
+1. Go to https://vercel.com/dashboard
+2. Select texconnect-msme project
+3. Click Settings → Environment Variables
+4. Add VITE_SUPABASE_URL
+5. Add VITE_SUPABASE_ANON_KEY
+6. Redeploy
+7. Test contact form
+8. Share deployment URL
+
+========================================
+SUPPORT
+========================================
+
+Need help?
+- Check VERCEL_DEPLOYMENT.txt for more details
+- Check ENV_SETUP_GUIDE.txt for troubleshooting
+- Visit https://vercel.com/docs
+- Email: texconnect98@gmail.com
+- Phone: +91 63745 16006
+
+========================================
+DEPLOYMENT COMPLETE!
+========================================
+
+Your TexConnect app is now live on Vercel with Supabase integration!

@@ -1,0 +1,187 @@
+ENVIRONMENT VARIABLES SETUP GUIDE
+
+========================================
+YOUR CURRENT SUPABASE CREDENTIALS
+========================================
+
+Your .env file already contains:
+
+VITE_SUPABASE_URL=https://qjbtnlhndoddbxqznkpw.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYnRubGhuZG9kZGJ4cXpua3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2OTg3NjAsImV4cCI6MjA3NjI3NDc2MH0.Aepe201bDztDqXyBP8M748igEJERHwKCGJL5-4EneHY
+
+These are already configured for local development.
+
+========================================
+STEP 1: VERIFY YOUR SUPABASE CREDENTIALS
+========================================
+
+To confirm these are correct:
+
+1. Go to https://app.supabase.com
+2. Login to your account
+3. Select your TexConnect project
+4. Click Settings (gear icon) → API
+5. Verify:
+   - Project URL matches: https://qjbtnlhndoddbxqznkpw.supabase.co
+   - Anon Key matches the long key in .env
+
+If they match, your local setup is correct!
+
+========================================
+STEP 2: ADD TO VERCEL (FOR DEPLOYMENT)
+========================================
+
+When deploying to Vercel, you need to add these variables to Vercel's environment.
+
+METHOD 1: Using Vercel Web Dashboard
+====================================
+
+1. Go to https://vercel.com/dashboard
+2. Click on your TexConnect project
+3. Click "Settings" tab
+4. Click "Environment Variables" in left sidebar
+5. Add two variables:
+
+   Variable 1:
+   - Name: VITE_SUPABASE_URL
+   - Value: https://qjbtnlhndoddbxqznkpw.supabase.co
+   - Environments: Production, Preview, Development
+   - Click "Save"
+
+   Variable 2:
+   - Name: VITE_SUPABASE_ANON_KEY
+   - Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYnRubGhuZG9kZGJ4cXpua3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2OTg3NjAsImV4cCI6MjA3NjI3NDc2MH0.Aepe201bDztDqXyBP8M748igEJERHwKCGJL5-4EneHY
+   - Environments: Production, Preview, Development
+   - Click "Save"
+
+6. After adding both variables, click "Redeploy" to apply changes
+
+METHOD 2: Using Vercel CLI
+==========================
+
+1. Install Vercel CLI:
+   npm install -g vercel
+
+2. Login:
+   vercel login
+
+3. Add environment variables:
+   vercel env add VITE_SUPABASE_URL
+   (Paste: https://qjbtnlhndoddbxqznkpw.supabase.co)
+
+   vercel env add VITE_SUPABASE_ANON_KEY
+   (Paste: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqYnRubGhuZG9kZGJ4cXpua3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2OTg3NjAsImV4cCI6MjA3NjI3NDc2MH0.Aepe201bDztDqXyBP8M748igEJERHwKCGJL5-4EneHY)
+
+4. Redeploy:
+   vercel --prod
+
+========================================
+STEP 3: VERIFY ENVIRONMENT VARIABLES
+========================================
+
+After adding to Vercel:
+
+1. Go to Vercel Dashboard
+2. Click your project
+3. Click "Settings" → "Environment Variables"
+4. You should see both variables listed:
+   ✓ VITE_SUPABASE_URL
+   ✓ VITE_SUPABASE_ANON_KEY
+
+5. Visit your deployed URL
+6. Open browser console (F12)
+7. Test contact form submission
+8. Check Supabase dashboard for new entry
+
+========================================
+STEP 4: TROUBLESHOOTING
+========================================
+
+Issue: Contact form not saving to Supabase
+Solution:
+  1. Check environment variables are added in Vercel
+  2. Verify variable names start with VITE_
+  3. Redeploy after adding variables
+  4. Check browser console for errors (F12)
+  5. Verify Supabase table exists: contact_submissions
+
+Issue: "Cannot find module" error
+Solution:
+  1. Ensure all dependencies installed: npm install
+  2. Run build locally: npm run build
+  3. Check for TypeScript errors: npm run build
+
+Issue: Blank page on Vercel
+Solution:
+  1. Check Vercel build logs
+  2. Verify output directory is "dist"
+  3. Check vercel.json configuration
+  4. Clear browser cache (Ctrl+Shift+Delete)
+
+========================================
+STEP 5: LOCAL DEVELOPMENT
+========================================
+
+For local development, your .env file is already set up.
+
+To test locally:
+1. Run: npm run dev
+2. Open: http://localhost:5173
+3. Navigate to Contact page
+4. Fill and submit contact form
+5. Check Supabase dashboard for entry
+
+Your local environment is ready!
+
+========================================
+SECURITY NOTES
+========================================
+
+⚠️ IMPORTANT:
+- Never commit .env file to GitHub
+- .env is already in .gitignore
+- Anon Key is public (safe to share)
+- Use Vercel's environment variables for secrets
+- Never hardcode credentials in code
+
+========================================
+QUICK REFERENCE
+========================================
+
+Local Development:
+- .env file has credentials
+- Run: npm run dev
+- Test at: http://localhost:5173
+
+Vercel Deployment:
+- Add variables in Vercel Dashboard
+- Settings → Environment Variables
+- Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+- Redeploy project
+
+Testing:
+- Submit contact form
+- Check Supabase dashboard
+- Verify entry in contact_submissions table
+
+========================================
+NEXT STEPS
+========================================
+
+1. ✓ Local .env file is configured
+2. → Deploy to Vercel
+3. → Add environment variables in Vercel Dashboard
+4. → Redeploy
+5. → Test contact form on deployed site
+6. → Share deployment URL
+
+========================================
+SUPPORT
+========================================
+
+Supabase Dashboard: https://app.supabase.com
+Vercel Dashboard: https://vercel.com/dashboard
+Documentation: See VERCEL_DEPLOYMENT.txt
+
+Email: texconnect98@gmail.com
+Phone: +91 63745 16006
