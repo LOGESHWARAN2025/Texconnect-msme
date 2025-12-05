@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
 import { useTranslate } from '../../hooks/useTranslator';
@@ -9,10 +9,10 @@ import InventoryProgressBar from '../common/InventoryProgressBar';
 import Modal from '../common/Modal';
 
 // Component for translated product name
-const TranslatedProductName: React.FC<{ name: string; className?: string }> = ({ name, className }) => {
+const TranslatedProductName: React.FC<{ name: string; className?: string }> = React.memo(({ name, className }) => {
   const translatedName = useTranslate(name);
   return <span className={className}>{translatedName}</span>;
-};
+});
 
 const InventoryDashboard: React.FC = () => {
   const { t } = useLocalization();
@@ -106,7 +106,7 @@ const InventoryDashboard: React.FC = () => {
     setIsRestockModalOpen(true);
   };
 
-  const handleRestockSubmit = async () => {
+  const handleRestockSubmit = useCallback(async () => {
     if (!selectedProduct || !currentUser || restockQuantity <= 0) return;
 
     try {
@@ -122,8 +122,13 @@ const InventoryDashboard: React.FC = () => {
         setSelectedProduct(null);
         setRestockQuantity(0);
         
-        // Refresh the page to update data
-        window.location.reload();
+        // Trigger data refresh without page reload
+        const [stats, lowStock] = await Promise.all([
+          InventoryService.getInventoryStats(currentUser.id),
+          InventoryService.getLowStockProducts(currentUser.id, 10)
+        ]);
+        setInventoryStats(stats);
+        setLowStockProducts(lowStock);
       } else {
         alert(`Error restocking: ${result.error}`);
       }
@@ -131,7 +136,7 @@ const InventoryDashboard: React.FC = () => {
       console.error('Error restocking product:', error);
       alert('Error restocking product');
     }
-  };
+  }, [selectedProduct, currentUser, restockQuantity]);
 
   const getStockStatusColor = (product: Product) => {
     const initialStock = product.initialStock || product.stock;
@@ -159,6 +164,7 @@ const InventoryDashboard: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-slate-600">Loading inventory data...</p>
+          <p className="text-xs text-slate-500 mt-2">This may take a few seconds...</p>
         </div>
       </div>
     );
