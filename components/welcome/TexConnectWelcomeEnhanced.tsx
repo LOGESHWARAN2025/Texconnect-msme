@@ -526,7 +526,7 @@ export default function TexConnectWelcomeEnhanced({ onGetStarted, onBookDemo, on
             </div>
 
             {/* Main Footer Content */}
-            <div className="grid md:grid-cols-3 gap-10 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-10 mb-12">
               {/* Product */}
               <div>
                 <h4 className="font-bold text-lg mb-6 flex items-center gap-2" style={{ color: textColor }}>
@@ -563,17 +563,19 @@ export default function TexConnectWelcomeEnhanced({ onGetStarted, onBookDemo, on
                   <li><button onClick={() => setCurrentPage('documentation')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Documentation</button></li>
                   <li><button onClick={() => setCurrentPage('blog')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Blog</button></li>
                   <li><button onClick={() => setCurrentPage('faq')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>FAQ</button></li>
-                  <li className="pt-2 border-t" style={{ borderColor: borderColor }}>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span>📧</span>
-                      <a href="mailto:texconnect98@gmail.com" className="hover:opacity-70 transition" style={{ color: textColor }}>texconnect98@gmail.com</a>
-                    </div>
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <span>📞</span>
-                    <a href="tel:+916374516006" className="hover:opacity-70 transition" style={{ color: textColor }}>+91 63745 16006</a>
-                  </li>
                 </ul>
+              </div>
+            </div>
+
+            {/* Contact Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12 pb-12" style={{ borderBottom: `1px solid ${borderColor}` }}>
+              <div className="flex items-center gap-2 text-sm">
+                <span>📧</span>
+                <a href="mailto:texconnect98@gmail.com" className="hover:opacity-70 transition" style={{ color: textColor }}>texconnect98@gmail.com</a>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span>📞</span>
+                <a href="tel:+916374516006" className="hover:opacity-70 transition" style={{ color: textColor }}>+91 63745 16006</a>
               </div>
             </div>
 
