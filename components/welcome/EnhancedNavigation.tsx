@@ -37,12 +37,20 @@ export default function EnhancedNavigation({
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8" style={{ color: 'rgb(79, 70, 229)' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
-            </svg>
-            <span className="text-2xl font-bold text-gray-900">TexConnect</span>
-          </div>
+          <button 
+            onClick={() => handleNavClick('home')}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+          >
+            <div className="p-2 rounded-lg" style={{ backgroundColor: 'rgb(79, 70, 229)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-gray-900">TexConnect</span>
+              <span className="text-xs text-gray-600">MSME Dashboard</span>
+            </div>
+          </button>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
