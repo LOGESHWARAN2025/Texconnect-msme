@@ -1,50 +1,29 @@
-
 import React, { useState } from 'react';
 import { useAppContext } from '../context/SupabaseContext';
 import { useLocalization } from '../hooks/useLocalization';
-import Modal from '../components/common/Modal';
+import { useLoading } from '../src/contexts/LoadingContext';
 import { supabase } from '../src/lib/supabase';
 
 interface LoginPageProps {
   onSwitchToRegister: () => void;
   onSwitchToAdminLogin: () => void;
   onNeedsVerification: (email: string) => void;
+  onBackToLanding?: () => void;
 }
 
-const InputField: React.FC<{id: string, name: string, type?: string, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, label: string, required?: boolean, children?: React.ReactNode}> = 
-  ({id, name, type = "text", value, onChange, label, required = true, children}) => (
-  <div>
-    <label htmlFor={id} className="text-xs font-normal text-slate-600">{label}</label>
-    <div className="relative flex items-center">
-      <input 
-        id={id} 
-        name={name} 
-        type={type} 
-        value={value} 
-        onChange={onChange}
-        required={required}
-        className="w-full py-2 text-sm text-slate-800 bg-transparent border-b border-slate-300 focus:outline-none focus:border-green-500"
-        autoComplete={name === 'password' ? 'current-password' : name === 'email' ? 'email' : 'off'}
-      />
-      <div className="absolute right-1 text-slate-400">
-        {children}
-      </div>
-    </div>
-  </div>
-);
-
-
-const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdminLogin, onNeedsVerification }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdminLogin, onNeedsVerification, onBackToLanding }) => {
   const { login, socialLogin } = useAppContext();
-  const { t } = useLocalization();
+  const { t, language, setLanguage } = useLocalization();
+  const { showLoading, hideLoading } = useLoading();
+  const formRef = React.useRef<HTMLDivElement>(null);
+  const formTitleRef = React.useRef<HTMLDivElement>(null);
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
   const [showPassword, setShowPassword] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [loginAs, setLoginAs] = useState<'buyer' | 'msme'>('buyer');
   
   const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -56,15 +35,52 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
     setUnverifiedEmail(null);
     setError('');
     setIsLoading(true);
-    const result = await login(email, password);
-    setIsLoading(false);
-    if (!result.success) {
-      if (result.reason === 'NOT_VERIFIED') {
-        setError(t('email_not_verified'));
-        setUnverifiedEmail(result.userEmail || null);
-      } else {
-        setError(t('login_failed'));
+    showLoading('Verifying credentials...');
+    try {
+      // First, check if user exists and get their role - prevent admin login through user login page
+      const { data: userData, error: fetchError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('email', email)
+        .single();
+
+      // If user found and is admin, block immediately without attempting login
+      if (!fetchError && userData && userData.role === 'admin') {
+        setError('Invalid user credentials. Admin users must use the Admin Login page');
+        setIsLoading(false);
+        hideLoading();
+        return;
       }
+
+      // If user not found or other error, proceed with normal login (which will fail with proper error)
+      const result = await login(email, password);
+      if (!result.success) {
+        if (result.reason === 'NOT_VERIFIED') {
+          setError(t('email_not_verified'));
+          setUnverifiedEmail(result.userEmail || null);
+        } else if (result.reason === 'UNKNOWN_ERROR') {
+          // Check if this was an admin user trying to login
+          const { data: userData } = await supabase
+            .from('users')
+            .select('role')
+            .eq('email', email)
+            .single();
+          
+          if (userData && userData.role === 'admin') {
+            setError('Admin and Sub-Admin users are restricted from this page. Please use the Admin Login page');
+          } else {
+            setError(t('login_failed'));
+          }
+        } else {
+          setError(t('login_failed'));
+        }
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(t('login_failed'));
+    } finally {
+      setIsLoading(false);
+      hideLoading();
     }
   };
   
@@ -72,10 +88,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
     setError('');
     setUnverifiedEmail(null);
     setIsLoading(true);
+    showLoading(`Signing in with ${provider}...`);
     
     try {
       const result = await socialLogin(provider);
-      setIsLoading(false);
 
       if (!result.success) {
         if (result.reason === 'USER_NOT_FOUND') {
@@ -86,14 +102,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
       }
       // On success, AppContext handles navigation
     } catch (error) {
-      setIsLoading(false);
       setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} login is not available. Please use email/password login.`);
+    } finally {
+      setIsLoading(false);
+      hideLoading();
     }
   };
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsResettingPassword(true);
+    showLoading('Sending reset email...');
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -106,6 +125,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
       setResetEmailSent(true);
     } finally {
       setIsResettingPassword(false);
+      hideLoading();
     }
   };
 
@@ -121,45 +141,174 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 relative">
-        <button 
-          onClick={onSwitchToAdminLogin}
-          className="absolute top-6 right-6 text-sm font-semibold text-primary hover:underline py-2 px-4 rounded-lg transition"
-          title="Switch to Admin Login"
+    <div style={{ width: '100vw', height: '100vh', background: 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)', display: 'flex', alignItems: 'stretch', justifyContent: 'stretch', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", position: 'relative', overflow: 'hidden' }}>
+      {/* Back button - top left */}
+      {onBackToLanding && (
+        <button
+          onClick={onBackToLanding}
+          style={{
+            position: 'absolute',
+            top: '24px',
+            left: '24px',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            transition: 'all 0.3s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: 'none',
+            cursor: 'pointer',
+            zIndex: 100,
+          }}
+          title="Back to Landing Page"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+          }}
         >
-          Admin
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: '16px', height: '16px' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
         </button>
+      )}
 
-      <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-2xl shadow-lg">
-        
-        <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-slate-800">Welcome Back!</h2>
-            <p className="text-slate-500 text-sm">Login to access your TexConnect dashboard.</p>
-        </div>
+      {/* Language toggle - top right */}
+      <button
+        onClick={() => setLanguage()}
+        style={{
+          position: 'absolute',
+          top: '24px',
+          right: '24px',
+          fontSize: '14px',
+          fontWeight: 600,
+          color: 'white',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          transition: 'all 0.3s',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          border: 'none',
+          cursor: 'pointer',
+          zIndex: 100,
+        }}
+        title="Toggle Language"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+        }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: '16px', height: '16px' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+        <span>{language === 'en' ? 'தமிழ்' : 'EN'}</span>
+      </button>
 
-        <div className="relative mb-8 w-full bg-slate-100 rounded-full p-1 shadow-green-glow">
-          <div 
-            className={`absolute top-1 left-1 h-[calc(100%-0.5rem)] bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-transform duration-300 ease-in-out w-[calc(50%-0.25rem)] ${loginAs === 'buyer' ? 'translate-x-0' : 'translate-x-full'}`}
-          ></div>
-          <div className="relative flex justify-around">
-            <button type="button" onClick={() => setLoginAs('buyer')} className={`w-1/2 py-2.5 rounded-full text-sm font-semibold transition-colors duration-300 ${loginAs === 'buyer' ? 'text-white' : 'text-slate-600'}`}>
-              Buyer
+      <div style={{ width: '100%', height: '100%', background: 'white', display: 'flex', position: 'relative' }}>
+        {/* Left Panel */}
+        <div
+          style={{
+            flex: 1,
+            background: 'linear-gradient(135deg, rgba(79, 70, 229, 1) 0%, rgba(129, 140, 248, 0.8) 100%)',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '60px 40px',
+            overflow: 'hidden',
+            transition: 'all 0.6s ease',
+          }}
+        >
+          {/* Wave shapes */}
+          <div style={{ position: 'absolute', top: 0, right: '-50px', width: '150px', height: '100%', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '50% 0 0 50%', transform: 'scaleX(1.5)', transition: 'all 0.6s ease' }} />
+          <div style={{ position: 'absolute', top: 0, right: '-80px', width: '200px', height: '100%', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '50% 0 0 50%', transform: 'scaleX(2)', transition: 'all 0.6s ease' }} />
+
+          {/* Content */}
+          <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', width: '100%' }}>
+            {/* Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
+              <svg fill="none" stroke="white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '50px', height: '50px' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+              </svg>
+              <span style={{ color: 'white', fontSize: '36px', fontWeight: 700, letterSpacing: '2px' }}>TexConnect</span>
+            </div>
+
+            {/* Welcome text */}
+            <h2 style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '24px', fontWeight: 600, marginBottom: '20px' }}>
+              Welcome Back!
+            </h2>
+
+            {/* Description */}
+            <p style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '16px', lineHeight: 1.6, marginBottom: '35px', maxWidth: '350px', marginLeft: 'auto', marginRight: 'auto' }}>
+              Smart inventory management for Tiruppur textile manufacturers. Track yarn, fabric, and garments seamlessly.
+            </p>
+
+            {/* Toggle button */}
+            <button
+              onClick={onSwitchToRegister}
+              style={{
+                background: 'white',
+                color: 'rgb(79, 70, 229)',
+                padding: '14px 50px',
+                borderRadius: '30px',
+                fontWeight: 600,
+                fontSize: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                border: 'none',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
+              }}
+            >
+              CREATE ACCOUNT
             </button>
-            <button type="button" onClick={() => setLoginAs('msme')} className={`w-1/2 py-2.5 rounded-full text-sm font-semibold transition-colors duration-300 ${loginAs === 'msme' ? 'text-white' : 'text-slate-600'}`}>
-              MSME
-            </button>
+
+            {/* Icon */}
+            <div style={{ width: '80px', height: '80px', margin: '20px auto', opacity: 0.3 }}>
+              <svg fill="none" stroke="white" viewBox="0 0 24 24" style={{ width: '100%', height: '100%' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
           </div>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        {/* Right Panel */}
+        <div ref={formRef} style={{ flex: 1, padding: '40px 60px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', background: 'white', transition: 'all 0.6s ease', overflowY: 'auto', height: '100%', paddingTop: '20px' }}>
+          {/* Logo */}
+          <div ref={formTitleRef} style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <svg fill="none" stroke="rgb(79, 70, 229)" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '80px', height: '80px', margin: '0 auto 20px', color: 'rgb(79, 70, 229)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+            </svg>
+            <h1 style={{ color: 'rgb(79, 70, 229)', fontSize: '48px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '3px' }}>{t('login')}</h1>
+          </div>
+
+          {/* Error message */}
           {error && (
-            <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">
+            <div style={{ color: '#dc2626', fontSize: '14px', textAlign: 'center', background: '#fee2e2', padding: '12px', borderRadius: '8px', marginBottom: '20px' }}>
               {error}
               {unverifiedEmail && (
                 <button
                   type="button"
                   onClick={() => onNeedsVerification(unverifiedEmail)}
-                  className="mt-2 text-sm font-semibold text-primary underline"
+                  style={{ marginTop: '8px', fontSize: '14px', fontWeight: 600, color: 'rgb(79, 70, 229)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                   {t('resend_verification')}
                 </button>
@@ -167,125 +316,310 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
             </div>
           )}
 
-          <div>
-            <InputField id="email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} label="E-mail">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" /></svg>
-            </InputField>
-          </div>
-          
-          <div>
-            <InputField id="password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} label="Enter password">
-                <button type="button" onClick={() => setShowPassword(!showPassword)}>
-                  {showPassword 
-                    ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
-                    : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" /><path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.303 6.546A10.048 10.048 0 01.458 10c1.274 4.057 5.022 7 9.542 7 .847 0 1.669-.105 2.454-.303z" /></svg>
-                  }
-                </button>
-            </InputField>
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center">
-                {/* Remember me is not implemented with Firebase Auth persistence */}
+          <form onSubmit={handleLogin} style={{ marginBottom: '30px' }}>
+            {/* Email */}
+            <div style={{ marginBottom: '25px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('email')}</label>
+              <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0', transition: 'border-color 0.3s' }}>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
+                />
               </div>
-              <button 
-                  type="button" 
-                  onClick={openForgotPasswordModal}
-                  className="text-sm font-medium text-primary hover:text-primary/80 focus:outline-none"
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom: '25px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('password')}</label>
+              <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0', transition: 'border-color 0.3s' }}>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+                      <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                      <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.303 6.546A10.048 10.048 0 01.458 10c1.274 4.057 5.022 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Forgot password */}
+            <div style={{ textAlign: 'right', marginBottom: '30px' }}>
+              <button
+                type="button"
+                onClick={() => setIsForgotPasswordModalOpen(true)}
+                style={{ color: 'rgb(79, 70, 229)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}
               >
-                  Forgot Password?
+                Forgot Password?
+              </button>
+            </div>
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{
+                width: '100%',
+                maxWidth: '200px',
+                padding: '15px',
+                background: 'rgb(79, 70, 229)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50px',
+                fontSize: '18px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 15px rgba(79, 70, 229, 0.3)',
+                marginLeft: 'auto',
+                display: 'block',
+                opacity: isLoading ? 0.5 : 1,
+              }}
+            >
+              {isLoading ? 'Signing in...' : t('login')}
+            </button>
+          </form>
+
+          {/* Social login */}
+          <div style={{ marginTop: '30px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '18px', color: '#94a3b8', fontSize: '13px' }}>Or Sign In with</div>
+            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+              <button
+                onClick={() => handleSocialLogin('google')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  padding: '12px 24px',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  background: 'white',
+                  color: '#64748b',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgb(79, 70, 229)';
+                  e.currentTarget.style.background = '#f8fafc';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.background = 'white';
+                }}
+              >
+                <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}>
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+                Google
+              </button>
+              <button
+                onClick={() => handleSocialLogin('facebook')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  padding: '12px 24px',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  background: 'white',
+                  color: '#64748b',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgb(79, 70, 229)';
+                  e.currentTarget.style.background = '#f8fafc';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.background = 'white';
+                }}
+              >
+                <svg fill="currentColor" viewBox="0 0 24 24" style={{ width: '20px', height: '20px', color: '#1877f2' }}>
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                Facebook
               </button>
             </div>
           </div>
 
-          <div className="pt-2">
-            <button type="submit" disabled={isLoading} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-full shadow-lg text-sm font-medium text-white bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50">
-              {isLoading ? 'Logging in...' : t('login')}
+          {/* Sign up link */}
+          <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
+            {t('dont_have_account')}{' '}
+            <button
+              onClick={onSwitchToRegister}
+              style={{
+                fontWeight: 600,
+                color: 'rgb(79, 70, 229)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                textDecoration: 'none',
+              }}
+            >
+              {t('sign_up')}
             </button>
-          </div>
-        </form>
+          </p>
 
-        {/* Social Login */}
-        <div className="mt-6">
-          <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-slate-500">Or continue with</span>
-              </div>
-          </div>
+          {/* Admin login link */}
+          <p style={{ marginTop: '15px', textAlign: 'center', fontSize: '13px', color: '#94a3b8' }}>
+            <button
+              onClick={onSwitchToAdminLogin}
+              style={{
+                fontWeight: 600,
+                color: 'rgb(79, 70, 229)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                fontSize: '13px',
+              }}
+            >
+              Admin Login
+            </button>
+          </p>
+        </div>
+      </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-3">
-              <div>
-                  <button onClick={() => handleSocialLogin('google')} className="w-full inline-flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-500 hover:bg-slate-50">
-                      <span className="sr-only">Sign in with Google</span>
-                      <svg className="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                      </svg>
+      {/* Forgot Password Modal */}
+      {isForgotPasswordModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: 'white', borderRadius: '12px', padding: '30px', maxWidth: '400px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '20px', color: '#1e293b' }}>Reset Password</h2>
+
+            {!resetEmailSent ? (
+              <form onSubmit={handleForgotPasswordSubmit}>
+                <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
+                  Enter your email address and we will send you a link to reset your password.
+                </p>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569', display: 'block', marginBottom: '8px' }}>Email Address</label>
+                  <input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPasswordModalOpen(false)}
+                    style={{
+                      padding: '10px 20px',
+                      background: '#e2e8f0',
+                      color: '#1e293b',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
                   </button>
-              </div>
-              <div>
-                  <button onClick={() => handleSocialLogin('apple')} className="w-full inline-flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-500 hover:bg-slate-50">
-                      <span className="sr-only">Sign in as Guest</span>
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                      </svg>
+                  <button
+                    type="submit"
+                    disabled={isResettingPassword}
+                    style={{
+                      padding: '10px 20px',
+                      background: 'rgb(79, 70, 229)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      cursor: isResettingPassword ? 'not-allowed' : 'pointer',
+                      opacity: isResettingPassword ? 0.5 : 1,
+                    }}
+                  >
+                    {isResettingPassword ? 'Sending...' : 'Send Reset Link'}
                   </button>
-              </div>
+                </div>
+              </form>
+            ) : (
               <div>
-                  <button onClick={() => handleSocialLogin('facebook')} className="w-full inline-flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-500 hover:bg-slate-50">
-                      <span className="sr-only">Sign in with Facebook</span>
-                      <svg className="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M20 10c0-5.523-4.477-10-10-10S0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.988C16.343 19.128 20 14.991 20 10z" clipRule="evenodd" />
-                      </svg>
-                  </button>
+                <p style={{ fontSize: '14px', color: '#1e293b', marginBottom: '20px' }}>
+                  If an account with that email exists, a password reset link has been sent.
+                </p>
+                <button
+                  onClick={() => setIsForgotPasswordModalOpen(false)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'rgb(79, 70, 229)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
               </div>
+            )}
           </div>
         </div>
+      )}
 
-        <p className="mt-6 text-center text-sm text-slate-600">
-          {t('dont_have_account')}{' '}
-          <button onClick={onSwitchToRegister} className="font-medium text-primary hover:text-primary/80">
-            {t('sign_up')}
-          </button>
-        </p>
-
-      </div>
-      
-      <Modal isOpen={isForgotPasswordModalOpen} onClose={closeForgotPasswordModal} title="Reset Password">
-        {!resetEmailSent ? (
-          <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
-            <p className="text-sm text-slate-600">Enter your email address and we will send you a link to reset your password.</p>
-            <div>
-              <label htmlFor="reset-email" className="block text-sm font-medium text-slate-700">Email Address</label>
-              <input 
-                id="reset-email" 
-                name="reset-email" 
-                type="email" 
-                value={resetEmail} 
-                onChange={(e) => setResetEmail(e.target.value)}
-                required
-                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-              />
-            </div>
-            <div className="flex justify-end space-x-3 pt-2">
-              <button type="button" onClick={closeForgotPasswordModal} className="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg font-semibold hover:bg-slate-300 transition">Cancel</button>
-              <button type="submit" disabled={isResettingPassword} className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition shadow disabled:opacity-50">
-                {isResettingPassword ? 'Sending...' : 'Send Reset Link'}
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div>
-            <p className="text-sm text-slate-700">If an account with that email exists, a password reset link has been sent.</p>
-            <div className="flex justify-end pt-4">
-              <button onClick={closeForgotPasswordModal} className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition">Close</button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };

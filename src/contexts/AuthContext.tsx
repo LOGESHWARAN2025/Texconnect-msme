@@ -31,15 +31,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check active sessions and set the user
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          user_metadata: session.user.user_metadata,
+        });
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     };
 
     getSession();
 
     // Listen for changes in auth state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          user_metadata: session.user.user_metadata,
+        });
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
 
@@ -57,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, userData: any) => {
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {

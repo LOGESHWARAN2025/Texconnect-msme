@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import MSMEApp from './MSMEApp';
 import BuyerApp from './BuyerApp';
-import ViewSwitcher from './components/common/ViewSwitcher';
 import { useAppContext } from './context/SupabaseContext';
 import type { UserRole } from './types';
 
@@ -25,11 +24,8 @@ const DemoApp: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col">
-            <ViewSwitcher currentRole={displayRole} setRole={handleSetRole} />
-            <div className="flex-1 overflow-hidden">
-                {displayRole === 'msme' ? <MSMEApp /> : <BuyerApp />}
-            </div>
+        <div className="h-full overflow-hidden">
+            {displayRole === 'msme' ? <MSMEApp /> : <BuyerApp />}
         </div>
     );
 }

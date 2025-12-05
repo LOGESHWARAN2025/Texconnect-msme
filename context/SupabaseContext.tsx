@@ -148,6 +148,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
   const initializedRef = useRef(false);
+  const channelsRef = useRef<any[]>([]);
 
   // Listen for browser online/offline events
   useEffect(() => {
@@ -317,10 +318,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       })
       .subscribe();
 
+    channelsRef.current.push(channel);
     fetchUsers();
 
     return () => {
       supabase.removeChannel(channel);
+      channelsRef.current = channelsRef.current.filter(c => c !== channel);
     };
   }, [currentUser]);
 
@@ -357,10 +360,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       })
       .subscribe();
 
+    channelsRef.current.push(channel);
     fetchInventory();
 
     return () => {
       supabase.removeChannel(channel);
+      channelsRef.current = channelsRef.current.filter(c => c !== channel);
     };
   }, [currentUser]);
 
@@ -379,8 +384,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     let query = supabase.from('inventory').select('*');
 
     if (currentUser.role === 'msme') {
-      console.log('📦 Filtering inventory by msmeid:', currentUser.id);
-      query = query.eq('msmeid', currentUser.id);
+      console.log('📦 Filtering inventory by msmeId:', currentUser.id);
+      query = query.eq('msmeId', currentUser.id);
     } else if (currentUser.role === 'buyer') {
       console.log('📦 Filtering inventory by status: active');
       query = query.eq('status', 'active');
@@ -431,10 +436,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       })
       .subscribe();
 
+    channelsRef.current.push(channel);
     fetchProducts();
 
     return () => {
       supabase.removeChannel(channel);
+      channelsRef.current = channelsRef.current.filter(c => c !== channel);
     };
   }, [currentUser]);
 
@@ -485,10 +492,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       })
       .subscribe();
 
+    channelsRef.current.push(channel);
     fetchOrders();
 
     return () => {
       supabase.removeChannel(channel);
+      channelsRef.current = channelsRef.current.filter(c => c !== channel);
     };
   }, [currentUser]);
 
@@ -552,10 +561,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       })
       .subscribe();
 
+    channelsRef.current.push(channel);
     fetchAuditLogs();
 
     return () => {
       supabase.removeChannel(channel);
+      channelsRef.current = channelsRef.current.filter(c => c !== channel);
     };
   }, [currentUser]);
 
@@ -578,10 +589,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       })
       .subscribe();
 
+    channelsRef.current.push(channel);
     fetchIssues();
 
     return () => {
       supabase.removeChannel(channel);
+      channelsRef.current = channelsRef.current.filter(c => c !== channel);
     };
   }, [currentUser]);
 
@@ -696,6 +709,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         return { success: false, reason: 'WRONG_PASSWORD' };
       }
 
+      // Allow all users to login - role-based access control will be handled by App.tsx routing
+      if (data.user) {
+        console.log('✅ User logged in successfully:', data.user.email);
+      }
+
       // Sync email verification status to database
       if (data.user && data.user.email_confirmed_at) {
         console.log('🔄 Syncing email verification on login for user:', data.user.email);
@@ -736,7 +754,48 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log('🔄 Starting logout cleanup...');
+      
+      // 1. Unsubscribe from all real-time channels immediately
+      console.log('🔌 Unsubscribing from', channelsRef.current.length, 'channels');
+      for (const channel of channelsRef.current) {
+        try {
+          await supabase.removeChannel(channel);
+        } catch (e) {
+          console.error('Error removing channel:', e);
+        }
+      }
+      channelsRef.current = [];
+      
+      // 2. Clear all state data immediately (non-blocking)
+      setCurrentUser(null);
+      setInventory([]);
+      setProducts([]);
+      setOrders([]);
+      setUsers([]);
+      setAuditLogs([]);
+      setIssues([]);
+      
+      // 3. Sign out from Supabase (async but doesn't block UI)
+      console.log('🔐 Signing out from Supabase');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('❌ Logout error:', error);
+      } else {
+        console.log('✅ Logout completed successfully');
+      }
+    } catch (error) {
+      console.error('❌ Logout failed:', error);
+      // Ensure state is cleared even if logout fails
+      setCurrentUser(null);
+      setInventory([]);
+      setProducts([]);
+      setOrders([]);
+      setUsers([]);
+      setAuditLogs([]);
+      setIssues([]);
+    }
   };
 
   const register = async (userData: Omit<User, 'id' | 'isApproved' | 'isEmailVerified'> & { password?: string }): Promise<RegisterResult> => {
@@ -834,8 +893,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         } as User
       };
     } catch (error: any) {
-      console.error('Registration failed:', error);
-      return { success: false, reason: 'UNKNOWN_ERROR' };
+      console.error('❌ Registration failed:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        code: error?.code,
+        status: error?.status,
+        fullError: error
+      });
+      return { 
+        success: false, 
+        reason: 'UNKNOWN_ERROR',
+        message: error?.message || 'An unexpected error occurred during registration'
+      };
     }
   };
 
@@ -909,7 +978,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('inventory')
       .update(updateData)
       .eq('id', id)
-      .eq('msmeid', currentUser.id);
+      .eq('msmeId', currentUser.id);
 
     if (error) {
       console.error('❌ Error updating inventory item:', error);
@@ -928,7 +997,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('inventory')
       .delete()
       .eq('id', itemId)
-      .eq('msmeid', currentUser.id);
+      .eq('msmeId', currentUser.id);
 
     if (error) throw error;
   };
@@ -983,7 +1052,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('products')
       .update(updateData)
       .eq('id', id)
-      .eq('msmeid', currentUser.id);
+      .eq('msmeId', currentUser.id);
 
     if (error) {
       console.error('❌ Error updating product:', error);
@@ -1004,7 +1073,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('products')
       .delete()
       .eq('id', productId)
-      .eq('msmeid', currentUser.id);
+      .eq('msmeId', currentUser.id);
 
     if (error) {
       console.error('❌ Error deleting product:', error);

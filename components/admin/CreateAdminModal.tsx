@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../../context/SupabaseContext';
+import { supabase } from '../../src/lib/supabase';
 import Modal from '../common/Modal';
 
 interface CreateAdminModalProps {
@@ -43,17 +44,56 @@ const CreateAdminModal: React.FC<CreateAdminModalProps> = ({isOpen, onClose}) =>
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { gstNumber, ...requiredFields } = formData;
+        const { gstNumber, adminId, ...requiredFields } = formData;
         const allFieldsFilled = Object.values(requiredFields).every(field => field.trim() !== '');
 
         if (allFieldsFilled) {
-            const result = await register({ ...formData, role: 'admin', address: '' });
+            // Only include adminId if it's not empty
+            const adminData = {
+                ...formData,
+                role: 'admin' as const,
+                address: '',
+                ...(adminId ? { adminId } : {})
+            };
+            
+            const result = await register(adminData);
             if (result.success) {
-                alert("Admin registration successful! They must verify their email before they can log in.");
+                // Auto-approve the new sub-admin so they can log in immediately
+                try {
+                    const { data: userData, error: fetchError } = await supabase
+                        .from('users')
+                        .select('id')
+                        .eq('email', formData.email)
+                        .single();
+
+                    if (userData && !fetchError) {
+                        const { error: updateError } = await supabase
+                            .from('users')
+                            .update({ 
+                                isApproved: true,
+                                isemailverified: true
+                            })
+                            .eq('id', userData.id);
+
+                        if (updateError) {
+                            console.error('Error approving sub-admin:', updateError);
+                            alert("Admin created but auto-approval failed. Please manually approve in the admin panel.");
+                        } else {
+                            alert("Sub-admin created and approved successfully! They can now log in using the admin login page.");
+                        }
+                    } else {
+                        alert("Admin created but could not find user record. Please manually approve in the admin panel.");
+                    }
+                } catch (error) {
+                    console.error('Error during auto-approval:', error);
+                    alert("Admin created but auto-approval encountered an error. Please manually approve in the admin panel.");
+                }
                 setFormData(initialFormData); // Reset form
                 onClose();
             } else {
-                alert(`Failed to create admin. Reason: ${result.reason || 'Unknown error'}`);
+                const errorMsg = result.message || result.reason || 'Unknown error';
+                alert(`Failed to create admin. Reason: ${errorMsg}`);
+                console.error('Admin creation error:', result);
             }
         } else {
             alert("Please fill all required fields.");

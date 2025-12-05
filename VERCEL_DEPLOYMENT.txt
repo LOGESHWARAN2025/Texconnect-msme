@@ -1,0 +1,270 @@
+VERCEL DEPLOYMENT GUIDE FOR TEXCONNECT
+
+========================================
+STEP 1: PREPARE YOUR PROJECT
+========================================
+
+✓ Project is ready for deployment
+✓ Build command: npm run build
+✓ Output directory: dist
+✓ Framework: Vite (React)
+✓ vercel.json configuration file created
+
+========================================
+STEP 2: INSTALL VERCEL CLI (Optional but Recommended)
+========================================
+
+Option A: Using npm
+  npm install -g vercel
+
+Option B: Using yarn
+  yarn global add vercel
+
+Option C: Using pnpm
+  pnpm add -g vercel
+
+========================================
+STEP 3: DEPLOY TO VERCEL
+========================================
+
+METHOD 1: Using Vercel Web Dashboard (Easiest)
+================================================
+
+1. Go to https://vercel.com
+2. Sign up or log in with your GitHub/GitLab/Bitbucket account
+3. Click "New Project"
+4. Import your GitHub repository (texconnect-msme)
+5. Configure project settings:
+   - Framework: Vite
+   - Build Command: npm run build
+   - Output Directory: dist
+6. Add Environment Variables:
+   - VITE_SUPABASE_URL: Your Supabase URL
+   - VITE_SUPABASE_ANON_KEY: Your Supabase Anon Key
+7. Click "Deploy"
+8. Wait for deployment to complete (usually 2-3 minutes)
+9. Your app will be live at: https://your-project-name.vercel.app
+
+METHOD 2: Using Vercel CLI
+===========================
+
+1. Install Vercel CLI:
+   npm install -g vercel
+
+2. Login to Vercel:
+   vercel login
+
+3. Deploy your project:
+   vercel
+
+4. Follow the prompts:
+   - Confirm project name
+   - Confirm build settings
+   - Add environment variables when prompted
+
+5. Your app will be deployed and you'll get a URL
+
+METHOD 3: Using Git Push (Automatic Deployment)
+================================================
+
+1. Push your code to GitHub:
+   git add .
+   git commit -m "Ready for Vercel deployment"
+   git push origin main
+
+2. Go to https://vercel.com/new
+3. Import your GitHub repository
+4. Vercel will automatically deploy on every push to main
+
+========================================
+STEP 4: CONFIGURE ENVIRONMENT VARIABLES
+========================================
+
+In Vercel Dashboard:
+
+1. Go to your project settings
+2. Click "Environment Variables"
+3. Add these variables:
+
+   Name: VITE_SUPABASE_URL
+   Value: https://your-project.supabase.co
+   
+   Name: VITE_SUPABASE_ANON_KEY
+   Value: your-anon-key-here
+
+4. Click "Save"
+5. Redeploy your project for changes to take effect
+
+========================================
+STEP 5: CUSTOM DOMAIN (Optional)
+========================================
+
+1. In Vercel Dashboard, go to project settings
+2. Click "Domains"
+3. Add your custom domain:
+   - texconnect.com
+   - texconnect.in
+4. Follow DNS configuration instructions
+5. Update nameservers at your domain registrar
+6. Wait for DNS propagation (24-48 hours)
+
+========================================
+STEP 6: VERIFY DEPLOYMENT
+========================================
+
+After deployment:
+
+1. Visit your Vercel URL
+2. Test all features:
+   ✓ Welcome page loads
+   ✓ Navigation works
+   ✓ Contact form submits
+   ✓ Footer links work
+   ✓ All pages load correctly
+   ✓ Responsive design works on mobile
+
+3. Check browser console for errors (F12)
+4. Verify Supabase connection:
+   - Submit a contact form
+   - Check Supabase dashboard for entry
+
+========================================
+STEP 7: SETUP AUTOMATIC DEPLOYMENTS
+========================================
+
+Option A: Deploy on Every Push
+1. In Vercel Dashboard → Settings → Git
+2. Enable "Automatic Deployments"
+3. Select branch (main)
+4. Every push to main will auto-deploy
+
+Option B: Deploy on Pull Request
+1. In Vercel Dashboard → Settings → Git
+2. Enable "Preview Deployments"
+3. Every PR will get a preview URL
+
+========================================
+TROUBLESHOOTING
+========================================
+
+Issue: Build fails with "Module not found"
+Solution: 
+  - Ensure all dependencies are in package.json
+  - Run: npm install
+  - Push changes and redeploy
+
+Issue: Environment variables not working
+Solution:
+  - Verify variables are set in Vercel Dashboard
+  - Redeploy project
+  - Check variable names match (VITE_* prefix required)
+
+Issue: Contact form not saving to Supabase
+Solution:
+  - Check Supabase URL and key are correct
+  - Verify contact_submissions table exists
+  - Check RLS policies allow inserts
+
+Issue: Blank page or 404 errors
+Solution:
+  - Verify output directory is "dist"
+  - Check vercel.json rewrites configuration
+  - Clear browser cache (Ctrl+Shift+Delete)
+
+Issue: Slow performance
+Solution:
+  - Enable Vercel Analytics
+  - Check bundle size (currently 768KB)
+  - Consider code splitting for large bundles
+
+========================================
+MONITORING & ANALYTICS
+========================================
+
+1. In Vercel Dashboard, enable Analytics:
+   - Settings → Analytics
+   - Enable Web Analytics
+   - Get insights on performance
+
+2. Monitor deployments:
+   - Deployments tab shows all versions
+   - Rollback to previous version if needed
+
+3. Check logs:
+   - Deployments → Click deployment → Logs
+   - View build and runtime logs
+
+========================================
+PERFORMANCE TIPS
+========================================
+
+1. Enable Vercel Edge Functions for faster responses
+2. Use Vercel's built-in image optimization
+3. Enable compression in vercel.json
+4. Monitor Core Web Vitals in Analytics
+5. Use CDN for static assets
+
+========================================
+SECURITY
+========================================
+
+1. Never commit .env files
+2. Use Vercel's environment variables for secrets
+3. Enable HTTPS (automatic with Vercel)
+4. Set up firewall rules if needed
+5. Monitor access logs
+
+========================================
+NEXT STEPS
+========================================
+
+1. Create GitHub repository (if not done)
+2. Push code to GitHub
+3. Go to https://vercel.com/new
+4. Import repository
+5. Add environment variables
+6. Deploy
+7. Test all features
+8. Share deployment URL
+
+========================================
+SUPPORT
+========================================
+
+Vercel Documentation: https://vercel.com/docs
+Vercel Support: https://vercel.com/support
+GitHub Issues: Report bugs in your repository
+
+Email: texconnect98@gmail.com
+Phone: +91 63745 16006
+
+========================================
+DEPLOYMENT CHECKLIST
+========================================
+
+Before deploying:
+☐ npm run build succeeds
+☐ No TypeScript errors
+☐ All environment variables configured
+☐ Supabase table created (contact_submissions)
+☐ Contact form tested locally
+☐ All pages tested locally
+☐ Mobile responsiveness verified
+
+After deploying:
+☐ Visit deployed URL
+☐ Test all features
+☐ Check console for errors
+☐ Verify Supabase connection
+☐ Test contact form submission
+☐ Check performance metrics
+☐ Monitor error logs
+
+========================================
+DEPLOYMENT COMPLETE!
+========================================
+
+Your TexConnect application is now deployed on Vercel!
+Share your deployment URL with your team and users.
+
+Deployment URL: https://your-project-name.vercel.app

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
 import { useTranslate } from '../../hooks/useTranslator';
@@ -7,6 +7,8 @@ import Modal from '../common/Modal';
 import InventoryProgressBar from '../common/InventoryProgressBar';
 import StarRating from '../common/StarRating';
 import { MSME_DOMAINS } from '../../constants';
+import { optimizedDataService } from '../../src/services/optimizedDataService';
+import cacheService from '../../src/services/cacheService';
 
 const ProductCard: React.FC<{ item: Product; supplierName: string; supplierDomain: MSMEDomain | undefined; onOrder: () => void }> = ({ item, supplierName, supplierDomain, onOrder }) => {
     const { t, language } = useLocalization();
@@ -75,6 +77,39 @@ export const ProductBrowseView: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Product | null>(null);
     const [quantity, setQuantity] = useState(1);
+    const [isOffline, setIsOffline] = useState(!cacheService.isApplicationOnline());
+
+    // ⚡ Prefetch data on component mount for better performance
+    useEffect(() => {
+        console.log('⚡ Prefetching data for ProductBrowseView...');
+        optimizedDataService.prefetchData(undefined, currentUser?.id);
+
+        // Save data for offline access
+        if (products.length > 0 || users.length > 0) {
+            cacheService.saveOfflineData({
+                products,
+                users
+            });
+        }
+
+        // Listen for online/offline changes
+        const handleOnline = () => {
+            console.log('✅ Application is online');
+            setIsOffline(false);
+        };
+        const handleOffline = () => {
+            console.log('⚠️ Application is offline');
+            setIsOffline(true);
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, [currentUser?.id, products, users]);
 
     // Get supplier info map
     const allUsersMap = useMemo(() => {
@@ -215,6 +250,17 @@ export const ProductBrowseView: React.FC = () => {
 
     return (
         <div className="p-6 space-y-6">
+            {/* Offline Indicator */}
+            {isOffline && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3">
+                    <span className="text-2xl">📱</span>
+                    <div>
+                        <p className="font-semibold text-yellow-800">You are offline</p>
+                        <p className="text-sm text-yellow-700">Viewing cached data. Some features may be limited.</p>
+                    </div>
+                </div>
+            )}
+
             {/* Controls Section */}
             <div className="bg-white p-4 rounded-lg shadow">
                 <div className="flex flex-col sm:flex-row gap-4">

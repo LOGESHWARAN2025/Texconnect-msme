@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
 import { AppProvider, useAppContext } from './context/SupabaseContext';
 import { LocalizationProvider } from './context/LocalizationContext';
+import { LoadingProvider } from './src/contexts/LoadingContext';
 import AdminApp from './AdminApp';
 import LoginPage from './pages/LoginPage';
 import RegistrationPage from './pages/RegistrationPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import LandingPage from './pages/LandingPage';
+import TexConnectWelcomeEnhanced from './components/welcome/TexConnectWelcomeEnhanced';
 import DemoApp from './DemoApp';
 import OfflineIndicator from './components/common/OfflineIndicator';
-
-const LoadingSpinner: React.FC = () => (
-  <div className="flex items-center justify-center h-screen bg-slate-100">
-    <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
-  </div>
-);
+import LoadingSpinner from './components/common/LoadingSpinner';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isLoading } = useAppContext();
-  const [authView, setAuthView] = useState<'login' | 'register' | 'adminLogin' | 'verifyEmail'>('login');
+  const [authView, setAuthView] = useState<'login' | 'register' | 'adminLogin' | 'verifyEmail' | 'landing'>('landing');
   const [userToVerify, setUserToVerify] = useState<string | null>(null);
 
   console.log('AppRouter: isLoading=', isLoading, 'currentUser=', currentUser);
@@ -41,7 +39,7 @@ const AppRouter: React.FC = () => {
   
   if (isLoading) {
     console.log('AppRouter: Showing loading spinner');
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullScreen text="Loading..." />;
   }
 
   if (!currentUser) {
@@ -50,14 +48,16 @@ const AppRouter: React.FC = () => {
     }
 
     switch(authView) {
+      case 'landing':
+        return <TexConnectWelcomeEnhanced onSignup={() => setAuthView('register')} onGetStarted={() => setAuthView('login')} onBookDemo={() => setAuthView('login')} />;
       case 'login':
-        return <LoginPage onSwitchToRegister={() => setAuthView('register')} onSwitchToAdminLogin={() => setAuthView('adminLogin')} onNeedsVerification={handleNeedsVerification} />;
+        return <LoginPage onSwitchToRegister={() => setAuthView('register')} onSwitchToAdminLogin={() => setAuthView('adminLogin')} onNeedsVerification={handleNeedsVerification} onBackToLanding={() => setAuthView('landing')} />;
       case 'register':
-        return <RegistrationPage onSwitchToLogin={() => setAuthView('login')} onRegistrationSuccess={handleRegistrationSuccess} />;
+        return <RegistrationPage onSwitchToLogin={() => setAuthView('login')} onRegistrationSuccess={handleRegistrationSuccess} onBackToLanding={() => setAuthView('landing')} />;
       case 'adminLogin':
         return <AdminLoginPage onSwitchToUserLogin={() => setAuthView('login')} />;
       default:
-        return <LoginPage onSwitchToRegister={() => setAuthView('register')} onSwitchToAdminLogin={() => setAuthView('adminLogin')} onNeedsVerification={handleNeedsVerification} />;
+        return <TexConnectWelcomeEnhanced onSignup={() => setAuthView('register')} onGetStarted={() => setAuthView('login')} onBookDemo={() => setAuthView('login')} />;
     }
   }
   
@@ -99,11 +99,13 @@ const App: React.FC = () => {
   console.log('App.tsx: App component rendering');
   
   return (
-    <AppProvider>
-      <LocalizationProvider>
-        <AppUI />
-      </LocalizationProvider>
-    </AppProvider>
+    <LoadingProvider>
+      <AppProvider>
+        <LocalizationProvider>
+          <AppUI />
+        </LocalizationProvider>
+      </AppProvider>
+    </LoadingProvider>
   );
 };
 

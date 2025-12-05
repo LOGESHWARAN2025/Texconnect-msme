@@ -1,11 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
+import { useAppContext } from './context/SupabaseContext';
 import AdminHeader from './components/admin/AdminHeader';
 import UserManagementView from './components/admin/UserManagementView';
 import AdminProfileView from './components/admin/AdminProfileView';
 
 const AdminApp: React.FC = () => {
+  const { currentUser } = useAppContext();
   const [currentView, setCurrentView] = useState<'management' | 'profile'>('management');
+
+  // Verify user is admin (main-admin or sub-admin)
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      console.error('❌ Unauthorized access to AdminApp - redirecting to login');
+      window.location.href = '/';
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     const handleHashChange = () => {

@@ -3,6 +3,7 @@ import { useLocalization } from '../hooks/useLocalization';
 import { useAppContext } from '../context/SupabaseContext';
 import type { OrderStatus, Order } from '../types';
 import InvoiceModal from './invoice/InvoiceModal';
+import QRCodeStickerPrinter from './QRCodeStickerPrinter';
 
 const getStatusColor = (status: OrderStatus) => {
   switch (status) {
@@ -19,6 +20,7 @@ const OrdersView: React.FC = () => {
   const { t, formatDate } = useLocalization();
   const { orders, updateOrderStatus, currentUser, products } = useAppContext();
   const [viewingInvoiceOrder, setViewingInvoiceOrder] = useState<Order | null>(null);
+  const [printingQROrder, setPrintingQROrder] = useState<Order | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const userProductIds = useMemo(() => {
@@ -139,21 +141,36 @@ const OrdersView: React.FC = () => {
                         {order.status}
                     </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm flex items-center space-x-2">
-                    <select
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                        disabled={updatingOrderId === order.id}
-                        className={`block w-32 pl-3 pr-8 py-1 text-sm border-slate-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md ${
-                          updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                        aria-label={`Update status for order ${order.id}`}
-                    >
-                        {orderStatuses.map(status => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                    <button onClick={() => setViewingInvoiceOrder(order)} className="text-primary hover:text-primary/80" title={t('invoice')}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
-                    </button>
+                <td className="px-6 py-4 whitespace-nowrap text-sm space-y-2">
+                    <div className="flex items-center space-x-2">
+                        <select
+                            value={order.status}
+                            onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                            disabled={updatingOrderId === order.id}
+                            className={`block w-32 pl-3 pr-8 py-1 text-sm border-slate-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md ${
+                              updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                            aria-label={`Update status for order ${order.id}`}
+                        >
+                            {orderStatuses.map(status => <option key={status} value={status}>{status}</option>)}
+                        </select>
+                        <button onClick={() => setViewingInvoiceOrder(order)} className="text-primary hover:text-primary/80" title={t('invoice')}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
+                        </button>
+                    </div>
+                    {order.status === 'Accepted' && (
+                        <button
+                            onClick={() => setPrintingQROrder(order)}
+                            className="w-full px-3 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded font-medium transition flex items-center justify-center space-x-1"
+                            title="Print QR Code Sticker"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M2 4a2 2 0 012-2h12a2 2 0 012 2v4a1 1 0 11-2 0V4H4v10h4a1 1 0 110 2H4a2 2 0 01-2-2V4z" />
+                                <path fillRule="evenodd" d="M12.586 4a1 1 0 100 1.414l2.828 2.828a1 1 0 001.414 0l2.828-2.828a1 1 0 00-1.414-1.414L15.828 5.172l-1.414-1.414a1 1 0 00-1.414 0l-2.828 2.828a1 1 0 001.414 1.414l1.414-1.414 1.414 1.414a1 1 0 001.414-1.414l-2.828-2.828z" clipRule="evenodd" />
+                            </svg>
+                            <span>QR Sticker</span>
+                        </button>
+                    )}
                 </td>
               </tr>
             )) : (
@@ -167,6 +184,11 @@ const OrdersView: React.FC = () => {
         isOpen={!!viewingInvoiceOrder}
         onClose={() => setViewingInvoiceOrder(null)}
         order={viewingInvoiceOrder}
+      />
+    <QRCodeStickerPrinter
+        isOpen={!!printingQROrder}
+        onClose={() => setPrintingQROrder(null)}
+        order={printingQROrder}
       />
     </>
   );
