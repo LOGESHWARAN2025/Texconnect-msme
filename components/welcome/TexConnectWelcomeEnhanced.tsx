@@ -526,7 +526,7 @@ export default function TexConnectWelcomeEnhanced({ onGetStarted, onBookDemo, on
             </div>
 
             {/* Main Footer Content */}
-            <div className="grid md:grid-cols-4 gap-10 mb-12">
+            <div className="grid md:grid-cols-3 gap-10 mb-12">
               {/* Product */}
               <div>
                 <h4 className="font-bold text-lg mb-6 flex items-center gap-2" style={{ color: textColor }}>
@@ -537,6 +537,7 @@ export default function TexConnectWelcomeEnhanced({ onGetStarted, onBookDemo, on
                   <li><button onClick={() => setCurrentPage('features')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Features</button></li>
                   <li><button onClick={() => setCurrentPage('success')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Success Stories</button></li>
                   <li><button onClick={() => setCurrentPage('support')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Support</button></li>
+                  <li><button onClick={() => setCurrentPage('contact')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Contact</button></li>
                 </ul>
               </div>
 
@@ -547,7 +548,6 @@ export default function TexConnectWelcomeEnhanced({ onGetStarted, onBookDemo, on
                   Company
                 </h4>
                 <ul className="space-y-3">
-                  <li><button onClick={() => setCurrentPage('contact')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Contact</button></li>
                   <li><button onClick={() => setCurrentPage('privacy')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Privacy Policy</button></li>
                   <li><button onClick={() => setCurrentPage('terms')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Terms of Service</button></li>
                 </ul>
@@ -563,27 +563,15 @@ export default function TexConnectWelcomeEnhanced({ onGetStarted, onBookDemo, on
                   <li><button onClick={() => setCurrentPage('documentation')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Documentation</button></li>
                   <li><button onClick={() => setCurrentPage('blog')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>Blog</button></li>
                   <li><button onClick={() => setCurrentPage('faq')} className="transition font-medium hover:opacity-70" style={{ color: textColor }}>FAQ</button></li>
-                </ul>
-              </div>
-
-              {/* Contact Info */}
-              <div>
-                <h4 className="font-bold text-lg mb-6 flex items-center gap-2" style={{ color: textColor }}>
-                  <div className="w-1 h-6 rounded-full" style={{ backgroundColor: textColor }}></div>
-                  Contact
-                </h4>
-                <ul className="space-y-3 text-sm">
-                  <li className="flex items-center gap-2" style={{ color: textColor }}>
-                    <span>📧</span>
-                    <a href="mailto:texconnect98@gmail.com" className="hover:opacity-70 transition" style={{ color: textColor }}>texconnect98@gmail.com</a>
+                  <li className="pt-2 border-t" style={{ borderColor: borderColor }}>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span>📧</span>
+                      <a href="mailto:texconnect98@gmail.com" className="hover:opacity-70 transition" style={{ color: textColor }}>texconnect98@gmail.com</a>
+                    </div>
                   </li>
-                  <li className="flex items-center gap-2" style={{ color: textColor }}>
+                  <li className="flex items-center gap-2 text-sm">
                     <span>📞</span>
                     <a href="tel:+916374516006" className="hover:opacity-70 transition" style={{ color: textColor }}>+91 63745 16006</a>
-                  </li>
-                  <li className="flex items-center gap-2" style={{ color: textColor }}>
-                    <span>📍</span>
-                    <span>Tiruppur, Tamil Nadu</span>
                   </li>
                 </ul>
               </div>
@@ -629,7 +617,7 @@ export default function TexConnectWelcomeEnhanced({ onGetStarted, onBookDemo, on
         {currentPage === 'faq' && <FAQPage onBack={() => setCurrentPage('home')} onNavigate={setCurrentPage} onGetStarted={onGetStarted} />}
       </div>
 
-      {renderFooter()}
+      {['home', 'features', 'success', 'support', 'contact'].includes(currentPage) && renderFooter()}
     </div>
   );
 }
