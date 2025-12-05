@@ -141,24 +141,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
 
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)', display: 'flex', alignItems: 'stretch', justifyContent: 'stretch', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100vw', minHeight: '100vh', background: 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'stretch', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", position: 'relative', overflow: 'hidden' }}>
       {/* Back button - top left */}
       {onBackToLanding && (
         <button
           onClick={onBackToLanding}
           style={{
             position: 'absolute',
-            top: '24px',
-            left: '24px',
-            fontSize: '14px',
+            top: '12px',
+            left: '12px',
+            fontSize: '12px',
             fontWeight: 600,
             color: 'white',
-            padding: '8px 16px',
+            padding: '6px 12px',
             borderRadius: '8px',
             transition: 'all 0.3s',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: '6px',
             background: 'rgba(255, 255, 255, 0.1)',
             border: 'none',
             cursor: 'pointer',
@@ -172,7 +172,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
             e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
           }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: '16px', height: '16px' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: '14px', height: '14px' }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           <span>Back</span>
@@ -184,17 +184,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
         onClick={() => setLanguage()}
         style={{
           position: 'absolute',
-          top: '24px',
-          right: '24px',
-          fontSize: '14px',
+          top: '12px',
+          right: '12px',
+          fontSize: '12px',
           fontWeight: 600,
           color: 'white',
-          padding: '8px 16px',
+          padding: '6px 12px',
           borderRadius: '8px',
           transition: 'all 0.3s',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '6px',
           background: 'rgba(255, 255, 255, 0.1)',
           border: 'none',
           cursor: 'pointer',
@@ -208,20 +208,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
           e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
         }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: '16px', height: '16px' }}>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: '14px', height: '14px' }}>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
         </svg>
-        <span>{language === 'en' ? 'தமிழ்' : 'EN'}</span>
+        <span style={{ display: 'none' }}>{language === 'en' ? 'தமிழ்' : 'EN'}</span>
       </button>
 
-      <div style={{ width: '100%', height: '100%', background: 'white', display: 'flex', position: 'relative' }}>
+      <div style={{ width: '100%', flex: 1, background: 'white', display: 'flex', flexDirection: 'row', position: 'relative', minHeight: '100vh' }}>
         {/* Left Panel */}
         <div
           style={{
             flex: 1,
             background: 'linear-gradient(135deg, rgba(79, 70, 229, 1) 0%, rgba(129, 140, 248, 0.8) 100%)',
             position: 'relative',
-            display: 'flex',
+            display: 'none',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
@@ -229,6 +229,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
             overflow: 'hidden',
             transition: 'all 0.6s ease',
           }}
+          className="hidden md:flex"
         >
           {/* Wave shapes */}
           <div style={{ position: 'absolute', top: 0, right: '-50px', width: '150px', height: '100%', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '50% 0 0 50%', transform: 'scaleX(1.5)', transition: 'all 0.6s ease' }} />
@@ -291,7 +292,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
         </div>
 
         {/* Right Panel */}
-        <div ref={formRef} style={{ flex: 1, padding: '40px 60px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', background: 'white', transition: 'all 0.6s ease', overflowY: 'auto', height: '100%', paddingTop: '20px' }}>
+        <div ref={formRef} className="login-form-panel" style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', background: 'white', transition: 'all 0.6s ease', overflowY: 'auto', height: '100%', paddingTop: '60px' }}>
           {/* Logo */}
           <div ref={formTitleRef} style={{ textAlign: 'center', marginBottom: '40px' }}>
             <svg fill="none" stroke="rgb(79, 70, 229)" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '80px', height: '80px', margin: '0 auto 20px', color: 'rgb(79, 70, 229)' }}>
@@ -617,6 +618,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+        
+        @media (min-width: 768px) {
+          .login-form-panel {
+            padding: 40px 60px !important;
+            padding-top: 20px !important;
           }
         }
       `}</style>
