@@ -1,6 +1,5 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
-import FooterComponent from './FooterComponent';
 
 interface PrivacyPolicyPageProps {
   onBack?: () => void;
@@ -10,8 +9,7 @@ interface PrivacyPolicyPageProps {
 
 export default function PrivacyPolicyPage({ onBack, onNavigate, onGetStarted }: PrivacyPolicyPageProps) {
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="flex-grow py-20" style={{ backgroundColor: 'rgb(79, 70, 229)' }}>
+    <div className="py-20" style={{ backgroundColor: 'rgb(79, 70, 229)' }}>
       <div className="max-w-4xl mx-auto px-6">
         {/* Header */}
         <div className="mb-12">
@@ -111,9 +109,6 @@ export default function PrivacyPolicyPage({ onBack, onNavigate, onGetStarted }: 
           </div>
         </div>
       </div>
-      </div>
-
-      <FooterComponent onNavigate={onNavigate} onGetStarted={onGetStarted} />
     </div>
   );
 }

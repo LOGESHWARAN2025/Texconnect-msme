@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
-import FooterComponent from './FooterComponent';
 
 interface FAQPageProps {
   onBack?: () => void;
@@ -178,8 +177,6 @@ export default function FAQPage({ onBack, onNavigate, onGetStarted }: FAQPagePro
         </div>
         </div>
       </div>
-
-      <FooterComponent onNavigate={onNavigate} onGetStarted={onGetStarted} />
     </div>
   );
 }

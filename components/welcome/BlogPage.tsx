@@ -1,6 +1,5 @@
 import React from 'react';
 import { ArrowLeft, Calendar, User } from 'lucide-react';
-import FooterComponent from './FooterComponent';
 
 interface BlogPageProps {
   onBack?: () => void;
@@ -159,8 +158,6 @@ export default function BlogPage({ onBack, onNavigate, onGetStarted }: BlogPageP
         </div>
         </div>
       </div>
-
-      <FooterComponent onNavigate={onNavigate} onGetStarted={onGetStarted} />
     </div>
   );
 }

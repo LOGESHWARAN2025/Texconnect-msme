@@ -1,6 +1,5 @@
 import React from 'react';
 import { ArrowLeft, BookOpen, Video, HelpCircle, Download } from 'lucide-react';
-import FooterComponent from './FooterComponent';
 
 interface DocumentationPageProps {
   onBack?: () => void;
@@ -134,8 +133,6 @@ export default function DocumentationPage({ onBack, onNavigate, onGetStarted }: 
         </div>
         </div>
       </div>
-
-      <FooterComponent onNavigate={onNavigate} onGetStarted={onGetStarted} />
     </div>
   );
 }
