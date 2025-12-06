@@ -49,17 +49,17 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
     minStockLevel: 0
   });
 
-  // Filter products for current MSME user
+  // Filter inventory items for current MSME user
   const msmeProducts = useMemo(() => {
     if (!currentUser) {
       console.log('❌ InventoryDashboard: No current user');
       return [];
     }
-    const filtered = products.filter((product: any) => (product.msmeId || product.msmeid) === currentUser.id);
-    console.log('📦 InventoryDashboard: Filtered products:', filtered.length, 'out of', products.length);
-    console.log('📦 InventoryDashboard: Products:', filtered.map(p => ({ id: p.id, name: p.name, stock: p.stock })));
+    const filtered = inventory.filter((item: any) => (item.msmeId || item.msmeid) === currentUser.id);
+    console.log('📦 InventoryDashboard: Filtered inventory items:', filtered.length, 'out of', inventory.length);
+    console.log('📦 InventoryDashboard: Inventory items:', filtered.map(p => ({ id: p.id, name: p.name, stock: p.stock })));
     return filtered;
-  }, [products, currentUser]);
+  }, [inventory, currentUser]);
 
   // Load inventory statistics
   useEffect(() => {
@@ -115,7 +115,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
       .channel(`inv-msme-${currentUser.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'products', filter: `msmeid=eq.${currentUser.id}` },
+        { event: '*', schema: 'public', table: 'inventory', filter: `msmeid=eq.${currentUser.id}` },
         () => reload()
       )
       .subscribe();
