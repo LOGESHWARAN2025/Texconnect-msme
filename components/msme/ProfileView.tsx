@@ -184,7 +184,7 @@ const ProfileView: React.FC = () => {
             <div className="mb-8">
                 <div className="flex items-start space-x-6">
                     <div className="relative">
-                        <div className="w-32 h-32 rounded-lg overflow-hidden bg-gray-100">
+                        <div className="w-32 h-32 rounded-lg overflow-hidden bg-gray-100 shadow-md border-2 border-gray-200">
                             {currentUser.profilePictureUrl ? (
                                 <img
                                     src={currentUser.profilePictureUrl}
@@ -204,18 +204,28 @@ const ProfileView: React.FC = () => {
                             )}
                         </div>
                         <label className="block mt-4">
+                            <button
+                                type="button"
+                                disabled={uploading}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const input = e.currentTarget.parentElement?.querySelector('input[type="file"]') as HTMLInputElement;
+                                    input?.click();
+                                }}
+                                className="w-full px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition disabled:bg-gray-400 flex items-center justify-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                {uploading ? 'Uploading...' : 'Update Photo'}
+                            </button>
                             <span className="sr-only">Choose profile photo</span>
                             <input
                                 type="file"
                                 accept="image/*"
                                 onChange={handleProfilePictureUpload}
                                 disabled={uploading}
-                                className="block w-full text-sm text-slate-500
-                                    file:mr-4 file:py-2 file:px-4
-                                    file:rounded-full file:border-0
-                                    file:text-sm file:font-semibold
-                                    file:bg-blue-50 file:text-blue-700
-                                    hover:file:bg-blue-100"
+                                className="hidden"
                             />
                         </label>
                     </div>
@@ -425,18 +435,27 @@ const ProfileView: React.FC = () => {
 
             {/* Status Messages */}
             {uploading && (
-                <div className="mt-4 p-4 bg-blue-50 text-blue-700 rounded">
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
                     Uploading profile picture...
                 </div>
             )}
-            {error && (
-                <div className="mt-4 p-4 bg-red-50 text-red-700 rounded">
-                    Error: {error}
+            {success && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Profile updated successfully!
                 </div>
             )}
-            {success && (
-                <div className="mt-4 p-4 bg-green-50 text-green-700 rounded">
-                    Profile updated successfully!
+            {error && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Error: {error}
                 </div>
             )}
         </div>
