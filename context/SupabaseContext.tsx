@@ -384,8 +384,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     let query = supabase.from('inventory').select('*');
 
     if (currentUser.role === 'msme') {
-      console.log('📦 Filtering inventory by msmeId:', currentUser.id);
-      query = query.eq('msmeId', currentUser.id);
+      console.log('📦 Filtering inventory by msmeid:', currentUser.id);
+      query = query.eq('msmeid', currentUser.id);
     } else if (currentUser.role === 'buyer') {
       console.log('📦 Filtering inventory by status: active');
       query = query.eq('status', 'active');
