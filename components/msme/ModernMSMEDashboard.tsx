@@ -244,6 +244,138 @@ export default function ModernMSMEDashboard() {
     return <IssuesPage onBack={() => setCurrentView('dashboard')} />;
   }
   if (currentView === 'profile') {
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [profileError, setProfileError] = useState<string | null>(null);
+    const [profileSuccess, setProfileSuccess] = useState(false);
+    const [formData, setFormData] = useState({
+        username: currentUser?.username || '',
+        firstname: currentUser?.firstname || '',
+        phone: currentUser?.phone || '',
+        address: currentUser?.address || '',
+        gstNumber: currentUser?.gstNumber || '',
+        companyName: currentUser?.companyName || '',
+        domain: currentUser?.domain || ''
+    });
+    const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !currentUser) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            setProfileError('File size must be less than 5MB');
+            return;
+        }
+        if (!file.type.startsWith('image/')) {
+            setProfileError('Please select a valid image file');
+            return;
+        }
+
+        try {
+            setUploading(true);
+            setProfileError(null);
+            setProfileSuccess(false);
+
+            const fileExt = file.name.split('.').pop();
+            const uniqueFileName = `${currentUser.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('profile-pictures')
+                .upload(uniqueFileName, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage
+                .from('profile-pictures')
+                .getPublicUrl(uniqueFileName);
+
+            const profilePictureUrl = urlData.publicUrl;
+            await requestProfileUpdate(currentUser.id, { profilePictureUrl });
+            
+            setProfileSuccess(true);
+        } catch (err: any) {
+            setProfileError(err.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleGstCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const validTypes = ['image/jpeg', 'image/jpg', 'application/pdf'];
+            if (!validTypes.includes(file.type)) {
+                setProfileError('Please upload a JPEG or PDF file');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                setProfileError('File size must be less than 5MB');
+                return;
+            }
+            setGstCertificateFile(file);
+            setProfileError(null);
+        }
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentUser) return;
+        setIsSubmitting(true);
+
+        try {
+            const changes: any = {};
+            if (formData.username !== currentUser.username) changes.username = formData.username;
+            if (formData.firstname !== currentUser.firstname) changes.firstname = formData.firstname;
+            if (formData.phone !== currentUser.phone) changes.phone = formData.phone;
+            if (formData.address !== currentUser.address) changes.address = formData.address;
+            if (formData.gstNumber !== currentUser.gstNumber) changes.gstNumber = formData.gstNumber;
+            if (formData.companyName !== currentUser.companyName) changes.companyName = formData.companyName;
+            if (formData.domain !== currentUser.domain) changes.domain = formData.domain;
+
+            if (gstCertificateFile) {
+                const fileExt = gstCertificateFile.name.split('.').pop();
+                const uniqueFileName = `${currentUser.id}/gst-certificate-${Date.now()}.${fileExt}`;
+                
+                const { error: uploadError } = await supabase.storage
+                    .from('gst-certificates')
+                    .upload(uniqueFileName, gstCertificateFile, {
+                        cacheControl: '3600',
+                        upsert: true
+                    });
+
+                if (uploadError) throw uploadError;
+
+                const { data: urlData } = supabase.storage
+                    .from('gst-certificates')
+                    .getPublicUrl(uniqueFileName);
+
+                changes.gstCertificateUrl = urlData.publicUrl;
+            }
+
+            if (Object.keys(changes).length > 0) {
+                await requestProfileUpdate(currentUser.id, changes);
+                setProfileSuccess(true);
+                setProfileError(null);
+            }
+            setIsEditModalOpen(false);
+            setGstCertificateFile(null);
+        } catch (err: any) {
+            setProfileError(err.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
       <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{
         scrollbarWidth: 'thin',
@@ -255,60 +387,296 @@ export default function ModernMSMEDashboard() {
               <ChevronRight className="h-5 w-5 rotate-180" />
               Back to Dashboard
             </button>
-            <h1 className="text-xl font-bold text-gray-900">User Profile</h1>
-            <div></div>
+            <h1 className="text-xl font-bold text-gray-900">MSME Profile</h1>
+            <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow"
+            >
+              Edit Profile
+            </button>
           </div>
         </nav>
         <div className="lg:pl-72">
-          <div className="p-6 max-w-2xl">
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-8 border border-indigo-100 shadow-lg">
-              <div className="flex items-center gap-6 mb-8">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg overflow-hidden flex-shrink-0">
-                  {currentUser?.profilePicture || currentUser?.profilePictureUrl ? (
-                    <img 
-                      src={currentUser.profilePicture || currentUser.profilePictureUrl} 
-                      alt={currentUser?.firstname}
-                      className="w-full h-full object-cover"
+          <div className="p-6 max-w-4xl">
+            {/* Profile Header Card */}
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-8 border border-indigo-100 shadow-lg mb-6">
+              <div className="flex items-start gap-8">
+                {/* Profile Picture Section */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-40 h-40 rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-xl border-4 border-white">
+                    {currentUser?.profilePictureUrl ? (
+                      <img 
+                        src={currentUser.profilePictureUrl} 
+                        alt={currentUser?.firstname}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-6xl font-bold text-white">{currentUser?.firstname?.charAt(0) || 'U'}</span>
+                    )}
+                  </div>
+                  <label className="block mt-4">
+                    <button
+                        type="button"
+                        disabled={uploading}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            const input = e.currentTarget.parentElement?.querySelector('input[type="file"]') as HTMLInputElement;
+                            input?.click();
+                        }}
+                        className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition disabled:bg-gray-400 flex items-center justify-center gap-2"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {uploading ? 'Uploading...' : 'Update Photo'}
+                    </button>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfilePictureUpload}
+                        disabled={uploading}
+                        className="hidden"
                     />
-                  ) : (
-                    <span className="text-4xl">{currentUser?.firstname?.charAt(0) || '👨'}</span>
-                  )}
+                  </label>
                 </div>
+
+                {/* Profile Info */}
                 <div className="flex-1">
-                  <p className="font-bold text-gray-900 text-lg leading-tight">{currentUser?.companyName || 'Company Name'}</p>
-                  <p className="text-sm text-indigo-600 font-medium">{currentUser?.email}</p>
-                  <div className="flex items-center gap-2 mt-3">
-                    <Zap className="h-4 w-4 text-yellow-500" />
-                    <span className="text-xs font-medium text-gray-600">{currentUser?.isApproved ? 'Approved' : 'Pending Approval'}</span>
+                  <div className="mb-6">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">{currentUser?.companyName || 'Company Name'}</h2>
+                    <p className="text-lg text-indigo-600 font-semibold">{currentUser?.firstname || 'N/A'}</p>
+                    <p className="text-gray-600 mt-1">{currentUser?.email}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <p className="text-sm text-gray-600 font-medium">GST Number</p>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">{currentUser?.gstNumber || 'N/A'}</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <p className="text-sm text-gray-600 font-medium">Phone</p>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">{currentUser?.phone || 'N/A'}</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <p className="text-sm text-gray-600 font-medium">Domain</p>
+                      <p className="text-lg font-semibold text-gray-900 mt-1">{currentUser?.domain || 'N/A'}</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <p className="text-sm text-gray-600 font-medium">Status</p>
+                      <span className={`inline-block mt-1 px-3 py-1 rounded-lg text-sm font-bold ${currentUser?.isApproved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {currentUser?.isApproved ? '✓ Approved' : '⏳ Pending'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-4 bg-white rounded-xl p-6">
-                <div className="flex justify-between items-center py-3 border-b border-gray-200">
-                  <span className="text-gray-600 font-medium">Name</span>
-                  <span className="text-gray-900 font-semibold">{currentUser?.firstname || 'N/A'}</span>
+            {/* Details Card */}
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-lg mb-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Profile Details</h3>
+              <div className="grid grid-cols-2 gap-8">
+                <div>
+                  <p className="text-sm text-gray-600 font-medium mb-2">Full Name</p>
+                  <p className="text-lg font-semibold text-gray-900">{currentUser?.username || 'N/A'}</p>
                 </div>
-                <div className="flex justify-between items-center py-3 border-b border-gray-200">
-                  <span className="text-gray-600 font-medium">Email</span>
-                  <span className="text-gray-900 font-semibold text-sm">{currentUser?.email || 'N/A'}</span>
+                <div>
+                  <p className="text-sm text-gray-600 font-medium mb-2">First Name</p>
+                  <p className="text-lg font-semibold text-gray-900">{currentUser?.firstname || 'N/A'}</p>
                 </div>
-                <div className="flex justify-between items-center py-3 border-b border-gray-200">
-                  <span className="text-gray-600 font-medium">GST Number</span>
-                  <span className="text-gray-900 font-semibold">{currentUser?.gstNumber || 'N/A'}</span>
+                <div>
+                  <p className="text-sm text-gray-600 font-medium mb-2">Address</p>
+                  <p className="text-lg font-semibold text-gray-900">{currentUser?.address || 'N/A'}</p>
                 </div>
-                <div className="flex justify-between items-center py-3 border-b border-gray-200">
-                  <span className="text-gray-600 font-medium">Phone</span>
-                  <span className="text-gray-900 font-semibold">{currentUser?.phone || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between items-center py-3">
-                  <span className="text-gray-600 font-medium">Status</span>
-                  <span className={`px-3 py-1 rounded-lg text-xs font-bold ${currentUser?.isApproved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {currentUser?.isApproved ? 'Approved' : 'Pending'}
-                  </span>
+                <div>
+                  <p className="text-sm text-gray-600 font-medium mb-2">GST Certificate</p>
+                  {currentUser?.gstCertificateUrl ? (
+                    <a
+                      href={currentUser.gstCertificateUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:text-indigo-700 font-semibold inline-flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      View Certificate
+                    </a>
+                  ) : (
+                    <p className="text-gray-400">Not uploaded</p>
+                  )}
                 </div>
               </div>
             </div>
+
+            {/* Status Messages */}
+            {uploading && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Uploading profile picture...
+                </div>
+            )}
+            {profileSuccess && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Profile updated successfully!
+                </div>
+            )}
+            {profileError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Error: {profileError}
+                </div>
+            )}
+
+            {/* Edit Profile Modal */}
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Profile">
+                <form onSubmit={handleEditSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto">
+                    <div>
+                        <label htmlFor="companyName" className="block text-sm font-medium text-slate-700">Company Name</label>
+                        <input
+                            id="companyName"
+                            type="text"
+                            name="companyName"
+                            value={formData.companyName}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Enter company name"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-slate-700">Full Name</label>
+                        <input
+                            id="username"
+                            type="text"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Enter your full name"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="firstname" className="block text-sm font-medium text-slate-700">First Name</label>
+                        <input
+                            id="firstname"
+                            type="text"
+                            name="firstname"
+                            value={formData.firstname}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Enter your first name"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-slate-700">Phone</label>
+                        <input
+                            id="phone"
+                            type="text"
+                            name="phone"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Enter your phone number"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="address" className="block text-sm font-medium text-slate-700">Address</label>
+                        <input
+                            id="address"
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Enter your address"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="gstNumber" className="block text-sm font-medium text-slate-700">GST Number</label>
+                        <input
+                            id="gstNumber"
+                            type="text"
+                            name="gstNumber"
+                            value={formData.gstNumber}
+                            onChange={handleInputChange}
+                            required
+                            placeholder="Enter your GST number"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="domain" className="block text-sm font-medium text-slate-700">Domain</label>
+                        <select
+                            id="domain"
+                            name="domain"
+                            value={formData.domain}
+                            onChange={handleInputChange}
+                            required
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                            <option value="">Select Domain</option>
+                            <option value="Textiles">Textiles</option>
+                            <option value="Apparel">Apparel</option>
+                            <option value="Dyeing">Dyeing</option>
+                            <option value="Printing">Printing</option>
+                            <option value="Finishing">Finishing</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="gstCertificate" className="block text-sm font-medium text-slate-700">GST Certificate (JPEG/PDF)</label>
+                        <input
+                            id="gstCertificate"
+                            type="file"
+                            accept=".jpg,.jpeg,.pdf"
+                            onChange={handleGstCertificateUpload}
+                            className="mt-1 block w-full text-sm text-slate-500
+                                file:mr-4 file:py-2 file:px-4
+                                file:rounded-full file:border-0
+                                file:text-sm file:font-semibold
+                                file:bg-indigo-50 file:text-indigo-600
+                                hover:file:bg-indigo-100"
+                        />
+                        {currentUser?.gstCertificateUrl && (
+                            <a
+                                href={currentUser.gstCertificateUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 text-sm text-indigo-600 hover:underline inline-block"
+                            >
+                                View current certificate
+                            </a>
+                        )}
+                    </div>
+                    <div className="flex justify-end space-x-3 pt-4 border-t">
+                        <button
+                            type="button"
+                            onClick={() => setIsEditModalOpen(false)}
+                            className="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg font-semibold hover:bg-slate-300 transition"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow disabled:bg-slate-400"
+                        >
+                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
           </div>
         </div>
       </div>
