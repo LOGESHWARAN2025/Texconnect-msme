@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Package, TrendingUp, AlertCircle, Users, BarChart3, ShoppingCart, Layers, Bell, Settings, Search, Menu, X, Filter, Download, Plus, Shirt, Clock, DollarSign, LogOut, Globe, Lock, ClipboardList, Box, FileText, ChevronRight, Zap, Activity } from 'lucide-react';
 import { useAppContext } from '../../context/SupabaseContext';
+import { supabase } from '../../src/lib/supabase';
+import Modal from '../common/Modal';
 import InventoryPage from './InventoryPage';
 import OrdersPage from './OrdersPage';
 import ProductsPage from './ProductsPage';
@@ -11,13 +13,30 @@ export default function ModernMSMEDashboard() {
   const [language, setLanguage] = useState('English');
   const [currentView, setCurrentView] = useState<'dashboard' | 'inventory' | 'orders' | 'products' | 'issues' | 'profile'>('dashboard');
   const [salesView, setSalesView] = useState<'week' | 'month'>('week');
-  const { currentUser, logout, inventory, orders } = useAppContext();
+  const { currentUser, logout, inventory, orders, requestProfileUpdate } = useAppContext();
   const [liveStats, setLiveStats] = useState({
     totalStockValue: 0,
     pendingOrders: 0,
     itemsInStock: 0,
     monthlyRevenue: 0
   });
+
+  // Profile view states - declared at top level
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [formData, setFormData] = useState({
+    username: currentUser?.username || '',
+    firstname: currentUser?.firstname || '',
+    phone: currentUser?.phone || '',
+    address: currentUser?.address || '',
+    gstNumber: currentUser?.gstNumber || '',
+    companyName: currentUser?.companyName || '',
+    domain: currentUser?.domain || ''
+  });
+  const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate live stats from data
   useEffect(() => {
@@ -61,6 +80,123 @@ export default function ModernMSMEDashboard() {
     if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
     if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
     return `₹${value}`;
+  };
+
+  // Profile handlers
+  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !currentUser) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileError('File size must be less than 5MB');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setProfileError('Please select a valid image file');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setProfileError(null);
+      setProfileSuccess(false);
+
+      const fileExt = file.name.split('.').pop();
+      const uniqueFileName = `${currentUser.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(uniqueFileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(uniqueFileName);
+
+      const profilePictureUrl = urlData.publicUrl;
+      await requestProfileUpdate(currentUser.id, { profilePictureUrl });
+      
+      setProfileSuccess(true);
+    } catch (err: any) {
+      setProfileError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleGstCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const validTypes = ['image/jpeg', 'image/jpg', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        setProfileError('Please upload a JPEG or PDF file');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setProfileError('File size must be less than 5MB');
+        return;
+      }
+      setGstCertificateFile(file);
+      setProfileError(null);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    setIsSubmitting(true);
+
+    try {
+      const changes: any = {};
+      if (formData.username !== currentUser.username) changes.username = formData.username;
+      if (formData.firstname !== currentUser.firstname) changes.firstname = formData.firstname;
+      if (formData.phone !== currentUser.phone) changes.phone = formData.phone;
+      if (formData.address !== currentUser.address) changes.address = formData.address;
+      if (formData.gstNumber !== currentUser.gstNumber) changes.gstNumber = formData.gstNumber;
+      if (formData.companyName !== currentUser.companyName) changes.companyName = formData.companyName;
+      if (formData.domain !== currentUser.domain) changes.domain = formData.domain;
+
+      if (gstCertificateFile) {
+        const fileExt = gstCertificateFile.name.split('.').pop();
+        const uniqueFileName = `${currentUser.id}/gst-certificate-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('gst-certificates')
+          .upload(uniqueFileName, gstCertificateFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('gst-certificates')
+          .getPublicUrl(uniqueFileName);
+
+        changes.gstCertificateUrl = urlData.publicUrl;
+      }
+
+      if (Object.keys(changes).length > 0) {
+        await requestProfileUpdate(currentUser.id, changes);
+        setProfileSuccess(true);
+        setProfileError(null);
+      }
+      setIsEditModalOpen(false);
+      setGstCertificateFile(null);
+    } catch (err: any) {
+      setProfileError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const stats = [
@@ -244,138 +380,6 @@ export default function ModernMSMEDashboard() {
     return <IssuesPage onBack={() => setCurrentView('dashboard')} />;
   }
   if (currentView === 'profile') {
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [uploading, setUploading] = useState(false);
-    const [profileError, setProfileError] = useState<string | null>(null);
-    const [profileSuccess, setProfileSuccess] = useState(false);
-    const [formData, setFormData] = useState({
-        username: currentUser?.username || '',
-        firstname: currentUser?.firstname || '',
-        phone: currentUser?.phone || '',
-        address: currentUser?.address || '',
-        gstNumber: currentUser?.gstNumber || '',
-        companyName: currentUser?.companyName || '',
-        domain: currentUser?.domain || ''
-    });
-    const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file || !currentUser) return;
-
-        if (file.size > 5 * 1024 * 1024) {
-            setProfileError('File size must be less than 5MB');
-            return;
-        }
-        if (!file.type.startsWith('image/')) {
-            setProfileError('Please select a valid image file');
-            return;
-        }
-
-        try {
-            setUploading(true);
-            setProfileError(null);
-            setProfileSuccess(false);
-
-            const fileExt = file.name.split('.').pop();
-            const uniqueFileName = `${currentUser.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-            
-            const { error: uploadError } = await supabase.storage
-                .from('profile-pictures')
-                .upload(uniqueFileName, file, {
-                    cacheControl: '3600',
-                    upsert: false
-                });
-
-            if (uploadError) throw uploadError;
-
-            const { data: urlData } = supabase.storage
-                .from('profile-pictures')
-                .getPublicUrl(uniqueFileName);
-
-            const profilePictureUrl = urlData.publicUrl;
-            await requestProfileUpdate(currentUser.id, { profilePictureUrl });
-            
-            setProfileSuccess(true);
-        } catch (err: any) {
-            setProfileError(err.message);
-        } finally {
-            setUploading(false);
-        }
-    };
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleGstCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const validTypes = ['image/jpeg', 'image/jpg', 'application/pdf'];
-            if (!validTypes.includes(file.type)) {
-                setProfileError('Please upload a JPEG or PDF file');
-                return;
-            }
-            if (file.size > 5 * 1024 * 1024) {
-                setProfileError('File size must be less than 5MB');
-                return;
-            }
-            setGstCertificateFile(file);
-            setProfileError(null);
-        }
-    };
-
-    const handleEditSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!currentUser) return;
-        setIsSubmitting(true);
-
-        try {
-            const changes: any = {};
-            if (formData.username !== currentUser.username) changes.username = formData.username;
-            if (formData.firstname !== currentUser.firstname) changes.firstname = formData.firstname;
-            if (formData.phone !== currentUser.phone) changes.phone = formData.phone;
-            if (formData.address !== currentUser.address) changes.address = formData.address;
-            if (formData.gstNumber !== currentUser.gstNumber) changes.gstNumber = formData.gstNumber;
-            if (formData.companyName !== currentUser.companyName) changes.companyName = formData.companyName;
-            if (formData.domain !== currentUser.domain) changes.domain = formData.domain;
-
-            if (gstCertificateFile) {
-                const fileExt = gstCertificateFile.name.split('.').pop();
-                const uniqueFileName = `${currentUser.id}/gst-certificate-${Date.now()}.${fileExt}`;
-                
-                const { error: uploadError } = await supabase.storage
-                    .from('gst-certificates')
-                    .upload(uniqueFileName, gstCertificateFile, {
-                        cacheControl: '3600',
-                        upsert: true
-                    });
-
-                if (uploadError) throw uploadError;
-
-                const { data: urlData } = supabase.storage
-                    .from('gst-certificates')
-                    .getPublicUrl(uniqueFileName);
-
-                changes.gstCertificateUrl = urlData.publicUrl;
-            }
-
-            if (Object.keys(changes).length > 0) {
-                await requestProfileUpdate(currentUser.id, changes);
-                setProfileSuccess(true);
-                setProfileError(null);
-            }
-            setIsEditModalOpen(false);
-            setGstCertificateFile(null);
-        } catch (err: any) {
-            setProfileError(err.message);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     return (
       <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{
         scrollbarWidth: 'thin',
