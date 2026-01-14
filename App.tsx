@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppProvider, useAppContext } from './context/SupabaseContext';
 import { LocalizationProvider } from './context/LocalizationContext';
 import { LoadingProvider } from './src/contexts/LoadingContext';
@@ -12,6 +12,7 @@ import TexConnectWelcomeEnhanced from './components/welcome/TexConnectWelcomeEnh
 import DemoApp from './DemoApp';
 import OfflineIndicator from './components/common/OfflineIndicator';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import ScanStatusModal from './components/ScanStatusModal';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isLoading } = useAppContext();
@@ -85,11 +86,43 @@ const AppRouter: React.FC = () => {
 
 const AppUI: React.FC = () => {
   const { isOffline } = useAppContext();
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanOrderId, setScanOrderId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const scan = params.get('scan');
+      const orderId = params.get('orderId');
+      if (scan === '1' && orderId) {
+        setScanOrderId(orderId);
+        setScanOpen(true);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
   
   return (
     <div className="h-screen bg-slate-100 text-slate-800">
       {isOffline && <OfflineIndicator />}
       <AppRouter />
+      <ScanStatusModal 
+        isOpen={scanOpen} 
+        orderId={scanOrderId} 
+        onClose={() => {
+          setScanOpen(false);
+          // remove query params so dialog doesn't reopen on refresh
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('scan');
+            url.searchParams.delete('orderId');
+            window.history.replaceState({}, document.title, url.toString());
+          } catch (e) {
+            // ignore
+          }
+        }}
+      />
     </div>
   );
 };

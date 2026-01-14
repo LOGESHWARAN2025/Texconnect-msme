@@ -25,19 +25,11 @@ const QRCodeStickerPrinter: React.FC<QRCodeStickerPrinterProps> = ({ isOpen, onC
     
     setLoading(true);
     try {
-      const qrData = {
-        orderId: order.id,
-        buyerName: order.buyerName,
-        totalAmount: order.totalAmount,
-        date: order.createdAt || order.date,
-        items: order.items?.map(item => ({
-          productName: item.productName,
-          quantity: item.quantity,
-          price: item.price
-        }))
-      };
+      // Encode a scan URL so scanners open the app and show the scan dialog
+      const base = typeof window !== 'undefined' ? window.location.origin : 'https://texconnect-msme.vercel.app';
+      const scanUrl = `${base}/?scan=1&orderId=${encodeURIComponent(order.id)}`;
 
-      const qrCodeDataUrl = await generateQRCode(JSON.stringify(qrData), {
+      const qrCodeDataUrl = await generateQRCode(scanUrl, {
         width: 300,
         margin: 2,
         color: {
