@@ -173,6 +173,18 @@ const OrdersView: React.FC = () => {
                                     <span>Cancel</span>
                                 </button>
                             </>
+                        ) : order.status === 'Cancelled' ? (
+                            // Show a subtle Retrieve button for cancelled orders (no dropdown)
+                            <button
+                                onClick={() => handleStatusChange(order.id, 'Pending')}
+                                disabled={updatingOrderId === order.id}
+                                className={`px-3 py-1 text-xs border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded font-medium transition ${
+                                    updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                                title="Retrieve Order"
+                            >
+                                Retrieve
+                            </button>
                         ) : (
                             // Show dropdown for non-Pending orders with limited options
                             <select
@@ -199,18 +211,17 @@ const OrdersView: React.FC = () => {
                                         <option value="Delivered">Delivered</option>
                                     </>
                                 )}
-                                {/* Delivered & Cancelled are terminal states */}
+                                {/* Delivered is terminal state */}
                                 {order.status === 'Delivered' && (
                                     <option value="Delivered" disabled>Delivered</option>
                                 )}
-                                {order.status === 'Cancelled' && (
-                                    <option value="Cancelled" disabled>Cancelled</option>
-                                )}
                             </select>
                         )}
-                        <button onClick={() => setViewingInvoiceOrder(order)} className="text-primary hover:text-primary/80" title={t('invoice')}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
-                        </button>
+                        {order.status === 'Accepted' && (
+                          <button onClick={() => setViewingInvoiceOrder(order)} className="text-primary hover:text-primary/80" title={t('invoice')}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
+                          </button>
+                        )}
                     </div>
                     {order.status === 'Accepted' && (
                         <button
