@@ -223,7 +223,7 @@ const OrdersView: React.FC = () => {
                           </button>
                         )}
                     </div>
-                    {order.status === 'Accepted' && (
+                    {(order.status === 'Accepted' || order.status === 'Shipped' || order.status === 'Delivered') && (
                         <button
                             onClick={() => setPrintingQROrder(order)}
                             className="w-full px-3 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded font-medium transition flex items-center justify-center space-x-1"
