@@ -108,7 +108,7 @@ const OrdersView: React.FC = () => {
     }
   };
   
-  const orderStatuses: OrderStatus[] = ['Pending', 'Accepted', 'Shipped', 'Delivered', 'Cancelled'];
+  // Note: status transitions are handled inline per row to control allowed states
 
   return (
     <>
@@ -141,19 +141,73 @@ const OrdersView: React.FC = () => {
                         {order.status}
                     </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm space-y-2">
-                    <div className="flex items-center space-x-2">
-                        <select
-                            value={order.status}
-                            onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                            disabled={updatingOrderId === order.id}
-                            className={`block w-32 pl-3 pr-8 py-1 text-sm border-slate-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md ${
-                              updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                            aria-label={`Update status for order ${order.id}`}
-                        >
-                            {orderStatuses.map(status => <option key={status} value={status}>{status}</option>)}
-                        </select>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <div className="flex items-center space-x-2 mb-2">
+                        {order.status === 'Pending' ? (
+                            // Show Accept and Cancel buttons for Pending orders
+                            <>
+                                <button
+                                    onClick={() => handleStatusChange(order.id, 'Accepted')}
+                                    disabled={updatingOrderId === order.id}
+                                    className={`px-3 py-1 text-xs bg-green-600 text-white hover:bg-green-700 rounded font-medium transition flex items-center justify-center space-x-1 ${
+                                        updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
+                                    title="Accept Order"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                    <span>Accept</span>
+                                </button>
+                                <button
+                                    onClick={() => handleStatusChange(order.id, 'Cancelled')}
+                                    disabled={updatingOrderId === order.id}
+                                    className={`px-3 py-1 text-xs bg-red-600 text-white hover:bg-red-700 rounded font-medium transition flex items-center justify-center space-x-1 ${
+                                        updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
+                                    title="Cancel Order"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                    <span>Cancel</span>
+                                </button>
+                            </>
+                        ) : (
+                            // Show dropdown for non-Pending orders with limited options
+                            <select
+                                value={order.status}
+                                onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                                disabled={updatingOrderId === order.id}
+                                className={`block w-40 pl-3 pr-8 py-1 text-sm border-slate-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md ${
+                                    updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                                aria-label={`Update status for order ${order.id}`}
+                            >
+                                {/* After acceptance: only allow Shipped or Delivered. Keep current as disabled */}
+                                {order.status === 'Accepted' && (
+                                    <>
+                                        <option value="Accepted" disabled>Accepted</option>
+                                        <option value="Shipped">Shipped</option>
+                                        <option value="Delivered">Delivered</option>
+                                    </>
+                                )}
+                                {/* After shipped: allow only Delivered. Keep current as disabled */}
+                                {order.status === 'Shipped' && (
+                                    <>
+                                        <option value="Shipped" disabled>Shipped</option>
+                                        <option value="Delivered">Delivered</option>
+                                    </>
+                                )}
+                                {/* Delivered & Cancelled are terminal states */}
+                                {order.status === 'Delivered' && (
+                                    <option value="Delivered" disabled>Delivered</option>
+                                )}
+                                {order.status === 'Cancelled' && (
+                                    <option value="Cancelled" disabled>Cancelled</option>
+                                )}
+                            </select>
+                        )}
                         <button onClick={() => setViewingInvoiceOrder(order)} className="text-primary hover:text-primary/80" title={t('invoice')}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
                         </button>
