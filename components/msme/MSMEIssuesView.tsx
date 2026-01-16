@@ -7,7 +7,7 @@ import { AlertCircle, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 
 const MSMEIssuesView: React.FC = () => {
   const { currentUser, issues } = useAppContext();
-  const { formatDateTime } = useLocalization();
+  const { t, formatDateTime } = useLocalization();
   const [showReportForm, setShowReportForm] = useState(false);
   const [viewTab, setViewTab] = useState<'active' | 'resolved'>('active');
 
@@ -52,80 +52,102 @@ const MSMEIssuesView: React.FC = () => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-md">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-semibold text-slate-800">My Issues & Complaints</h3>
+    <div className="bg-white/90 backdrop-blur-xl p-10 rounded-[2.5rem] shadow-2xl border border-white/20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex justify-between items-end mb-10">
+        <div>
+          <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-2">{t('my_issues_complaints')}</h3>
+          <p className="text-slate-500 font-bold">{t('track_and_manage_your_tickets') || 'Track and manage your support tickets'}</p>
+        </div>
         <button
           onClick={() => setShowReportForm(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow"
+          className="group flex items-center gap-2 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all hover:-translate-y-1 active:translate-y-0"
         >
-          Report New Issue
+          <svg className="w-5 h-5 group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 5v14M5 12h14" />
+          </svg>
+          {t('report_new_issue')}
         </button>
       </div>
 
       {/* Active/Resolved Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-4 mb-10 p-1.5 bg-slate-100 rounded-[1.25rem] w-fit">
         <button
           onClick={() => setViewTab('active')}
-          className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
-            viewTab === 'active'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          className={`px-8 py-3 rounded-[1rem] font-black text-sm transition-all ${viewTab === 'active'
+            ? 'bg-white text-indigo-600 shadow-xl'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
         >
-          Active Issues ({activeIssues.length})
+          {t('active_issues')} ({activeIssues.length})
         </button>
         <button
           onClick={() => setViewTab('resolved')}
-          className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
-            viewTab === 'resolved'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          className={`px-8 py-3 rounded-[1rem] font-black text-sm transition-all ${viewTab === 'resolved'
+            ? 'bg-white text-indigo-600 shadow-xl'
+            : 'text-slate-500 hover:text-slate-700'
+            }`}
         >
-          Resolved ({resolvedIssues.length})
+          {t('resolved')} ({resolvedIssues.length})
         </button>
       </div>
 
       {/* Issues List */}
       <div className="space-y-4">
         {displayIssues.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">
-              {viewTab === 'active' ? 'No active issues' : 'No resolved issues'}
+          <div className="text-center py-20 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-200">
+            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-10 h-10 text-slate-300" />
+            </div>
+            <p className="text-slate-500 font-bold text-lg">
+              {viewTab === 'active' ? t('no_active_issues') : t('no_resolved_issues')}
             </p>
           </div>
         ) : (
           displayIssues.map((issue: Issue) => (
             <div
               key={issue.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
+              className="group bg-white border border-slate-200 rounded-[2rem] p-8 hover:shadow-2xl hover:border-indigo-100 transition-all duration-500 transform hover:-translate-y-1"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-start gap-3 flex-1">
-                  {getStatusIcon(issue.status)}
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-start gap-5 flex-1">
+                  <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-indigo-50 transition-colors">
+                    {getStatusIcon(issue.status)}
+                  </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{issue.title}</h4>
-                    <p className="text-sm text-gray-600 mt-1">{issue.description}</p>
+                    <h4 className="text-xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors tracking-tight">{issue.title}</h4>
+                    <p className="text-slate-500 font-medium mt-2 leading-relaxed">{issue.description}</p>
                   </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getPriorityColor(issue.priority)}`}>
-                  {issue.priority.charAt(0).toUpperCase() + issue.priority.slice(1)}
+                <span className={`px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-sm ${getPriorityColor(issue.priority)}`}>
+                  {t(issue.priority) || issue.priority}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-sm text-gray-500">
-                <div className="flex gap-4">
-                  <span>Category: {issue.category}</span>
-                  <span>Status: {issue.status}</span>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex gap-8">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">{t('category')}:</span>
+                    <span className="text-slate-700 font-black">{t(issue.category) || issue.category}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">{t('status')}:</span>
+                    <span className="text-indigo-600 font-black uppercase text-[10px] tracking-widest bg-indigo-50 px-3 py-1 rounded-lg">
+                      {t(issue.status) || issue.status.replace('_', ' ')}
+                    </span>
+                  </div>
                 </div>
-                <span>{formatDateTime(issue.createdAt)}</span>
+                <span className="text-slate-400 font-bold">{formatDateTime(issue.createdAt)}</span>
               </div>
 
               {issue.adminResponse && (
-                <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                  <p className="text-sm font-semibold text-blue-900">Admin Response:</p>
-                  <p className="text-sm text-blue-800 mt-1">{issue.adminResponse}</p>
+                <div className="mt-8 p-6 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex gap-4">
+                  <div className="p-2 bg-white rounded-xl shadow-sm h-fit">
+                    <CheckCircle className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t('admin_response')}:</p>
+                    <p className="text-slate-700 font-bold leading-relaxed">{issue.adminResponse}</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -135,13 +157,13 @@ const MSMEIssuesView: React.FC = () => {
 
       {/* Report Form Modal */}
       {showReportForm && currentUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">Report New Issue</h2>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-10 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t('report_new_issue')}</h2>
               <button
                 onClick={() => setShowReportForm(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500 transition-all text-2xl font-light"
               >
                 ×
               </button>

@@ -203,24 +203,39 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
       {onSwitchToAdminLogin && (
         <button
           onClick={onSwitchToAdminLogin}
-          className="absolute top-6 right-6 text-sm font-semibold text-white hover:text-blue-300 py-2 px-4 rounded-lg transition"
+          className="absolute top-6 right-6 text-sm font-semibold text-white hover:text-blue-300 py-2 px-4 rounded-lg transition z-50"
           title="Switch to Admin Login"
         >
           Admin
         </button>
       )}
 
+      {/* Language Toggle - top right (next to Admin) */}
+      <div className="absolute top-6 right-28 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-lg border border-white/20 text-white z-50">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2 2.5 2.5 0 002.5-2.5V4a2 2 0 00-2-2h-1.305" />
+        </svg>
+        <select
+          value={useLocalization().language}
+          onChange={(e) => useLocalization().setLanguage(e.target.value as any)}
+          className="bg-transparent text-sm border-none focus:ring-0 cursor-pointer appearance-none outline-none pr-1"
+        >
+          <option value="en" className="text-gray-900">English</option>
+          <option value="ta" className="text-gray-900">தமிழ்</option>
+        </select>
+      </div>
+
       {/* Back button - top left */}
       {onBackToLanding && (
         <button
           onClick={onBackToLanding}
-          className="absolute top-6 left-6 text-sm font-semibold text-white hover:text-blue-300 py-2 px-4 rounded-lg transition flex items-center space-x-1"
+          className="absolute top-6 left-6 text-sm font-semibold text-white hover:text-blue-300 py-2 px-4 rounded-lg transition flex items-center space-x-1 z-50"
           title="Back to Landing Page"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          <span>Back</span>
+          <span>{t('back')}</span>
         </button>
       )}
 
@@ -257,14 +272,14 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
             {/* Welcome text */}
             <h2 style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '24px', fontWeight: 600, marginBottom: '20px' }}>
-              {isLoginView ? 'Welcome Back!' : 'Join TexConnect'}
+              {isLoginView ? t('welcome_back_login') : t('join_texconnect')}
             </h2>
 
             {/* Description */}
             <p style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '16px', lineHeight: 1.6, marginBottom: '35px', maxWidth: '350px', marginLeft: 'auto', marginRight: 'auto' }}>
               {isLoginView
-                ? 'Smart inventory management for Tiruppur textile manufacturers. Track yarn, fabric, and garments seamlessly.'
-                : 'Start managing your textile inventory digitally. Join 850+ Tiruppur manufacturers already using TexConnect.'}
+                ? t('login_description')
+                : t('signup_description')}
             </p>
 
             {/* Toggle button */}
@@ -283,15 +298,15 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                 border: 'none',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
+                e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.2)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
                 e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)';
               }}
             >
-              {isLoginView ? 'CREATE ACCOUNT' : 'SIGN IN'}
+              {isLoginView ? t('create_account_btn') : t('sign_in_btn')}
             </button>
 
             {/* Icon */}
@@ -313,7 +328,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                 <svg fill="none" stroke="rgb(79, 70, 229)" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '80px', height: '80px', margin: '0 auto 20px', color: 'rgb(79, 70, 229)' }}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
                 </svg>
-                <h1 style={{ color: 'rgb(79, 70, 229)', fontSize: '48px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '3px' }}>LOGIN</h1>
+                <h1 style={{ color: 'rgb(79, 70, 229)', fontSize: '48px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '3px' }}>{t('login_title')}</h1>
               </div>
 
               {/* Error message */}
@@ -326,7 +341,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       onClick={() => onNeedsVerification?.(unverifiedEmail)}
                       style={{ marginTop: '8px', fontSize: '14px', fontWeight: 600, color: 'rgb(79, 70, 229)', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}
                     >
-                      Resend verification email
+                      {t('resend_verification')}
                     </button>
                   )}
                 </div>
@@ -335,7 +350,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
               <form onSubmit={handleLogin} style={{ marginBottom: '30px' }}>
                 {/* Email */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>Email</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('email_address')}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0', transition: 'border-color 0.3s' }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -344,7 +359,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       type="email"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="Enter your email"
+                      placeholder={t('enter_email_placeholder')}
                       required
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
                     />
@@ -353,7 +368,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
                 {/* Password */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>Password</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('password')}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0', transition: 'border-color 0.3s' }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
@@ -362,7 +377,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       type={showLoginPassword ? 'text' : 'password'}
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter your password"
+                      placeholder={t('enter_password_placeholder')}
                       required
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
                     />
@@ -393,7 +408,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                     onClick={() => setIsForgotPasswordOpen(true)}
                     style={{ color: 'rgb(79, 70, 229)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}
                   >
-                    Forgot Password?
+                    {t('forgot_password')}
                   </button>
                 </div>
 
@@ -414,19 +429,19 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                     textTransform: 'uppercase',
                     cursor: isLoading ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: '0 4px 15px rgba(79, 70, 229, 0.3)',
                     marginLeft: 'auto',
                     display: 'block',
                     opacity: isLoading ? 0.5 : 1,
+                    boxShadow: '0 8px 25px rgba(79, 70, 229, 0.4)',
                   }}
                 >
-                  {isLoading ? 'Logging in...' : 'LOGIN'}
+                  {isLoading ? `${t('login')}...` : t('login')}
                 </button>
               </form>
 
               {/* Social login */}
               <div style={{ marginTop: '30px' }}>
-                <div style={{ textAlign: 'center', marginBottom: '25px', color: '#94a3b8', fontSize: '14px' }}>Or Login with</div>
+                <div style={{ textAlign: 'center', marginBottom: '25px', color: '#94a3b8', fontSize: '14px' }}>{t('or_login_with')}</div>
                 <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
                   <button
                     onClick={() => handleSocialLogin('google')}
@@ -500,7 +515,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
               {/* Sign up link */}
               <p style={{ marginTop: '30px', textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
-                Don't have an account?{' '}
+                {t('dont_have_account')}{' '}
                 <button
                   onClick={toggleForm}
                   style={{
@@ -512,7 +527,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                     textDecoration: 'none',
                   }}
                 >
-                  Sign Up
+                  {t('sign_up')}
                 </button>
               </p>
             </div>
@@ -526,7 +541,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                 <svg fill="none" stroke="rgb(79, 70, 229)" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '80px', height: '80px', margin: '0 auto 20px', color: 'rgb(79, 70, 229)' }}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
                 </svg>
-                <h1 style={{ color: 'rgb(79, 70, 229)', fontSize: '48px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '3px' }}>SIGN UP</h1>
+                <h1 style={{ color: 'rgb(79, 70, 229)', fontSize: '48px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '3px' }}>{t('signup_title')}</h1>
               </div>
 
               {/* Error message */}
@@ -539,7 +554,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
               <form onSubmit={handleSignup} style={{ marginBottom: '30px' }}>
                 {/* Role selector */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>I am a</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('i_am_a')}</label>
                   <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                     {(['buyer', 'msme'] as const).map((role) => (
                       <button
@@ -559,7 +574,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                           textTransform: 'capitalize',
                         }}
                       >
-                        {role}
+                        {role === 'buyer' ? t('buyer_role') : t('msme_role')}
                       </button>
                     ))}
                   </div>
@@ -567,7 +582,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
                 {/* First Name */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>First Name</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('first_name')}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0' }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
@@ -576,7 +591,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       type="text"
                       value={signupData.firstname}
                       onChange={(e) => setSignupData({ ...signupData, firstname: e.target.value })}
-                      placeholder="Enter your first name"
+                      placeholder={t('enter_firstname_placeholder')}
                       required
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
                     />
@@ -585,7 +600,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
                 {/* Username */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>Username</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('username')}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0' }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
@@ -594,7 +609,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       type="text"
                       value={signupData.username}
                       onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
-                      placeholder="Choose a username"
+                      placeholder={t('choose_username_placeholder')}
                       required
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
                     />
@@ -603,7 +618,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
                 {/* Email */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>Email</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('email_address')}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0' }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -612,7 +627,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       type="email"
                       value={signupData.email}
                       onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                      placeholder="Enter your email"
+                      placeholder={t('enter_email_placeholder')}
                       required
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
                     />
@@ -621,7 +636,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
                 {/* Phone */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>Phone</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('phone')}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0' }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
@@ -630,7 +645,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       type="tel"
                       value={signupData.phone}
                       onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
-                      placeholder="Enter your phone number"
+                      placeholder={t('enter_phone_placeholder')}
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
                     />
                   </div>
@@ -639,7 +654,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                 {/* MSME Domain */}
                 {signupRole === 'msme' && (
                   <div style={{ marginBottom: '25px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>Business Domain</label>
+                    <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('business_domain')}</label>
                     <select
                       value={signupData.domain}
                       onChange={(e) => setSignupData({ ...signupData, domain: e.target.value as MSMEDomain })}
@@ -656,10 +671,10 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                         cursor: 'pointer',
                       }}
                     >
-                      <option value="">Select domain</option>
+                      <option value="">{t('select_domain')}</option>
                       {MSME_DOMAINS.map((domain) => (
                         <option key={domain} value={domain}>
-                          {domain}
+                          {t(domain.toLowerCase().replace(/\s+/g, '_')) || domain}
                         </option>
                       ))}
                     </select>
@@ -668,7 +683,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
                 {/* Password */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>Password</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('password')}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0' }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
@@ -677,7 +692,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       type={showSignupPassword ? 'text' : 'password'}
                       value={signupData.password}
                       onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                      placeholder="Create a password"
+                      placeholder={t('create_password_placeholder')}
                       required
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
                     />
@@ -703,7 +718,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
 
                 {/* Confirm Password */}
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>Confirm Password</label>
+                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569' }}>{t('confirm_password')}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #e2e8f0', padding: '12px 0' }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '24px', height: '24px', color: '#94a3b8', marginRight: '15px' }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
@@ -712,7 +727,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                       type="password"
                       value={signupData.confirmPassword}
                       onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                      placeholder="Confirm your password"
+                      placeholder={t('confirm_password_placeholder')}
                       required
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', color: '#1e293b' }}
                     />
@@ -729,7 +744,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                     style={{ marginRight: '10px', cursor: 'pointer' }}
                   />
                   <label htmlFor="terms" style={{ fontSize: '14px', color: '#475569', cursor: 'pointer' }}>
-                    I agree to the terms and conditions
+                    {t('agree_terms')}
                   </label>
                 </div>
 
@@ -756,13 +771,13 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                     opacity: isLoading ? 0.5 : 1,
                   }}
                 >
-                  {isLoading ? 'Creating account...' : 'SIGN UP'}
+                  {isLoading ? `${t('sign_up')}...` : t('sign_up')}
                 </button>
               </form>
 
               {/* Sign in link */}
               <p style={{ marginTop: '30px', textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
-                Already have an account?{' '}
+                {t('already_have_account')}{' '}
                 <button
                   onClick={toggleForm}
                   style={{
@@ -774,7 +789,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
                     textDecoration: 'none',
                   }}
                 >
-                  Sign In
+                  {t('sign_in_btn')}
                 </button>
               </p>
             </div>
@@ -783,92 +798,94 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
       </div>
 
       {/* Forgot Password Modal */}
-      {isForgotPasswordOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ background: 'white', borderRadius: '12px', padding: '30px', maxWidth: '400px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '20px', color: '#1e293b' }}>Reset Password</h2>
+      {
+        isForgotPasswordOpen && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+            <div style={{ background: 'white', borderRadius: '12px', padding: '30px', maxWidth: '400px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '20px', color: '#1e293b' }}>{t('reset_password_title')}</h2>
 
-            {!resetEmailSent ? (
-              <form onSubmit={handleForgotPasswordSubmit}>
-                <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
-                  Enter your email address and we will send you a link to reset your password.
-                </p>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569', display: 'block', marginBottom: '8px' }}>Email Address</label>
-                  <input
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    required
+              {!resetEmailSent ? (
+                <form onSubmit={handleForgotPasswordSubmit}>
+                  <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
+                    {t('reset_password_desc')}
+                  </p>
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 'normal', color: '#475569', display: 'block', marginBottom: '8px' }}>{t('email_address')}</label>
+                    <input
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPasswordOpen(false)}
+                      style={{
+                        padding: '10px 20px',
+                        background: '#e2e8f0',
+                        color: '#1e293b',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {t('cancel')}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isResettingPassword}
+                      style={{
+                        padding: '10px 20px',
+                        background: 'rgb(79, 70, 229)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        cursor: isResettingPassword ? 'not-allowed' : 'pointer',
+                        opacity: isResettingPassword ? 0.5 : 1,
+                      }}
+                    >
+                      {isResettingPassword ? `${t('send_reset_link')}...` : t('send_reset_link')}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div>
+                  <p style={{ fontSize: '14px', color: '#1e293b', marginBottom: '20px' }}>
+                    {t('check_email_reset')}
+                  </p>
+                  <button
+                    onClick={() => setIsForgotPasswordOpen(false)}
                     style={{
                       width: '100%',
                       padding: '10px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsForgotPasswordOpen(false)}
-                    style={{
-                      padding: '10px 20px',
-                      background: '#e2e8f0',
-                      color: '#1e293b',
+                      background: 'rgb(79, 70, 229)',
+                      color: 'white',
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isResettingPassword}
-                    style={{
-                      padding: '10px 20px',
-                      background: 'rgb(79, 70, 229)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: 600,
-                      cursor: isResettingPassword ? 'not-allowed' : 'pointer',
-                      opacity: isResettingPassword ? 0.5 : 1,
-                    }}
-                  >
-                    {isResettingPassword ? 'Sending...' : 'Send Reset Link'}
+                    {t('return_to_login')}
                   </button>
                 </div>
-              </form>
-            ) : (
-              <div>
-                <p style={{ fontSize: '14px', color: '#1e293b', marginBottom: '20px' }}>
-                  If an account with that email exists, a password reset link has been sent.
-                </p>
-                <button
-                  onClick={() => setIsForgotPasswordOpen(false)}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: 'rgb(79, 70, 229)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <style>{`
         @keyframes fadeIn {
@@ -882,7 +899,7 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
           }
         }
       `}</style>
-    </div>
+    </div >
   );
 };
 

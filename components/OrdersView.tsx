@@ -40,13 +40,13 @@ const OrdersView: React.FC = () => {
       console.log('❌ No current user in OrdersView');
       return [];
     }
-    
+
     console.log('📋 OrdersView - Filtering orders:', {
       role: currentUser.role,
       totalOrders: orders.length,
       userProductIds: Array.from(userProductIds)
     });
-    
+
     if (currentUser.role === 'msme') {
       // Debug each order
       orders.forEach((order, index) => {
@@ -59,13 +59,13 @@ const OrdersView: React.FC = () => {
           productIds: order.items?.map((item: any) => item.productId)
         });
       });
-      
+
       const filtered = orders.filter(order => {
         if (!order.items || !Array.isArray(order.items)) {
           console.log('⚠️ Order has no items array:', order.id);
           return false;
         }
-        
+
         const hasMatchingProduct = order.items.some(item => {
           const matches = userProductIds.has(item.productId);
           console.log('  Item check:', {
@@ -75,14 +75,14 @@ const OrdersView: React.FC = () => {
           });
           return matches;
         });
-        
+
         return hasMatchingProduct;
       });
-      
+
       console.log('✅ Filtered MSME orders:', filtered.length);
       return filtered;
     }
-    
+
     // For other roles, orders are already filtered in context, but this is a safeguard.
     return orders;
   }, [orders, userProductIds, currentUser]);
@@ -102,155 +102,177 @@ const OrdersView: React.FC = () => {
     } catch (error: any) {
       const errorMessage = error?.message || error?.code || 'Unknown error occurred';
       console.error('❌ Failed to update order status:', errorMessage);
-      alert(`Failed to update status: ${errorMessage}. Please try again.`);
+      alert(`${t('failed_update_status')}: ${errorMessage}. ${t('please_try_again') || 'Please try again'}`);
     } finally {
       setUpdatingOrderId(null);
     }
   };
-  
+
   // Note: status transitions are handled inline per row to control allowed states
 
   return (
     <>
-      <div className="bg-white p-6 rounded-xl shadow-md">
-       <h3 className="text-xl font-semibold text-slate-800 mb-6">{t('track_orders')}</h3>
+      <div className="bg-white/90 backdrop-blur-xl p-10 rounded-[2.5rem] shadow-2xl border border-white/20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex items-center justify-between mb-10">
+          <div>
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-2">{t('track_orders')}</h3>
+            <p className="text-slate-500 font-bold">{t('manage_fulfill_orders')}</p>
+          </div>
+          <div className="px-6 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm">
+            <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">{userOrders.length} {t('orders')}</span>
+          </div>
+        </div>
 
-       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('order_id')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('buyer_name')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('buyer_gst')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('date')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('total')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('status')}</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-slate-200">
-            {userOrders.length > 0 ? userOrders.map(order => (
-              <tr key={order.id} className="hover:bg-slate-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{order.id.substring(0,8)}...</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{order.buyerName}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{order.itemName || 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatDate(order.createdAt || order.date || new Date().toISOString())}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">₹{(order.totalAmount || 0).toLocaleString('en-IN')}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                        {order.status}
-                    </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center space-x-2 mb-2">
+        <div className="overflow-hidden rounded-[2rem] border border-slate-100 shadow-sm bg-white">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-slate-50/50">
+                <tr>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('order_id')}</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('buyer_name')}</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('item_name')}</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('date')}</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('total')}</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('status')}</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {userOrders.length > 0 ? userOrders.map(order => (
+                  <tr key={order.id} className="group transition-all hover:bg-slate-50/50">
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black tracking-widest group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">#{order.id.substring(0, 8)}</span>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="text-sm font-black text-slate-900 group-hover:translate-x-1 transition-transform">{order.buyerName}</div>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="text-xs font-bold text-slate-500">{order.itemName || t('not_applicable')}</div>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="text-xs font-bold text-slate-600">{formatDate(order.createdAt || order.date || new Date().toISOString())}</div>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="text-sm font-black text-indigo-600 tracking-tight">₹{(order.totalAmount || 0).toLocaleString('en-IN')}</div>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <span className={`px-4 py-1.5 inline-flex text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm border border-black/5 ${getStatusColor(order.status)}`}>
+                        {t(order.status.toLowerCase()) || order.status}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap text-sm">
+                      <div className="flex items-center gap-4">
                         {order.status === 'Pending' ? (
-                            // Show Accept and Cancel buttons for Pending orders
-                            <>
-                                <button
-                                    onClick={() => handleStatusChange(order.id, 'Accepted')}
-                                    disabled={updatingOrderId === order.id}
-                                    className={`px-3 py-1 text-xs bg-green-600 text-white hover:bg-green-700 rounded font-medium transition flex items-center justify-center space-x-1 ${
-                                        updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
-                                    }`}
-                                    title="Accept Order"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                    <span>Accept</span>
-                                </button>
-                                <button
-                                    onClick={() => handleStatusChange(order.id, 'Cancelled')}
-                                    disabled={updatingOrderId === order.id}
-                                    className={`px-3 py-1 text-xs bg-red-600 text-white hover:bg-red-700 rounded font-medium transition flex items-center justify-center space-x-1 ${
-                                        updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
-                                    }`}
-                                    title="Cancel Order"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                    <span>Cancel</span>
-                                </button>
-                            </>
-                        ) : order.status === 'Cancelled' ? (
-                            // Show a subtle Retrieve button for cancelled orders (no dropdown)
+                          <>
                             <button
-                                onClick={() => handleStatusChange(order.id, 'Pending')}
-                                disabled={updatingOrderId === order.id}
-                                className={`px-3 py-1 text-xs border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded font-medium transition ${
-                                    updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
-                                title="Retrieve Order"
+                              onClick={() => handleStatusChange(order.id, 'Accepted')}
+                              disabled={updatingOrderId === order.id}
+                              className="px-6 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-lg shadow-indigo-600/20 flex items-center gap-2 disabled:opacity-50"
                             >
-                                Retrieve
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>{t('accept')}</span>
                             </button>
-                        ) : (
-                            // Show dropdown for non-Pending orders with limited options
-                            <select
-                                value={order.status}
-                                onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                                disabled={updatingOrderId === order.id}
-                                className={`block w-40 pl-3 pr-8 py-1 text-sm border-slate-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md ${
-                                    updatingOrderId === order.id ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
-                                aria-label={`Update status for order ${order.id}`}
+                            <button
+                              onClick={() => handleStatusChange(order.id, 'Cancelled')}
+                              disabled={updatingOrderId === order.id}
+                              className="px-6 py-2.5 bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 disabled:opacity-50"
                             >
-                                {/* After acceptance: only allow Shipped or Delivered. Keep current as disabled */}
-                                {order.status === 'Accepted' && (
-                                    <>
-                                        <option value="Accepted" disabled>Accepted</option>
-                                        <option value="Shipped">Shipped</option>
-                                        <option value="Delivered">Delivered</option>
-                                    </>
-                                )}
-                                {/* After shipped: allow only Delivered. Keep current as disabled */}
-                                {order.status === 'Shipped' && (
-                                    <>
-                                        <option value="Shipped" disabled>Shipped</option>
-                                        <option value="Delivered">Delivered</option>
-                                    </>
-                                )}
-                                {/* Delivered is terminal state */}
-                                {order.status === 'Delivered' && (
-                                    <option value="Delivered" disabled>Delivered</option>
-                                )}
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>{t('cancel')}</span>
+                            </button>
+                          </>
+                        ) : order.status === 'Cancelled' ? (
+                          <button
+                            onClick={() => handleStatusChange(order.id, 'Pending')}
+                            disabled={updatingOrderId === order.id}
+                            className="px-6 py-2.5 border-2 border-slate-100 text-slate-400 hover:border-indigo-600 hover:text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50"
+                          >
+                            {t('retrieve')}
+                          </button>
+                        ) : (
+                          <div className="relative group/select">
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                              disabled={updatingOrderId === order.id}
+                              className="appearance-none block w-40 pl-6 pr-10 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-slate-50 focus:outline-none focus:border-indigo-600 focus:bg-white rounded-2xl bg-slate-50/50 transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              {order.status === 'Accepted' && (
+                                <>
+                                  <option value="Accepted" disabled>{t('accepted')}</option>
+                                  <option value="Shipped">{t('shipped')}</option>
+                                  <option value="Delivered">{t('delivered')}</option>
+                                </>
+                              )}
+                              {order.status === 'Shipped' && (
+                                <>
+                                  <option value="Shipped" disabled>{t('shipped')}</option>
+                                  <option value="Delivered">{t('delivered')}</option>
+                                </>
+                              )}
+                              {order.status === 'Delivered' && (
+                                <option value="Delivered" disabled>{t('delivered')}</option>
+                              )}
                             </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 group-hover/select:translate-y-0.5 transition-transform">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </div>
                         )}
                         {(order.status === 'Accepted' || order.status === 'Shipped' || order.status === 'Delivered') && (
-                          <button onClick={() => setViewingInvoiceOrder(order)} className="text-primary hover:text-primary/80" title={t('invoice')}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setViewingInvoiceOrder(order)}
+                              className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-indigo-600 hover:text-white transition-all hover:-translate-y-1 shadow-sm border border-slate-100"
+                              title={t('invoice')}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setPrintingQROrder(order)}
+                              className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all hover:-translate-y-1 shadow-sm border border-slate-100"
+                              title={t('qr_sticker')}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                              </svg>
+                            </button>
+                          </div>
                         )}
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan={7} className="text-center py-32 bg-slate-50/20">
+                    <div className="flex flex-col items-center gap-6">
+                      <div className="w-20 h-20 bg-slate-100 rounded-[2rem] flex items-center justify-center grayscale opacity-50">
+                        <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                      </div>
+                      <p className="text-xl font-black text-slate-300 uppercase tracking-[0.2em]">{t('no_orders')}</p>
                     </div>
-                    {(order.status === 'Accepted' || order.status === 'Shipped' || order.status === 'Delivered') && (
-                        <button
-                            onClick={() => setPrintingQROrder(order)}
-                            className="w-full px-3 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded font-medium transition flex items-center justify-center space-x-1"
-                            title="Print QR Code Sticker"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M2 4a2 2 0 012-2h12a2 2 0 012 2v4a1 1 0 11-2 0V4H4v10h4a1 1 0 110 2H4a2 2 0 01-2-2V4z" />
-                                <path fillRule="evenodd" d="M12.586 4a1 1 0 100 1.414l2.828 2.828a1 1 0 001.414 0l2.828-2.828a1 1 0 00-1.414-1.414L15.828 5.172l-1.414-1.414a1 1 0 00-1.414 0l-2.828 2.828a1 1 0 001.414 1.414l1.414-1.414 1.414 1.414a1 1 0 001.414-1.414l-2.828-2.828z" clipRule="evenodd" />
-                            </svg>
-                            <span>QR Sticker</span>
-                        </button>
-                    )}
-                </td>
-              </tr>
-            )) : (
-                <tr><td colSpan={7} className="text-center py-10 text-slate-500">{t('no_orders')}</td></tr>
-            )}
-          </tbody>
-        </table>
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-    </div>
-    <InvoiceModal 
+      <InvoiceModal
         isOpen={!!viewingInvoiceOrder}
         onClose={() => setViewingInvoiceOrder(null)}
         order={viewingInvoiceOrder}
       />
-    <QRCodeStickerPrinter
+      <QRCodeStickerPrinter
         isOpen={!!printingQROrder}
         onClose={() => setPrintingQROrder(null)}
         order={printingQROrder}

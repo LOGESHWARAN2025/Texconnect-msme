@@ -46,11 +46,11 @@ const ProfileView: React.FC = () => {
 
         // Validate file size and type
         if (file.size > 5 * 1024 * 1024) {
-            setError('File size must be less than 5MB');
+            setError(t('file_size_error'));
             return;
         }
         if (!file.type.startsWith('image/')) {
-            setError('Please select a valid image file');
+            setError(t('invalid_image_error'));
             return;
         }
 
@@ -62,7 +62,7 @@ const ProfileView: React.FC = () => {
             // Upload to Supabase Storage
             const fileExt = file.name.split('.').pop();
             const uniqueFileName = `${currentUser.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-            
+
             const { error: uploadError } = await supabase.storage
                 .from('profile-pictures')
                 .upload(uniqueFileName, file, {
@@ -81,7 +81,7 @@ const ProfileView: React.FC = () => {
 
             // Update the user's profile with the new profile picture
             await requestProfileUpdate(currentUser.id, { profilePictureUrl });
-            
+
             // Show success message
             setSuccess(true);
         } catch (err: any) {
@@ -116,12 +116,12 @@ const ProfileView: React.FC = () => {
             // Validate file type
             const validTypes = ['image/jpeg', 'image/jpg', 'application/pdf'];
             if (!validTypes.includes(file.type)) {
-                setError('Please upload a JPEG or PDF file');
+                setError(t('invalid_gst_file_error'));
                 return;
             }
             // Validate file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
-                setError('File size must be less than 5MB');
+                setError(t('file_size_error'));
                 return;
             }
             setGstCertificateFile(file);
@@ -155,7 +155,7 @@ const ProfileView: React.FC = () => {
             if (gstCertificateFile) {
                 const fileExt = gstCertificateFile.name.split('.').pop();
                 const uniqueFileName = `${currentUser.id}/gst-certificate-${Date.now()}.${fileExt}`;
-                
+
                 const { error: uploadError } = await supabase.storage
                     .from('gst-certificates')
                     .upload(uniqueFileName, gstCertificateFile, {
@@ -242,23 +242,25 @@ const ProfileView: React.FC = () => {
     if (!currentUser) return null;
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">MSME Profile</h2>
-                <div className="flex items-center gap-3">
+        <div className="max-w-4xl mx-auto p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex justify-between items-end mb-12">
+                <div>
+                    <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">{t('msme_profile')}</h1>
+                    <p className="text-slate-500 font-bold">{t('manage_your_business_details') || 'Manage your business identity'}</p>
+                </div>
+                <div className="flex items-center gap-4">
                     <button
                         onClick={() => setIsAddInventoryOpen(true)}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl p-3 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
+                        className="group flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all hover:-translate-y-1 active:translate-y-0"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                            <path d="M5 12h14"></path>
-                            <path d="M12 5v14"></path>
+                        <svg className="w-5 h-5 group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 5v14M5 12h14" />
                         </svg>
-                        <span className="font-semibold text-sm">Add Inventory</span>
+                        {t('add_inventory')}
                     </button>
                     <button
                         onClick={() => setIsEditModalOpen(true)}
-                        className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition shadow"
+                        className="bg-white text-slate-900 border-2 border-slate-200 px-6 py-3 rounded-2xl font-black shadow-lg hover:border-indigo-600 hover:text-indigo-600 transition-all hover:shadow-xl"
                     >
                         {t('edit_profile')}
                     </button>
@@ -288,7 +290,7 @@ const ProfileView: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                        <label className="block mt-4">
+                        <label className="block mt-6">
                             <button
                                 type="button"
                                 disabled={uploading}
@@ -297,14 +299,13 @@ const ProfileView: React.FC = () => {
                                     const input = e.currentTarget.parentElement?.querySelector('input[type="file"]') as HTMLInputElement;
                                     input?.click();
                                 }}
-                                className="w-full px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition disabled:bg-gray-400 flex items-center justify-center gap-2"
+                                className="w-full px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all disabled:bg-slate-400 flex items-center justify-center gap-3"
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
-                                {uploading ? 'Uploading...' : 'Update Photo'}
+                                {uploading ? t('uploading') : t('update_photo')}
                             </button>
-                            <span className="sr-only">Choose profile photo</span>
                             <input
                                 type="file"
                                 accept="image/*"
@@ -315,52 +316,54 @@ const ProfileView: React.FC = () => {
                         </label>
                     </div>
 
-                    <div className="flex-1">
-                        <div className="grid grid-cols-2 gap-6">
+                    <div className="flex-1 bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-10 shadow-2xl border border-white/20">
+                        <div className="grid grid-cols-2 gap-x-12 gap-y-10">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Company Name</label>
-                                <p className="mt-1 text-lg">{currentUser.companyName || currentUser.username}</p>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('company_name')}</label>
+                                <p className="text-xl font-black text-slate-900 leading-tight">{currentUser.companyName || currentUser.username}</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Contact Person</label>
-                                <p className="mt-1 text-lg">{currentUser.username}</p>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('contact_person')}</label>
+                                <p className="text-xl font-bold text-slate-700">{currentUser.username}</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Email</label>
-                                <p className="mt-1 text-lg">{currentUser.email}</p>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('email')}</label>
+                                <p className="text-lg font-medium text-slate-600">{currentUser.email}</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">GST Number</label>
-                                <p className="mt-1 text-lg">{currentUser.gstNumber}</p>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('gst_number')}</label>
+                                <p className="text-lg font-black text-indigo-600">{currentUser.gstNumber}</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Domain</label>
-                                <p className="mt-1 text-lg">{currentUser.domain}</p>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('domain')}</label>
+                                <p className="text-lg font-bold text-slate-700">{currentUser.domain}</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Address</label>
-                                <p className="mt-1 text-lg">{currentUser.address}</p>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('phone')}</label>
+                                <p className="text-lg font-bold text-slate-700">{currentUser.phone}</p>
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('address')}</label>
+                                <p className="text-lg font-medium text-slate-600 leading-relaxed">{currentUser.address}</p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Phone</label>
-                                <p className="mt-1 text-lg">{currentUser.phone}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">GST Certificate</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('gst_certificate')}</label>
                                 {currentUser?.gstCertificateUrl ? (
                                     <a
                                         href={currentUser.gstCertificateUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="mt-1 text-primary hover:underline inline-flex items-center"
+                                        className="mt-2 inline-flex items-center gap-2 text-indigo-600 font-black hover:text-indigo-700 transition-colors group"
                                     >
-                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                        View Certificate
+                                        <div className="p-2 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </div>
+                                        {t('view_certificate')}
                                     </a>
                                 ) : (
-                                    <p className="mt-1 text-gray-400">Not uploaded</p>
+                                    <p className="mt-2 text-slate-400 font-bold italic">{t('not_uploaded')}</p>
                                 )}
                             </div>
                         </div>
@@ -658,35 +661,43 @@ const ProfileView: React.FC = () => {
 
             {/* Status Messages */}
             {uploading && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg flex items-center gap-2">
-                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Uploading profile picture...
+                <div className="fixed bottom-10 right-10 p-6 bg-white/80 backdrop-blur-xl border border-white/20 text-indigo-600 rounded-[2rem] shadow-2xl flex items-center gap-4 animate-in slide-in-from-right duration-500 font-bold">
+                    <div className="p-2 bg-indigo-50 rounded-xl">
+                        <svg className="w-6 h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </div>
+                    {t('uploading_profile_photo')}
                 </div>
             )}
             {success && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Profile updated successfully!
+                <div className="mt-6 p-6 bg-green-50/50 border border-green-200 text-green-700 rounded-3xl flex items-center gap-4 animate-in fade-in duration-500">
+                    <div className="p-2 bg-green-100 rounded-xl">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <span className="font-bold">{t('profile_updated_success')}</span>
                 </div>
             )}
             {inventorySuccess && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Inventory item added successfully!
+                <div className="mt-6 p-6 bg-green-50/50 border border-green-200 text-green-700 rounded-3xl flex items-center gap-4 animate-in fade-in duration-500">
+                    <div className="p-2 bg-green-100 rounded-xl">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <span className="font-bold">{t('inventory_item_added')}</span>
                 </div>
             )}
             {error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Error: {error}
+                <div className="mt-6 p-6 bg-red-50/50 border border-red-200 text-red-700 rounded-3xl flex items-center gap-4 animate-in fade-in duration-500">
+                    <div className="p-2 bg-red-100 rounded-xl">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <span className="font-bold">{t('error')}: {error}</span>
                 </div>
             )}
         </div>
