@@ -917,19 +917,19 @@ export default function ModernMSMEDashboard() {
               <span className="font-semibold">Dashboard</span>
               {currentView === 'dashboard' && <ChevronRight className="h-4 w-4 ml-auto" />}
             </button>
-            <button onClick={() => { setCurrentView('inventory'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${currentView === 'inventory' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'inventory' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+            <button onClick={() => { setCurrentView('inventory'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <Lock className="h-5 w-5 group-hover:scale-110 transition-transform" />
               <span className="font-medium">Inventory</span>
             </button>
-            <button onClick={() => { setCurrentView('orders'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${currentView === 'orders' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'orders' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+            <button onClick={() => { setCurrentView('orders'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <ClipboardList className="h-5 w-5 group-hover:scale-110 transition-transform" />
               <span className="font-medium">Orders</span>
             </button>
-            <button onClick={() => { setCurrentView('products'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${currentView === 'products' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'products' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+            <button onClick={() => { setCurrentView('products'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <Box className="h-5 w-5 group-hover:scale-110 transition-transform" />
               <span className="font-medium">Products</span>
             </button>
-            <button onClick={() => { setCurrentView('issues'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${currentView === 'issues' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'issues' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+            <button onClick={() => { setCurrentView('issues'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <AlertCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
               <span className="font-medium">Issues</span>
             </button>
@@ -937,7 +937,7 @@ export default function ModernMSMEDashboard() {
 
           {/* Profile Link */}
           <div className="p-4 border-t border-gray-200">
-            <button onClick={() => { setCurrentView('profile'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'profile' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'profile' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+            <button onClick={() => { setCurrentView('profile'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <Users className="h-5 w-5" />
               <span className="font-medium">Profile</span>
             </button>
