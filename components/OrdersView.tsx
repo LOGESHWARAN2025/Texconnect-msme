@@ -375,46 +375,86 @@ const OrdersView: React.FC = () => {
         }}
       />
 
-      {/* Final Update Status Confirmation Dialog (only after successful scan or direct update) */}
-      {pendingStatusUpdate && (() => {
+      {/* Verification Status Dialog (Shows remaining count or success) */}
+      {pendingStatusUpdate && !scanningOrder && (() => {
         const order = orders.find(o => o.id === pendingStatusUpdate.orderId);
-        const isVerified = order && order.totalUnits && (order.scannedUnits?.length || 0) === order.totalUnits;
+        if (!order) return null;
 
-        if (!isVerified) return null;
+        const total = order.totalUnits || 0;
+        const scanned = order.scannedUnits?.length || 0;
+        const remaining = total - scanned;
+        const isVerified = total > 0 && scanned === total;
 
-        return (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-            <div className="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 animate-in zoom-in duration-300">
-              <div className="text-center space-y-6">
-                <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
-                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Verification Successful!</h3>
-                  <p className="text-slate-500 font-bold text-sm mt-2">All units have been verified. Do you want to update the order status to <span className="text-indigo-600 uppercase font-black">{t(pendingStatusUpdate.status.toLowerCase()) || pendingStatusUpdate.status}</span>?</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => setPendingStatusUpdate(null)}
-                    className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const { orderId, status } = pendingStatusUpdate;
-                      setPendingStatusUpdate(null);
-                      await handleStatusChange(orderId, status);
-                    }}
-                    className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-600/30 hover:-translate-y-1 transition-all"
-                  >
-                    Update Now
-                  </button>
+        if (isVerified) {
+          return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+              <div className="bg-white rounded-[2.5rem] sm:rounded-[3rem] shadow-2xl max-w-sm w-full p-6 sm:p-10 animate-in zoom-in duration-300">
+                <div className="text-center space-y-6">
+                  <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Verification Successful!</h3>
+                    <p className="text-slate-500 font-bold text-sm mt-2">All {total} units have been verified. Do you want to update the order status to <span className="text-indigo-600 uppercase font-black">{t(pendingStatusUpdate.status.toLowerCase()) || pendingStatusUpdate.status}</span>?</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setPendingStatusUpdate(null)}
+                      className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const { orderId, status } = pendingStatusUpdate;
+                        setPendingStatusUpdate(null);
+                        await handleStatusChange(orderId, status);
+                      }}
+                      className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-600/30 hover:-translate-y-1 transition-all"
+                    >
+                      Update Now
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
+          );
+        } else {
+          return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+              <div className="bg-white rounded-[2.5rem] sm:rounded-[3rem] shadow-2xl max-w-sm w-full p-6 sm:p-10 animate-in zoom-in duration-300">
+                <div className="text-center space-y-6">
+                  <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Security Check: Pending</h3>
+                    <p className="text-slate-500 font-bold text-sm mt-2">
+                      Verification is still in progress. You have scanned <span className="text-indigo-600 font-black">{scanned} boxes</span>, but there are <span className="text-amber-600 font-black">{remaining} boxes remaining</span>.
+                    </p>
+                  </div>
+                  <div className="space-y-3 pt-2">
+                    <button
+                      onClick={() => setScanningOrder(order)}
+                      className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl hover:-translate-y-1 transition-all"
+                    >
+                      Continue Scanning
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPendingStatusUpdate(null);
+                        setScanningOrder(null);
+                      }}
+                      className="w-full py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-red-500 transition-all"
+                    >
+                      Cancel Update
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
       })()}
     </>
   );

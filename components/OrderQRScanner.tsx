@@ -28,7 +28,14 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
             if (mode === 'camera') {
                 const scanner = new Html5QrcodeScanner(
                     "qr-reader",
-                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    {
+                        fps: 10,
+                        qrbox: (viewfinderWidth, viewfinderHeight) => {
+                            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                            const edgeSize = Math.floor(minEdge * 0.7);
+                            return { width: edgeSize, height: edgeSize };
+                        }
+                    },
                     /* verbose= */ false
                 );
 
@@ -111,9 +118,9 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
     const isComplete = scannedIds.length >= totalUnits;
 
     return (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-            <div className="bg-white rounded-[3rem] shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in duration-300">
-                <div className="p-10 space-y-8">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 sm:p-6">
+            <div className="bg-white rounded-[2.5rem] sm:rounded-[3rem] shadow-2xl max-w-lg w-full max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
+                <div className="p-6 sm:p-10 space-y-6 sm:space-y-8 overflow-y-auto custom-scrollbar flex-1">
                     {/* Header */}
                     <div className="flex items-center gap-6">
                         <button
@@ -190,10 +197,10 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                     {/* Progress & Balance */}
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
                         <div className="flex justify-between items-center">
-                            <div className="space-y-1">
-                                <h4 className="text-slate-900 font-black text-lg leading-none">{scannedIds.length} Boxes Scanned</h4>
-                                <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">
-                                    {balance > 0 ? `${balance} boxes remaining to scan` : 'Verification Complete'}
+                            <div className="space-y-1 flex-1">
+                                <h4 className="text-slate-900 font-black text-2xl leading-none tracking-tighter">{scannedIds.length} Scanned</h4>
+                                <p className={`font-black text-[10px] uppercase tracking-widest ${balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>
+                                    {balance > 0 ? `${balance} boxes remaining` : 'System Verified'}
                                 </p>
                             </div>
                             <div className="text-right">
