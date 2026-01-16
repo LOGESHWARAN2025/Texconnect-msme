@@ -42,38 +42,38 @@ const UserTable: React.FC<{ users: User[], onView: (user: User) => void, onRevie
           {users.map(user => {
             const hasPendingChanges = !!user.pendingChanges && Object.keys(user.pendingChanges).length > 0;
             return (
-                <tr key={user.id} className="hover:bg-slate-50">
+              <tr key={user.id} className="hover:bg-slate-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{user.username}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{user.email}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{user.gstNumber}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.isEmailVerified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {user.isEmailVerified ? 'Verified' : 'Unverified'}
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.isEmailVerified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {user.isEmailVerified ? 'Verified' : 'Unverified'}
+                  </span>
+                  {hasPendingChanges && (
+                    <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                      Changes Pending
                     </span>
-                    {hasPendingChanges && (
-                        <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            Changes Pending
-                        </span>
-                    )}
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
-                    <button 
+                  <button
                     onClick={() => onView(user)}
                     className="text-primary hover:text-primary/80"
-                    >
+                  >
                     View Profile
-                    </button>
-                    {hasPendingChanges && (
-                        <button onClick={() => onReview(user)} className="text-blue-600 hover:text-blue-800 font-semibold">{t('review_changes')}</button>
-                    )}
-                    <button 
+                  </button>
+                  {hasPendingChanges && (
+                    <button onClick={() => onReview(user)} className="text-blue-600 hover:text-blue-800 font-semibold">{t('review_changes')}</button>
+                  )}
+                  <button
                     onClick={() => onDelete(user)}
                     className="text-red-600 hover:text-red-800 font-semibold"
-                    >
+                  >
                     Delete
-                    </button>
+                  </button>
                 </td>
-                </tr>
+              </tr>
             )
           })}
         </tbody>
@@ -84,58 +84,58 @@ const UserTable: React.FC<{ users: User[], onView: (user: User) => void, onRevie
 
 // Admin Table Component
 const AdminTable: React.FC<{ users: User[], currentUser: User | null, onDelete: (user: User) => void }> = ({ users, currentUser, onDelete }) => {
-    const { t } = useLocalization();
-    const isMainAdmin = currentUser?.isMainAdmin === true;
-    
-    return (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('user_name')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('email_address')}</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Admin Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                {isMainAdmin && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+  const { t } = useLocalization();
+  const isMainAdmin = currentUser?.isMainAdmin === true;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-slate-200">
+        <thead className="bg-slate-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('user_name')}</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{t('email_address')}</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Admin Type</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+            {isMainAdmin && (
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+            )}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-slate-200">
+          {users.map(user => (
+            <tr key={user.id} className="hover:bg-slate-50">
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{user.username}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{user.email}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                {user.isMainAdmin ? (
+                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Main Admin</span>
+                ) : (
+                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Sub Admin</span>
                 )}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-200">
-              {users.map(user => (
-                <tr key={user.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{user.username}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{user.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                    {user.isMainAdmin ? (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Main Admin</span>
-                    ) : (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Sub Admin</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.isEmailVerified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {user.isEmailVerified ? 'Verified' : 'Unverified'}
-                    </span>
-                  </td>
-                  {isMainAdmin && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {!user.isMainAdmin && user.id !== currentUser?.id && (
-                        <button 
-                          onClick={() => onDelete(user)}
-                          className="text-red-600 hover:text-red-800 font-semibold"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </td>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.isEmailVerified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                  {user.isEmailVerified ? 'Verified' : 'Unverified'}
+                </span>
+              </td>
+              {isMainAdmin && (
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  {!user.isMainAdmin && user.id !== currentUser?.id && (
+                    <button
+                      onClick={() => onDelete(user)}
+                      className="text-red-600 hover:text-red-800 font-semibold"
+                    >
+                      Delete
+                    </button>
                   )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 const UserManagementView: React.FC = () => {
@@ -147,7 +147,7 @@ const UserManagementView: React.FC = () => {
   const [reviewingUser, setReviewingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [isCreateAdminModalOpen, setIsCreateAdminModalOpen] = useState(false);
-  
+
   const isMainAdmin = currentUser?.isMainAdmin === true;
 
 
@@ -181,24 +181,26 @@ const UserManagementView: React.FC = () => {
         return null;
     }
   };
-  
-  const TabButton: React.FC<{tab: AdminViewTab, label: string}> = ({tab, label}) => (
+
+  const TabButton: React.FC<{ tab: AdminViewTab, label: string }> = ({ tab, label }) => (
     <button
-        onClick={() => setActiveTab(tab)}
-        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeTab === tab 
-            ? 'bg-primary text-white shadow' 
-            : 'text-slate-600 hover:bg-slate-100'
+      onClick={() => setActiveTab(tab)}
+      className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 ${activeTab === tab
+          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/30'
+          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 font-medium'
         }`}
     >
-        {label}
+      {label}
     </button>
   );
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-md">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <h3 className="text-xl font-semibold text-slate-800">{t('user_management')}</h3>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-6">
+        <div>
+          <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-slate-700 bg-clip-text text-transparent">{t('user_management')}</h3>
+          <p className="text-slate-500 text-sm mt-1">Manage platform users and permissions</p>
+        </div>
         <div className="relative w-full sm:w-auto">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -217,30 +219,30 @@ const UserManagementView: React.FC = () => {
 
       <div className="border-b border-slate-200 mb-4">
         <nav className="flex flex-wrap space-x-2 gap-y-2">
-            <TabButton tab="msme" label="MSME Approvals"/>
-            <TabButton tab="buyer" label="Buyer Approvals"/>
-            <TabButton tab="admin" label="Admin Management"/>
-            <TabButton tab="audit" label="Audit Log"/>
-            <TabButton tab="feedback-logs" label="Feedback Logs"/>
-            <TabButton tab="issues" label="Issue Log"/>
+          <TabButton tab="msme" label="MSME Approvals" />
+          <TabButton tab="buyer" label="Buyer Approvals" />
+          <TabButton tab="admin" label="Admin Management" />
+          <TabButton tab="audit" label="Audit Log" />
+          <TabButton tab="feedback-logs" label="Feedback Logs" />
+          <TabButton tab="issues" label="Issue Log" />
         </nav>
       </div>
       {activeTab === 'admin' && isMainAdmin && (
         <div className="flex justify-end mb-4">
-            <button
-                onClick={() => setIsCreateAdminModalOpen(true)}
-                className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition shadow"
-            >
-                Create New Admin
-            </button>
+          <button
+            onClick={() => setIsCreateAdminModalOpen(true)}
+            className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition shadow"
+          >
+            Create New Admin
+          </button>
         </div>
       )}
-      
+
       <div className="mt-4">
         {renderContent()}
       </div>
 
-      <UserProfileModal 
+      <UserProfileModal
         isOpen={!!viewingUser}
         onClose={() => setViewingUser(null)}
         user={viewingUser}

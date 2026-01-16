@@ -7,16 +7,15 @@ import InventoryProgressBar from '../common/InventoryProgressBar';
 
 const ProductCard: React.FC<{ item: Product; onEdit: (item: Product) => void; onDelete: (item: Product) => void }> = ({ item, onEdit, onDelete }) => {
     const { t } = useLocalization();
-    
+
     return (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="p-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col h-full group">
+            <div className="p-6 flex-1">
                 <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-bold text-slate-800">{item.name}</h3>
                     <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            item.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                             {item.stock > 0 ? t('active') : t('inactive')}
                         </span>
                         <button
@@ -39,17 +38,17 @@ const ProductCard: React.FC<{ item: Product; onEdit: (item: Product) => void; on
                         </button>
                     </div>
                 </div>
-                
+
                 {item.description && (
                     <p className="text-sm text-slate-500 mb-2">{t('description')}: {item.description}</p>
                 )}
-                
+
                 <div className="space-y-3">
                     <div className="flex justify-between">
                         <span className="text-sm text-slate-600">{t('price')}:</span>
                         <span className="font-semibold text-slate-800">₹{item.price.toLocaleString()}</span>
                     </div>
-                    
+
                     <div>
                         <InventoryProgressBar
                             currentStock={item.stock}
@@ -59,11 +58,11 @@ const ProductCard: React.FC<{ item: Product; onEdit: (item: Product) => void; on
                         />
                     </div>
                 </div>
-                
+
                 <div className="mt-4 pt-4 border-t border-slate-200">
                     <p className="text-xs text-slate-500">
-                        {t('visible_to_buyers')}: {item.stock > 0 ? 
-                            <span className="text-green-600 font-medium">{t('yes')}</span> : 
+                        {t('visible_to_buyers')}: {item.stock > 0 ?
+                            <span className="text-green-600 font-medium">{t('yes')}</span> :
                             <span className="text-red-600 font-medium">{t('no')}</span>
                         }
                     </p>
@@ -86,10 +85,10 @@ const ProductManagementView: React.FC = () => {
         price: 0,
         stock: 0,
         initialStock: 0
-        
+
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     // Filter products to show only current MSME's products
     const msmeProducts = useMemo(() => {
         if (!currentUser) return [];
@@ -101,7 +100,7 @@ const ProductManagementView: React.FC = () => {
         setFormData(prev => ({
             ...prev,
             [name]: name === 'price' || name === 'stock' || name === 'initialStock'
-                ? parseFloat(value) || 0 
+                ? parseFloat(value) || 0
                 : value
         }));
     };
@@ -188,19 +187,19 @@ const ProductManagementView: React.FC = () => {
             setIsSubmitting(false);
         }
     };
-    
+
     // Separate active and inactive products
-    const activeProducts = useMemo(() => 
-        msmeProducts.filter(item => item.stock > 0), 
+    const activeProducts = useMemo(() =>
+        msmeProducts.filter(item => item.stock > 0),
         [msmeProducts]
     );
-    
-    const inactiveProducts = useMemo(() => 
-        msmeProducts.filter(item => item.stock === 0), 
+
+    const inactiveProducts = useMemo(() =>
+        msmeProducts.filter(item => item.stock === 0),
         [msmeProducts]
     );
-    
-    const lowStockProducts = useMemo(() => 
+
+    const lowStockProducts = useMemo(() =>
         activeProducts.filter(item => item.stock <= 5), // Consider low stock as 5 or less
         [activeProducts]
     );
@@ -211,17 +210,17 @@ const ProductManagementView: React.FC = () => {
             <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800 mb-2">Product</h1>
-                        <p className="text-slate-600">Company Product List</p>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-slate-700 bg-clip-text text-transparent mb-2">My Products</h1>
+                        <p className="text-slate-500 font-medium">Manage your product catalog</p>
                     </div>
                     <button
                         onClick={handleAddProduct}
-                        className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition shadow flex items-center space-x-2"
+                        className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all flex items-center space-x-2 transform hover:scale-105"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        <span>Add Product</span>
+                        <span>Add New Product</span>
                     </button>
                 </div>
             </div>
@@ -396,17 +395,17 @@ const ProductManagementView: React.FC = () => {
                             />
                         </div>
                     </div>
-                        <div>
+                    <div>
                         <label className="block text-sm font-medium text-slate-700">Current Stock</label>
-                            <input
-                                type="number"
-                                name="stock"
-                                value={formData.stock}
-                                onChange={handleInputChange}
-                                min="0"
-                                required
-                                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                            />
+                        <input
+                            type="number"
+                            name="stock"
+                            value={formData.stock}
+                            onChange={handleInputChange}
+                            min="0"
+                            required
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        />
                         <p className="mt-1 text-sm text-slate-500">Current available stock (usually same as initial stock when creating)</p>
                     </div>
                     <div className="flex justify-end space-x-3 pt-2">

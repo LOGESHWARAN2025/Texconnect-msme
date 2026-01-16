@@ -16,12 +16,12 @@ const dateOptions: Intl.DateTimeFormatOptions = {
 };
 
 const dateTimeOptions: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
 };
 
 export const useLocalization = () => {
@@ -35,9 +35,14 @@ export const useLocalization = () => {
   const t = (key: string): string => {
     return translations[language][key] || key;
   };
-  
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'ta' : 'en');
+
+  /* Updated to allow specific language setting or toggle */
+  const handleSetLanguage = (lang?: string) => {
+    if (lang && (lang === 'en' || lang === 'ta')) {
+      setLanguage(lang as Language);
+    } else {
+      setLanguage(language === 'en' ? 'ta' : 'en');
+    }
   }
 
   const formatDate = (dateString: string | Date): string => {
@@ -53,14 +58,14 @@ export const useLocalization = () => {
 
   const formatDateTime = (dateString: string | Date): string => {
     try {
-        const date = new Date(dateString);
-        const locale = localeMap[language];
-        return new Intl.DateTimeFormat(locale, dateTimeOptions).format(date);
+      const date = new Date(dateString);
+      const locale = localeMap[language];
+      return new Intl.DateTimeFormat(locale, dateTimeOptions).format(date);
     } catch (error) {
-        console.error(`Invalid date string for formatting: '${dateString}'. Error: ${(error as Error).message}`);
-        return typeof dateString === 'string' ? dateString : '';
+      console.error(`Invalid date string for formatting: '${dateString}'. Error: ${(error as Error).message}`);
+      return typeof dateString === 'string' ? dateString : '';
     }
   };
 
-  return { language, setLanguage: toggleLanguage, t, currentLanguage: language, formatDate, formatDateTime };
+  return { language, setLanguage: handleSetLanguage, t, currentLanguage: language, formatDate, formatDateTime };
 };
