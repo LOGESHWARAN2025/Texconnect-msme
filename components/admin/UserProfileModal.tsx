@@ -64,9 +64,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose, us
                             {user.isApproved ? (
                                 <>
                                     <CheckCircle className="w-3 h-3" />
-                                    Approved
+                                    {t('approved')}
                                 </>
-                            ) : 'Pending Review'}
+                            ) : t('pending_review')}
                         </span>
                     } />
                 </dl>

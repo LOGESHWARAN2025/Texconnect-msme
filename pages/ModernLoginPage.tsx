@@ -197,7 +197,8 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%)', pointerEvents: 'none' }}></div>
       {/* Admin button - top right */}
       {onSwitchToAdminLogin && (
         <button
@@ -223,12 +224,12 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
         </button>
       )}
 
-      <div style={{ width: '90%', maxWidth: '1100px', background: 'white', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', display: 'flex', minHeight: '600px', position: 'relative' }}>
+      <div style={{ width: '90%', maxWidth: '1100px', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(20px)', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)', display: 'flex', minHeight: '600px', position: 'relative', zIndex: 10 }}>
         {/* Left Panel */}
         <div
           style={{
             flex: 1,
-            background: 'linear-gradient(135deg, rgba(79, 70, 229, 1) 0%, rgba(129, 140, 248, 0.8) 100%)',
+            background: 'linear-gradient(135deg, #4338ca 0%, #6366f1 100%)',
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',

@@ -155,6 +155,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'revenue_this_month': 'Revenue (This Month)',
     'sales_trends': 'Sales Trends',
     'stock_levels': 'Stock Levels',
+    'total_products': 'Total Products',
+    'current_stock': 'Current Stock',
+    'low_stock_items': 'Low Stock Items',
     // Inventory View
     'manage_inventory': 'Manage Inventory',
     'add_new_item': 'Add New Item',
@@ -163,8 +166,12 @@ export const translations: Record<Language, Record<string, string>> = {
     'stock': 'Stock',
     'price_per_unit': 'Price (₹)/unit',
     'actions': 'Actions',
+    'description': 'Description',
     'edit': 'Edit',
     'delete': 'Delete',
+
+    'restock': 'Restock',
+    'initial_stock': 'Initial Stock',
     'edit_item': 'Edit Item',
     'save_changes': 'Save Changes',
     'cancel': 'Cancel',
@@ -235,6 +242,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'reject_changes': 'Reject Changes',
     'current_information': 'Current Information',
     'proposed_changes': 'Proposed Changes',
+    'admin_type': 'Admin Type',
+    'msme': 'MSME',
+    'admin': 'Admin',
     // Approvals
     'msme_approvals': 'MSME Approvals',
     'buyer_approvals': 'Buyer Approvals',
@@ -244,6 +254,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'issue_logs': 'Issue Logs',
     'address': 'Address',
     'verified': 'Verified',
+    'unverified': 'Unverified',
+    'pending_review': 'Pending Review',
     'reject': 'Reject',
     'view': 'View',
     // Company Profile
@@ -308,13 +320,16 @@ export const translations: Record<Language, Record<string, string>> = {
     'verification_email_sent': 'உங்கள் மின்னஞ்சல் முகவரிக்கு ஒரு சரிபார்ப்பு இணைப்பு அனுப்பப்பட்டுள்ளது. உங்கள் கணக்கைச் செயல்படுத்த இணைப்பைக் கிளிக் செய்யவும்.',
     'simulate_verification': 'மின்னஞ்சல் சரிபார்ப்பை உருவகப்படுத்துங்கள்',
     // Dashboard View
-    'dashboard_overview': 'டாஷ்போர்டு επισκόπηση',
+    'dashboard_overview': 'டாஷ்போர்டு கண்ணோட்டம்',
     'total_stock_value': 'மொத்த சரக்கு மதிப்பு',
     'pending_orders': 'நிலுவையில் உள்ள ஆர்டர்கள்',
     'items_in_stock': 'கையிருப்பில் உள்ள பொருட்கள்',
     'revenue_this_month': 'வருவாய் (இந்த மாதம்)',
     'sales_trends': 'விற்பனை போக்குகள்',
     'stock_levels': 'சரக்கு நிலைகள்',
+    'total_products': 'மொத்த தயாரிப்புகள்',
+    'current_stock': 'தற்போதைய இருப்பு',
+    'low_stock_items': 'குறைந்த இருப்பு பொருட்கள்',
     // Inventory View
     'manage_inventory': 'சரக்குகளை நிர்வகி',
     'add_new_item': 'புதிய பொருளைச் சேர்',
@@ -322,9 +337,10 @@ export const translations: Record<Language, Record<string, string>> = {
     'category': 'வகை',
     'stock': 'சரக்கு',
     'price_per_unit': 'விலை (₹)/அலகு',
-    'actions': 'செயல்கள்',
-    'edit': 'திருத்து',
-    'delete': 'நீக்கு',
+
+
+    'restock': 'சரக்கை நிரப்பு',
+    'initial_stock': 'ஆரம்ப இருப்பு',
     'edit_item': 'பொருளைத் திருத்து',
     'save_changes': 'மாற்றங்களைச் சேமி',
     'cancel': 'ரத்துசெய்',
@@ -381,7 +397,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'gst_18': 'ஜிஎஸ்டி (18%)',
     'grand_total': 'மொத்த கூட்டுத்தொகை',
     'authorized_signatory': 'அங்கீகரிக்கப்பட்ட கையொப்பமிட்டவர்',
-     // Admin View
+    // Admin View
     'admin_panel': 'நிர்வாக குழு',
     'user_management': 'பயனர் மேலாண்மை',
     'user_name': 'பயனர் பெயர்',
@@ -395,6 +411,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'reject_changes': 'மாற்றங்களை நிராகரிக்கவும்',
     'current_information': 'தற்போதைய தகவல்',
     'proposed_changes': 'பரிந்துரைக்கப்பட்ட மாற்றங்கள்',
+    'admin_type': 'நிர்வாகி வகை',
+    'msme': 'MSME',
+    'admin': 'நிர்வாகி',
     // Approvals
     'msme_approvals': 'MSME ஒப்புதல்கள்',
     'buyer_approvals': 'வாங்குபவர் ஒப்புதல்கள்',
@@ -404,6 +423,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'issue_logs': 'சிக்கல் பதிவுகள்',
     'address': 'முகவரி',
     'verified': 'சரிபார்க்கப்பட்ட',
+    'unverified': 'சரிபார்க்கப்படவில்லை',
+    'pending_review': 'மதிப்பாய்வு நிலுவையில் உள்ளது',
     'reject': 'நிராகரிக்க',
     'view': 'பார்க்க',
     // Company Profile

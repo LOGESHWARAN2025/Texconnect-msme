@@ -78,10 +78,10 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
           InventoryService.getInventoryStats(currentUser.id),
           InventoryService.getLowStockProducts(currentUser.id, 10)
         ]);
-        
+
         console.log('📊 Inventory stats loaded:', stats);
         console.log('⚠️ Low stock products:', lowStock.length);
-        
+
         setInventoryStats(stats);
         setLowStockProducts(lowStock);
       } catch (error) {
@@ -142,7 +142,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
   const handleAddInventory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
-    
+
     setIsSubmitting(true);
     try {
       await addInventoryItem({
@@ -152,7 +152,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
         reserved: 0,
         bought: 0
       });
-      
+
       alert('Inventory item added successfully!');
       setIsAddInventoryModalOpen(false);
       setFormData({
@@ -164,7 +164,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
         unitOfMeasure: '',
         minStockLevel: 0
       });
-      
+
       // Refresh inventory stats
       const [stats, lowStock] = await Promise.all([
         InventoryService.getInventoryStats(currentUser.id),
@@ -195,7 +195,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
         setIsRestockModalOpen(false);
         setSelectedProduct(null);
         setRestockQuantity(0);
-        
+
         // Trigger data refresh without page reload
         const [stats, lowStock] = await Promise.all([
           InventoryService.getInventoryStats(currentUser.id),
@@ -215,7 +215,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
   const getStockStatusColor = (product: Product) => {
     const initialStock = product.initialStock || product.stock;
     const stockPercentage = initialStock > 0 ? (product.stock / initialStock) * 100 : 0;
-    
+
     if (product.stock === 0) return 'text-red-600 bg-red-50';
     if (stockPercentage <= 10) return 'text-yellow-600 bg-yellow-50';
     if (stockPercentage <= 30) return 'text-orange-600 bg-orange-50';
@@ -225,7 +225,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
   const getStockStatusText = (product: Product) => {
     const initialStock = product.initialStock || product.stock;
     const stockPercentage = initialStock > 0 ? (product.stock / initialStock) * 100 : 0;
-    
+
     if (product.stock === 0) return 'Out of Stock';
     if (stockPercentage <= 10) return 'Critical';
     if (stockPercentage <= 30) return 'Low';
@@ -264,7 +264,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-slate-600">Total Products</p>
+              <p className="text-sm font-medium text-slate-600">{t('total_products')}</p>
               <p className="text-2xl font-bold text-slate-900">{inventoryStats.totalProducts}</p>
             </div>
           </div>
@@ -278,7 +278,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-slate-600">Current Stock</p>
+              <p className="text-sm font-medium text-slate-600">{t('current_stock')}</p>
               <p className="text-2xl font-bold text-slate-900">{inventoryStats.totalStock.toLocaleString()}</p>
             </div>
           </div>
@@ -292,7 +292,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-slate-600">Low Stock Items</p>
+              <p className="text-sm font-medium text-slate-600">{t('low_stock_items')}</p>
               <p className="text-2xl font-bold text-slate-900">{inventoryStats.lowStockProducts}</p>
             </div>
           </div>
@@ -340,7 +340,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
             <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
-            <h3 className="text-lg font-semibold text-yellow-800">Low Stock Alerts</h3>
+            <h3 className="text-lg font-semibold text-yellow-800">{t('stock_alert')}</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {lowStockProducts.map(product => (
@@ -363,7 +363,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
                   onClick={() => handleRestock(product)}
                   className="mt-3 w-full bg-primary text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-primary/90 transition"
                 >
-                  Restock
+                  {t('restock')}
                 </button>
               </div>
             ))}
@@ -374,7 +374,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
       {/* All Products Inventory */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-slate-900">All Products Inventory</h3>
+          <h3 className="text-lg font-semibold text-slate-900">{t('manage_inventory')}</h3>
           <button
             onClick={() => setIsAddInventoryModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition shadow"
@@ -383,7 +383,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
               <path d="M5 12h14"></path>
               <path d="M12 5v14"></path>
             </svg>
-            Add Product
+            {t('add_new_item')}
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -393,34 +393,34 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
                 <h4 className="font-medium text-slate-900">
                   <TranslatedProductName name={product.name} />
                 </h4>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStockStatusColor(product)}`}>
-                  {getStockStatusText(product)}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStockStatusColor(product as any)}`}>
+                  {getStockStatusText(product as any)}
                 </span>
               </div>
-              
+
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Price:</span>
+                  <span className="text-slate-600">{t('price_per_unit')}:</span>
                   <span className="font-medium">₹{product.price.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Initial Stock:</span>
-                  <span className="font-medium">{(product.initialStock || product.stock).toLocaleString()}</span>
+                  <span className="text-slate-600">{t('initial_stock')}:</span>
+                  <span className="font-medium">{((product as any).initialStock || product.stock).toLocaleString()}</span>
                 </div>
               </div>
 
               <InventoryProgressBar
                 currentStock={product.stock}
-                initialStock={product.initialStock || product.stock}
+                initialStock={(product as any).initialStock || product.stock}
                 size="sm"
                 showNumbers={true}
               />
 
               <button
-                onClick={() => handleRestock(product)}
+                onClick={() => handleRestock(product as any)}
                 className="mt-3 w-full bg-slate-100 text-slate-700 py-2 px-4 rounded-lg text-sm font-medium hover:bg-slate-200 transition"
               >
-                Restock
+                {t('restock')}
               </button>
             </div>
           ))}
@@ -428,7 +428,8 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
       </div>
 
       {/* Add Inventory Modal */}
-      <Modal isOpen={isAddInventoryModalOpen} onClose={() => setIsAddInventoryModalOpen(false)} title="Add Product to Inventory">
+      {/* Add Inventory Modal */}
+      <Modal isOpen={isAddInventoryModalOpen} onClose={() => setIsAddInventoryModalOpen(false)} title={t('add_new_item')}>
         <div className="max-h-[70vh] overflow-y-auto pr-2">
           <form onSubmit={handleAddInventory} className="space-y-4">
             <div>
@@ -542,7 +543,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Adding...' : 'Add to Inventory'}
+                {isSubmitting ? 'Adding...' : t('add_new_item')}
               </button>
             </div>
           </form>
@@ -557,10 +558,10 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
               <h3 className="font-medium text-slate-900">{selectedProduct.name}</h3>
               <p className="text-sm text-slate-600">Current Stock: {selectedProduct.stock.toLocaleString()}</p>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Additional Stock Quantity
+                {t('quantity')}
               </label>
               <input
                 type="number"
@@ -584,7 +585,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
                 disabled={restockQuantity <= 0}
                 className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
-                Restock
+                {t('restock')}
               </button>
             </div>
           </div>
