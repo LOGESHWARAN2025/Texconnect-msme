@@ -24,7 +24,7 @@ interface AppContextType {
   users: User[];
   auditLogs: AuditLogEntry[];
   issues: Issue[];
-  
+
   // Auth State
   currentUser: User | null;
   isLoading: boolean;
@@ -44,12 +44,13 @@ interface AppContextType {
   addProduct: (item: Omit<Product, 'id'>) => Promise<void>;
   updateProduct: (item: Product) => Promise<void>;
   deleteProduct: (itemId: string) => Promise<void>;
-  
+
   // Inventory Management
   restockProduct: (productId: string, additionalStock: number) => Promise<boolean>;
   checkStockAvailability: (productId: string, quantity: number) => Promise<boolean>;
   approveBuyer: (buyerId: string) => Promise<boolean>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  updateOrderScannedUnits: (orderId: string, scannedUnits: string[]) => Promise<void>;
 
   // Buyer Actions
   placeOrder: (item: InventoryItem | Product, quantity: number) => Promise<void>;
@@ -62,7 +63,7 @@ interface AppContextType {
   rejectProfileChanges: (userId: string) => Promise<void>;
   logAction: (action: string, details: string) => Promise<void>;
   clearLogs: () => Promise<void>;
-  
+
   // Utility Actions
   cleanupOrphanedUser: (email: string) => Promise<void>;
 }
@@ -167,15 +168,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   // Auth state listener
   useEffect(() => {
     console.log('SupabaseContext: Setting up auth listener');
-    
+
     let mounted = true;
-    
+
     const initAuth = async () => {
       try {
         // Get initial session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         console.log('SupabaseContext: Initial session:', session, 'error:', sessionError);
-        
+
         if (sessionError) {
           console.error('SupabaseContext: Session error:', sessionError);
           if (mounted) {
@@ -198,7 +199,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           if (userData && !error && mounted) {
             const mappedUser = mapDatabaseUserToType(userData);
             const isVerified = session.user.email_confirmed_at !== null;
-            
+
             // Sync verification status to database if it changed
             if (isVerified && !mappedUser.isEmailVerified) {
               console.log('🔄 Syncing email verification to database for user:', session.user.email);
@@ -206,14 +207,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
                 .from('users')
                 .update({ isemailverified: true })
                 .eq('id', session.user.id);
-              
+
               if (updateError) {
                 console.error('❌ Failed to update email verification:', updateError);
               } else {
                 console.log('✅ Email verification synced to database');
               }
             }
-            
+
             setCurrentUser({
               ...mappedUser,
               isEmailVerified: isVerified
@@ -224,7 +225,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         } else if (mounted) {
           setCurrentUser(null);
         }
-        
+
         if (mounted) {
           setIsLoading(false);
           initializedRef.current = true;
@@ -244,13 +245,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('SupabaseContext: Auth state changed:', event, session, 'initialized:', initializedRef.current);
-      
+
       // Skip the initial SIGNED_IN event if we're still initializing
       if (!initializedRef.current && event === 'SIGNED_IN') {
         console.log('SupabaseContext: Skipping initial SIGNED_IN event during initialization');
         return;
       }
-      
+
       if (session?.user && mounted) {
         console.log('SupabaseContext: Fetching user data for:', session.user.id);
         const { data: userData, error } = await supabase
@@ -265,7 +266,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           console.log('SupabaseContext: Setting current user and isLoading=false');
           const mappedUser = mapDatabaseUserToType(userData);
           const isVerified = session.user.email_confirmed_at !== null;
-          
+
           // Sync verification status to database if it changed
           if (isVerified && !mappedUser.isEmailVerified) {
             console.log('🔄 Syncing email verification to database (auth change) for user:', session.user.email);
@@ -273,14 +274,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
               .from('users')
               .update({ isemailverified: true })
               .eq('id', session.user.id);
-            
+
             if (updateError) {
               console.error('❌ Failed to update email verification:', updateError);
             } else {
               console.log('✅ Email verification synced to database');
             }
           }
-          
+
           setCurrentUser({
             ...mappedUser,
             isEmailVerified: isVerified
@@ -334,11 +335,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.log('✅ Raw users data from DB:', data.length, 'users');
       // Map database fields to TypeScript types
       const mappedUsers = data.map(mapDatabaseUserToType);
-      console.log('✅ Mapped users:', mappedUsers.map(u => ({ 
-        email: u.email, 
-        role: u.role, 
+      console.log('✅ Mapped users:', mappedUsers.map(u => ({
+        email: u.email,
+        role: u.role,
         isEmailVerified: u.isEmailVerified,
-        isMainAdmin: u.isMainAdmin 
+        isMainAdmin: u.isMainAdmin
       })));
       setUsers(mappedUsers);
     } else if (error) {
@@ -392,12 +393,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
 
     const { data, error } = await query;
-    
+
     if (error) {
       console.error('❌ Error fetching inventory:', error);
       return;
     }
-    
+
     if (data) {
       console.log('✅ Inventory fetched:', data.length, 'items');
       console.log('📦 Raw inventory data:', data.map(i => ({
@@ -454,17 +455,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
     if (data) {
       console.log('✅ Products fetched:', data.length, 'products');
-      console.log('📦 Raw products from database:', data.map(p => ({ 
-        id: p.id, 
-        name: p.name, 
+      console.log('📦 Raw products from database:', data.map(p => ({
+        id: p.id,
+        name: p.name,
         msmeid: p.msmeid,
-        msmeId: p.msmeId 
+        msmeId: p.msmeId
       })));
       const mappedProducts = data.map(mapDatabaseProductToType);
-      console.log('📦 Mapped products:', mappedProducts.map(p => ({ 
-        id: p.id, 
-        name: p.name, 
-        msmeId: p.msmeId 
+      console.log('📦 Mapped products:', mappedProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        msmeId: p.msmeId
       })));
       setProducts(mappedProducts);
     }
@@ -525,12 +526,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // For admin, fetch all orders
 
     const { data, error } = await query;
-    
+
     if (error) {
       console.error('❌ Error fetching orders:', error);
       return;
     }
-    
+
     if (data) {
       console.log('✅ Orders fetched:', data.length, 'orders for role:', currentUser.role);
       console.log('📦 Orders data:', data.map(o => ({
@@ -579,10 +580,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     const channel = supabase
       .channel('issues-channel')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'issues' 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'issues'
       }, (payload) => {
         console.log('🔄 Issues changed:', payload.eventType);
         fetchIssues();
@@ -600,11 +601,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const fetchAuditLogs = async () => {
     if (!currentUser) return;
-    
+
     console.log('🔄 Fetching audit logs for:', currentUser.username, '| Is Main Admin:', currentUser.isMainAdmin);
-    
+
     let query = supabase.from('auditlogs').select('*');
-    
+
     // Main Admin sees ALL logs
     // Sub Admin sees only their own actions (logs where username = their username)
     if (!currentUser.isMainAdmin) {
@@ -613,9 +614,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     } else {
       console.log('📋 Main admin: Showing ALL logs');
     }
-    
+
     const { data, error } = await query.order('timestamp', { ascending: false });
-    
+
     if (data && !error) {
       console.log('✅ Raw audit logs from DB:', data.length, 'entries');
       // Map database fields to TypeScript interface
@@ -637,7 +638,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     if (!currentUser) return;
 
     console.log('🔄 Fetching issues for:', currentUser.username, 'Role:', currentUser.role);
-    
+
     try {
       let query = supabase.from('issues').select('*');
 
@@ -649,7 +650,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
 
       const { data, error } = await query.order('createdat', { ascending: false });
-      
+
       if (error) {
         console.error('❌ Error fetching issues:', error);
         console.error('Error details:', {
@@ -662,7 +663,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         setIssues([]);
         return;
       }
-      
+
       if (data) {
         console.log('✅ Issues fetched:', data.length, 'issues');
         if (data.length > 0) {
@@ -701,7 +702,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
+
       if (error) {
         if (error.message.includes('Email not confirmed')) {
           return { success: false, reason: 'NOT_VERIFIED', userEmail: email };
@@ -721,7 +722,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           .from('users')
           .update({ isemailverified: true })
           .eq('id', data.user.id);
-        
+
         if (updateError) {
           console.error('❌ Failed to update email verification on login:', updateError);
         } else {
@@ -756,7 +757,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       console.log('🔄 Starting logout cleanup...');
-      
+
       // 1. Unsubscribe from all real-time channels immediately
       console.log('🔌 Unsubscribing from', channelsRef.current.length, 'channels');
       for (const channel of channelsRef.current) {
@@ -767,7 +768,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         }
       }
       channelsRef.current = [];
-      
+
       // 2. Clear all state data immediately (non-blocking)
       setCurrentUser(null);
       setInventory([]);
@@ -776,7 +777,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setUsers([]);
       setAuditLogs([]);
       setIssues([]);
-      
+
       // 3. Sign out from Supabase (async but doesn't block UI)
       console.log('🔐 Signing out from Supabase');
       const { error } = await supabase.auth.signOut();
@@ -835,17 +836,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
 
       console.log('User created successfully via trigger:', authData.user.id);
-      
+
       // Wait for trigger to complete
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Verify user record was created by trigger
       const { data: userRecord, error: fetchError } = await supabase
         .from('users')
         .select('*')
         .eq('id', authData.user.id)
         .single();
-      
+
       if (fetchError || !userRecord) {
         console.error('User record not found after trigger:', fetchError);
         // Don't fail - the trigger might still be processing
@@ -881,10 +882,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
 
       await supabase.auth.signOut();
-      return { 
-        success: true, 
-        user: userRecord as User || { 
-          id: authData.user.id, 
+      return {
+        success: true,
+        user: userRecord as User || {
+          id: authData.user.id,
           email: userData.email,
           username: userData.username,
           role: userData.role,
@@ -900,8 +901,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         status: error?.status,
         fullError: error
       });
-      return { 
-        success: false, 
+      return {
+        success: false,
         reason: 'UNKNOWN_ERROR',
         message: error?.message || 'An unexpected error occurred during registration'
       };
@@ -954,7 +955,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
 
     const { id, msmeId, createdAt, updatedAt, ...data } = updatedItem as any;
-    
+
     // Map camelCase to lowercase for Supabase
     const updateData: any = {
       name: data.name,
@@ -968,7 +969,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       status: data.status || 'active',
       updatedat: new Date().toISOString()
     };
-    
+
     // Remove undefined/null values
     Object.keys(updateData).forEach(key => {
       if (updateData[key] === undefined) delete updateData[key];
@@ -984,7 +985,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.error('❌ Error updating inventory item:', error);
       throw error;
     }
-    
+
     console.log('✅ Inventory item updated successfully');
   };
 
@@ -1009,7 +1010,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     // Remove msmeId and initialStock (camelCase) and use lowercase versions for Supabase
     const { msmeId, initialStock, ...productData } = product as any;
-    
+
     const productWithMetadata = {
       ...productData,
       msmeid: currentUser.id,
@@ -1023,7 +1024,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.error('❌ Error inserting product:', error);
       throw error;
     }
-    
+
     console.log('✅ Product added successfully');
     // Refresh products list
     await fetchProducts();
@@ -1035,14 +1036,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
 
     const { id, msmeId, initialStock, ...data } = updatedProduct as any;
-    
+
     // Map camelCase to lowercase for Supabase
     const updateData: any = {
       ...data,
       initialstock: initialStock,
       updatedat: new Date().toISOString()
     };
-    
+
     // Remove undefined/null values
     Object.keys(updateData).forEach(key => {
       if (updateData[key] === undefined) delete updateData[key];
@@ -1058,7 +1059,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.error('❌ Error updating product:', error);
       throw error;
     }
-    
+
     console.log('✅ Product updated successfully');
     // Refresh products list
     await fetchProducts();
@@ -1079,7 +1080,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.error('❌ Error deleting product:', error);
       throw error;
     }
-    
+
     console.log('✅ Product deleted successfully');
     // Refresh products list
     await fetchProducts();
@@ -1087,10 +1088,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
     console.log('🔄 Updating order status:', orderId, 'to', status);
-    
+
     const { data, error } = await supabase
       .from('orders')
-      .update({ 
+      .update({
         status,
         updatedAt: new Date().toISOString() // Explicitly update timestamp
       })
@@ -1107,10 +1108,30 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       });
       throw error;
     }
-    
+
     console.log('✅ Order status updated successfully');
     console.log('Updated order:', data);
     await fetchOrders(); // Refresh orders list
+  };
+
+  const updateOrderScannedUnits = async (orderId: string, scannedUnits: string[]) => {
+    console.log('🔄 Updating order scanned units:', orderId, scannedUnits);
+
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        scannedUnits,
+        updatedAt: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('❌ Error updating order scanned units:', error);
+      throw error;
+    }
+
+    console.log('✅ Order scanned units updated successfully');
+    await fetchOrders();
   };
 
   const placeOrder = async (item: InventoryItem | Product, quantity: number) => {
@@ -1135,7 +1156,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     console.log('📦 Placing order with data:', orderData);
 
     const { data, error } = await supabase.from('orders').insert([orderData]).select();
-    
+
     if (error) {
       console.error('❌ Order placement error:', error);
       throw error;
@@ -1143,7 +1164,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     console.log('✅ Order placed successfully:', data);
     console.log('ℹ️ Stock deducted by database trigger');
-    
+
     // Refresh products to show updated stock
     await fetchProducts();
     console.log('✅ Products refreshed after order placement');
@@ -1317,6 +1338,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     checkStockAvailability,
     approveBuyer,
     updateOrderStatus,
+    updateOrderScannedUnits,
     placeOrder,
     approveUser,
     deleteUser,
@@ -1338,7 +1360,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   ]);
 
   console.log('SupabaseContext: Rendering provider, isLoading=', isLoading);
-  
+
   return (
     <AppContext.Provider value={value}>
       {children}

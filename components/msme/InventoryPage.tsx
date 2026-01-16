@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import InventoryDashboard from './InventoryDashboard';
 import ProductManagementView from './ProductManagementView';
 
@@ -7,35 +6,26 @@ interface InventoryPageProps {
   onBack: () => void;
 }
 
-const InventoryPage: React.FC<InventoryPageProps> = ({ onBack }) => {
+const InventoryPage: React.FC<InventoryPageProps> = () => {
   const [showAddProduct, setShowAddProduct] = useState(false);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{
-      scrollbarWidth: 'thin',
-      scrollbarColor: '#a5b4fc #f3f4f6'
-    }}>
-      {/* Header */}
-      <div className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-50">
-        <div className="px-6 py-4 flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <ArrowLeft className="h-5 w-5 text-gray-600" />
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Inventory Hub</h1>
+        {showAddProduct && (
+          <button
+            onClick={() => setShowAddProduct(false)}
+            className="px-6 py-2 bg-slate-100 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200"
+          >
+            Close Manual Entry
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
-        </div>
+        )}
       </div>
 
-      {/* Content */}
-      <div className="p-6">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
         {showAddProduct ? (
-          <div>
-            <button
-              onClick={() => setShowAddProduct(false)}
-              className="mb-4 flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Inventory
-            </button>
+          <div className="p-8">
             <ProductManagementView />
           </div>
         ) : (

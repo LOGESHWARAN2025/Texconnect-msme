@@ -1,29 +1,17 @@
 import React from 'react';
-import { ArrowLeft } from 'lucide-react';
 import OrdersView from '../OrdersView';
 
 interface OrdersPageProps {
   onBack: () => void;
 }
 
-const OrdersPage: React.FC<OrdersPageProps> = ({ onBack }) => {
+const OrdersPage: React.FC<OrdersPageProps> = () => {
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{
-      scrollbarWidth: 'thin',
-      scrollbarColor: '#a5b4fc #f3f4f6'
-    }}>
-      {/* Header */}
-      <div className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-50">
-        <div className="px-6 py-4 flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <ArrowLeft className="h-5 w-5 text-gray-600" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
-        </div>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Orders Control</h1>
       </div>
-
-      {/* Content */}
-      <div className="p-6">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
         <OrdersView />
       </div>
     </div>

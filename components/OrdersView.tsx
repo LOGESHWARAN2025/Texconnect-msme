@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Download, AlertCircle } from 'lucide-react';
 import { useLocalization } from '../hooks/useLocalization';
 import { useAppContext } from '../context/SupabaseContext';
 import type { OrderStatus, Order } from '../types';
@@ -39,6 +39,39 @@ const OrdersView: React.FC = () => {
     });
     return new Set(userProducts.map(item => item.id));
   }, [products, currentUser]);
+
+  // Support external scanning (Google Lens)
+  const { updateOrderScannedUnits: updateScannedUnitsAction } = useAppContext();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderIdParam = params.get('orderId');
+    const uidParam = params.get('uid');
+
+    if (params.get('scan') === '1' && orderIdParam) {
+      const order = orders.find(o => o.id === orderIdParam);
+      if (order) {
+        setScanningOrder(order);
+
+        // If there's a specific UID in the URL (from a sticker scan)
+        if (uidParam) {
+          const currentScanned = order.scannedUnits || [];
+          if (!currentScanned.includes(uidParam)) {
+            const newScanned = [...currentScanned, uidParam];
+            updateScannedUnitsAction(order.id, newScanned)
+              .then(() => console.log('✅ Auto-scanned unit from URL:', uidParam))
+              .catch(err => console.error('❌ Failed to auto-scan unit:', err));
+          }
+        }
+
+        // Clear the URL params after opening to prevent re-opening on refresh
+        // Use a slight delay to ensure the scanner modal has initialized with the order
+        const timeout = setTimeout(() => {
+          window.history.replaceState({}, '', window.location.pathname);
+        }, 500);
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [orders, updateScannedUnitsAction]);
 
   const userOrders = useMemo(() => {
     if (!currentUser) {

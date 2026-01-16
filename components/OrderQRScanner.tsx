@@ -228,6 +228,21 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                         </div>
                     )}
 
+                    {/* Scanned History */}
+                    {scannedIds.length > 0 && (
+                        <div className="space-y-3">
+                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Scanned Units</h5>
+                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 custom-scrollbar">
+                                {scannedIds.map((id, i) => (
+                                    <span key={i} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg border border-indigo-100 flex items-center gap-2">
+                                        <div className="w-1 h-1 bg-indigo-600 rounded-full animate-pulse"></div>
+                                        {id.split('_').pop()}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Action */}
                     <div className="grid grid-cols-2 gap-4">
                         <button
