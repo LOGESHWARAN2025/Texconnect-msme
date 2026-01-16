@@ -3,6 +3,8 @@ import { useAppContext } from '../../context/SupabaseContext';
 import { supabase } from '../../src/lib/supabase';
 import { User } from '../../types';
 import Modal from '../common/Modal';
+import { useLocalization } from '../../hooks/useLocalization';
+import { TranslatedText } from '../common/TranslatedText';
 
 interface UserProfile extends User {
   id: string;
@@ -13,6 +15,7 @@ interface AdminProfileViewProps {
 }
 
 const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
+  const { t } = useLocalization();
   const { currentUser, requestProfileUpdate } = useAppContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [admins, setAdmins] = useState<UserProfile[]>([]);
@@ -34,19 +37,19 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
   useEffect(() => {
     const fetchAdmins = async () => {
       if (!currentUser) return;
-      
+
       try {
         setIsLoading(true);
         const { data, error } = await supabase
           .from('users')
           .select('*')
           .eq('role', 'admin');
-        
+
         if (error) throw error;
-        
+
         const adminsList = data as UserProfile[];
         setAdmins(adminsList);
-        
+
         const currentAdmin = adminsList.find(admin => admin.id === currentUser.id);
         if (currentAdmin) {
           setSelectedAdmin(currentAdmin);
@@ -58,7 +61,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
         setIsLoading(false);
       }
     };
-    
+
     fetchAdmins();
   }, [currentUser]);
 
@@ -72,7 +75,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
       });
     }
   }, [selectedAdmin]);
-  
+
   const handleAdminSelect = (admin: UserProfile) => {
     setSelectedAdmin(admin);
     setIsAdminListOpen(false);
@@ -93,15 +96,15 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
       setError('Please select a valid image file');
       return;
     }
-    
+
     try {
       setUploading(true);
       setError(null);
-      
+
       // Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
       const uniqueFileName = `${selectedAdmin.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-      
+
       // Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('profile-pictures')
@@ -121,14 +124,14 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
 
       // Update profile using requestProfileUpdate
       await requestProfileUpdate(selectedAdmin.id, { profilePictureUrl });
-      
+
       // Update local state
       const updatedAdmin = { ...selectedAdmin, profilePictureUrl };
       setSelectedAdmin(updatedAdmin);
-      setAdmins(admins.map(admin => 
+      setAdmins(admins.map(admin =>
         admin.id === selectedAdmin.id ? updatedAdmin : admin
       ));
-      
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error: any) {
@@ -138,7 +141,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
       setUploading(false);
     }
   };
-  
+
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
@@ -157,7 +160,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
 
     try {
       const updates: Partial<User> = {};
-      
+
       if (formData.username !== selectedAdmin.username) {
         updates.username = formData.username;
       }
@@ -183,7 +186,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
       // Update local state
       const updatedAdmin = { ...selectedAdmin, ...updates };
       setSelectedAdmin(updatedAdmin);
-      setAdmins(admins.map(admin => 
+      setAdmins(admins.map(admin =>
         admin.id === selectedAdmin.id ? updatedAdmin : admin
       ));
 
@@ -199,11 +202,11 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
   };
 
   if (isLoading) {
-    return <div className="p-6">Loading admin profiles...</div>;
+    return <div className="p-6">{t('loading')}...</div>;
   }
-  
+
   if (!currentUser || !selectedAdmin) {
-    return <div className="p-6">Please log in to view admin profiles.</div>;
+    return <div className="p-6">{t('login_required_profile')}</div>;
   }
 
   const isCurrentUser = currentUser.id === selectedAdmin.id;
@@ -225,7 +228,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
               </button>
             )}
             <h2 className="text-2xl font-bold">
-              {isCurrentUser ? 'My Profile' : `Admin Profile: ${selectedAdmin.username}`}
+              {isCurrentUser ? t('my_profile_title') : `${t('admin_profile_title')}: `}<TranslatedText text={selectedAdmin.username} />
             </h2>
           </div>
 
@@ -234,7 +237,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
               onClick={() => setIsAdminListOpen(!isAdminListOpen)}
               className="flex items-center space-x-2 bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              <span>Switch Admin</span>
+              <span>{t('switch_admin')}</span>
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
@@ -247,16 +250,15 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
                     <button
                       key={admin.id}
                       onClick={() => handleAdminSelect(admin)}
-                      className={`block w-full text-left px-4 py-2 text-sm ${
-                        admin.id === selectedAdmin.id
-                          ? 'bg-gray-100 text-gray-900 font-medium'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`block w-full text-left px-4 py-2 text-sm ${admin.id === selectedAdmin.id
+                        ? 'bg-gray-100 text-gray-900 font-medium'
+                        : 'text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       <div className="flex items-center">
-                        <span>{admin.username}</span>
+                        <span><TranslatedText text={admin.username} /></span>
                         {admin.id === currentUser.id && (
-                          <span className="ml-auto text-xs text-gray-500">(You)</span>
+                          <span className="ml-auto text-xs text-gray-500">({t('you')})</span>
                         )}
                       </div>
                     </button>
@@ -285,7 +287,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
             <button
               onClick={triggerFileInput}
               className="absolute bottom-0 right-0 bg-blue-500 text-white rounded-full p-2 hover:bg-blue-600"
-              title="Change profile picture"
+              title={t('change_photo')}
               type="button"
             >
               📷
@@ -302,20 +304,20 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Username</label>
-            <p className="mt-1 text-sm text-gray-900">{selectedAdmin.username}</p>
+            <label className="block text-sm font-medium text-gray-700">{t('user_name')}</label>
+            <p className="mt-1 text-sm text-gray-900"><TranslatedText text={selectedAdmin.username} /></p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <label className="block text-sm font-medium text-gray-700">{t('email')}</label>
             <p className="mt-1 text-sm text-gray-900">{selectedAdmin.email}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Phone</label>
-            <p className="mt-1 text-sm text-gray-900">{selectedAdmin.phone || 'Not set'}</p>
+            <label className="block text-sm font-medium text-gray-700">{t('phone')}</label>
+            <p className="mt-1 text-sm text-gray-900">{selectedAdmin.phone || t('not_set')}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Address</label>
-            <p className="mt-1 text-sm text-gray-900">{selectedAdmin.address || 'Not set'}</p>
+            <label className="block text-sm font-medium text-gray-700">{t('address')}</label>
+            <p className="mt-1 text-sm text-gray-900"><TranslatedText text={selectedAdmin.address || t('not_set')} /></p>
           </div>
         </div>
 
@@ -325,7 +327,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
               onClick={() => setIsEditModalOpen(true)}
               className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition"
             >
-              Edit Profile
+              {t('edit_profile')}
             </button>
           </div>
         )}
@@ -333,17 +335,17 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
 
       {uploading && (
         <div className="mt-4 p-4 bg-blue-50 text-blue-700 rounded">
-          Uploading profile picture...
+          {t('uploading')}...
         </div>
       )}
       {error && (
         <div className="mt-4 p-4 bg-red-50 text-red-700 rounded">
-          Error: {error}
+          {t('error')}: {error}
         </div>
       )}
       {success && (
         <div className="mt-4 p-4 bg-green-50 text-green-700 rounded">
-          Profile updated successfully!
+          {t('profile_updated_success')}
         </div>
       )}
 
@@ -351,12 +353,12 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title="Edit Profile"
+        title={t('edit_profile')}
       >
         <form onSubmit={handleEditSubmit} className="space-y-4">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-              Username
+              {t('user_name')}
             </label>
             <input
               id="username"
@@ -365,14 +367,14 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
               value={formData.username}
               onChange={handleInputChange}
               required
-              placeholder="Enter your username"
+              placeholder={t('enter_username')}
               className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-              Phone
+              {t('phone')}
             </label>
             <input
               id="phone"
@@ -380,21 +382,21 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
               name="phone"
               value={formData.phone}
               onChange={handleInputChange}
-              placeholder="Enter your phone number"
+              placeholder={t('enter_phone')}
               className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
             <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-              Address
+              {t('address')}
             </label>
             <textarea
               id="address"
               name="address"
               value={formData.address}
               onChange={handleInputChange}
-              placeholder="Enter your address"
+              placeholder={t('enter_address')}
               rows={3}
               className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
@@ -406,14 +408,14 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
               onClick={() => setIsEditModalOpen(false)}
               className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition"
             >
-              Cancel
+              {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition disabled:bg-gray-400"
             >
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting ? `${t('saving')}...` : t('save_changes')}
             </button>
           </div>
         </form>

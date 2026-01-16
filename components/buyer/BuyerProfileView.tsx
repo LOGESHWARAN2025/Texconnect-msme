@@ -4,6 +4,7 @@ import { useLocalization } from '../../hooks/useLocalization';
 import Modal from '../common/Modal';
 import { User } from '../../types';
 import { supabase } from '../../src/lib/supabase';
+import { TranslatedText } from '../common/TranslatedText';
 
 const BuyerProfileView: React.FC = () => {
   const { t } = useLocalization();
@@ -20,7 +21,7 @@ const BuyerProfileView: React.FC = () => {
     companyName: ''
   });
   const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(null);
-  
+
   // Function to get the effective value (pending changes or current value)
   const getEffectiveValue = (field: keyof Pick<User, 'username' | 'phone' | 'address' | 'gstNumber' | 'companyName'>) => {
     if (currentUser?.pendingChanges?.[field] !== undefined) {
@@ -42,7 +43,7 @@ const BuyerProfileView: React.FC = () => {
       // Upload to Supabase Storage
       const fileExt = file.name.split('.').pop();
       const uniqueFileName = `${currentUser.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('profile-pictures')
         .upload(uniqueFileName, file, {
@@ -125,7 +126,7 @@ const BuyerProfileView: React.FC = () => {
       if (gstCertificateFile) {
         const fileExt = gstCertificateFile.name.split('.').pop();
         const uniqueFileName = `${currentUser.id}/gst-certificate-${Date.now()}.${fileExt}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('gst-certificates')
           .upload(uniqueFileName, gstCertificateFile, {
@@ -164,7 +165,7 @@ const BuyerProfileView: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Company Profile</h2>
+        <h2 className="text-2xl font-bold">{t('company_profile')}</h2>
         <button
           onClick={() => setIsEditModalOpen(true)}
           className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition shadow"
@@ -212,18 +213,18 @@ const BuyerProfileView: React.FC = () => {
           <div className="flex-1">
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Company Name</label>
+                <label className="block text-sm font-medium text-gray-700">{t('company_name')}</label>
                 <p className="mt-1 text-lg">
-                  {getEffectiveValue('companyName') || getEffectiveValue('username')}
+                  <TranslatedText text={getEffectiveValue('companyName') || getEffectiveValue('username')} />
                   {currentUser?.pendingChanges?.companyName && (
                     <span className="ml-2 text-sm text-yellow-600">(Pending Approval)</span>
                   )}
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Contact Person</label>
+                <label className="block text-sm font-medium text-gray-700">{t('contact_person')}</label>
                 <p className="mt-1 text-lg">
-                  {getEffectiveValue('username')}
+                  <TranslatedText text={getEffectiveValue('username')} />
                   {currentUser?.pendingChanges?.username && (
                     <span className="ml-2 text-sm text-yellow-600">(Pending Approval)</span>
                   )}
@@ -234,7 +235,7 @@ const BuyerProfileView: React.FC = () => {
                 <p className="mt-1 text-lg">{currentUser.email}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">GST Number</label>
+                <label className="block text-sm font-medium text-gray-700">{t('gst_number')}</label>
                 <p className="mt-1 text-lg">
                   {getEffectiveValue('gstNumber')}
                   {currentUser?.pendingChanges?.gstNumber && (
@@ -243,16 +244,16 @@ const BuyerProfileView: React.FC = () => {
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Address</label>
+                <label className="block text-sm font-medium text-gray-700">{t('address')}</label>
                 <p className="mt-1 text-lg">
-                  {getEffectiveValue('address')}
+                  <TranslatedText text={getEffectiveValue('address')} />
                   {currentUser?.pendingChanges?.address && (
                     <span className="ml-2 text-sm text-yellow-600">(Pending Approval)</span>
                   )}
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Phone</label>
+                <label className="block text-sm font-medium text-gray-700">{t('phone')}</label>
                 <p className="mt-1 text-lg">
                   {getEffectiveValue('phone')}
                   {currentUser?.pendingChanges?.phone && (
@@ -261,21 +262,21 @@ const BuyerProfileView: React.FC = () => {
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">GST Certificate</label>
+                <label className="block text-sm font-medium text-gray-700">{t('gst_certificate')}</label>
                 {currentUser?.gstCertificateUrl ? (
-                  <a 
-                    href={currentUser.gstCertificateUrl} 
-                    target="_blank" 
+                  <a
+                    href={currentUser.gstCertificateUrl}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="mt-1 text-primary hover:underline inline-flex items-center"
                   >
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    View Certificate
+                    {t('view_certificate')}
                   </a>
                 ) : (
-                  <p className="mt-1 text-gray-400">Not uploaded</p>
+                  <p className="mt-1 text-gray-400">{t('not_uploaded')}</p>
                 )}
               </div>
             </div>
@@ -287,7 +288,7 @@ const BuyerProfileView: React.FC = () => {
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={t('edit_profile')}>
         <form onSubmit={handleEditSubmit} className="space-y-4">
           <div>
-            <label htmlFor="edit-companyName" className="block text-sm font-medium text-slate-700">Company Name</label>
+            <label htmlFor="edit-companyName" className="block text-sm font-medium text-slate-700">{t('company_name')}</label>
             <input
               id="edit-companyName"
               type="text"
@@ -300,7 +301,7 @@ const BuyerProfileView: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="edit-username" className="block text-sm font-medium text-slate-700">Contact Person</label>
+            <label htmlFor="edit-username" className="block text-sm font-medium text-slate-700">{t('contact_person')}</label>
             <input
               id="edit-username"
               type="text"
@@ -313,7 +314,7 @@ const BuyerProfileView: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="edit-phone" className="block text-sm font-medium text-slate-700">Phone</label>
+            <label htmlFor="edit-phone" className="block text-sm font-medium text-slate-700">{t('phone')}</label>
             <input
               id="edit-phone"
               type="tel"
@@ -327,7 +328,7 @@ const BuyerProfileView: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="edit-address" className="block text-sm font-medium text-slate-700">Address</label>
+            <label htmlFor="edit-address" className="block text-sm font-medium text-slate-700">{t('address')}</label>
             <input
               id="edit-address"
               type="text"
@@ -341,7 +342,7 @@ const BuyerProfileView: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="edit-gstNumber" className="block text-sm font-medium text-slate-700">GST Number</label>
+            <label htmlFor="edit-gstNumber" className="block text-sm font-medium text-slate-700">{t('gst_number')}</label>
             <input
               id="edit-gstNumber"
               type="text"
@@ -369,9 +370,9 @@ const BuyerProfileView: React.FC = () => {
                 hover:file:bg-primary/20"
             />
             {currentUser?.gstCertificateUrl && (
-              <a 
-                href={currentUser.gstCertificateUrl} 
-                target="_blank" 
+              <a
+                href={currentUser.gstCertificateUrl}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="mt-2 text-sm text-primary hover:underline inline-block"
               >

@@ -5,6 +5,7 @@ import { useLocalization } from '../../hooks/useLocalization';
 import { supabase } from '../../src/lib/supabase';
 import type { View } from '../../types';
 import Modal from '../common/Modal';
+import { TranslatedText } from '../common/TranslatedText';
 import InventoryPage from './InventoryPage';
 import OrdersPage from './OrdersPage';
 import ProductsPage from './ProductsPage';
@@ -325,7 +326,7 @@ export default function ModernMSMEDashboard() {
   const stats = [
     {
       icon: Package,
-      label: 'Total Stock Value',
+      label: t('total_stock_value'),
       value: formatCurrency(liveStats.totalStockValue),
       subtext: `${liveStats.itemsInStock} items`,
       change: '+12%',
@@ -336,20 +337,20 @@ export default function ModernMSMEDashboard() {
     },
     {
       icon: Clock,
-      label: 'Pending Orders',
+      label: t('pending_orders'),
       value: liveStats.pendingOrders.toString(),
-      subtext: `${liveStats.pendingOrders} orders waiting`,
+      subtext: `${liveStats.pendingOrders} ${t('pending')}`,
       change: '+8%',
       trend: 'up' as const,
-      color: 'from-yellow-500 to-yellow-600',
-      iconBg: 'bg-yellow-100',
-      iconColor: 'text-yellow-600'
+      color: 'from-orange-500 to-orange-600',
+      iconBg: 'bg-orange-100',
+      iconColor: 'text-orange-600'
     },
     {
       icon: Layers,
-      label: 'Items in Stock',
+      label: t('items_in_stock'),
       value: liveStats.itemsInStock.toString(),
-      subtext: `${inventory.filter(i => i.stock < i.minStockLevel).length} low stock`,
+      subtext: `${inventory.filter(i => i.stock < i.minStockLevel).length} ${t('low_stock')}`,
       change: '-5%',
       trend: 'down' as const,
       color: 'from-green-500 to-green-600',
@@ -358,9 +359,9 @@ export default function ModernMSMEDashboard() {
     },
     {
       icon: TrendingUp,
-      label: 'Revenue (This Month)',
+      label: t('revenue_this_month'),
       value: formatCurrency(liveStats.monthlyRevenue),
-      subtext: `${orders.filter(o => o.createdAt && new Date(o.createdAt).getMonth() === new Date().getMonth()).length} orders`,
+      subtext: `${orders.filter(o => o.createdAt && new Date(o.createdAt).getMonth() === new Date().getMonth()).length} ${t('orders_count')}`,
       change: '+18%',
       trend: 'up' as const,
       color: 'from-indigo-500 to-indigo-600',
@@ -477,19 +478,19 @@ export default function ModernMSMEDashboard() {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+    if (diffMins < 1) return t('just_now');
+    if (diffMins < 60) return `${diffMins} ${t('min_ago')}`;
+    if (diffHours < 24) return `${diffHours}${t('h_ago')}`;
+    return `${diffDays}${t('d_ago')}`;
   };
 
   const recentActivity = generateRecentActivity();
 
   const quickActions = [
-    { icon: Plus, label: 'Add Inventory', color: 'bg-indigo-600 hover:bg-indigo-700', onClick: handleAddInventory },
-    { icon: ShoppingCart, label: 'New Order', color: 'bg-green-600 hover:bg-green-700', onClick: handleNewOrder },
-    { icon: Download, label: 'Export Report', color: 'bg-blue-600 hover:bg-blue-700', onClick: handleExportReport },
-    { icon: Bell, label: 'View Alerts', color: 'bg-orange-600 hover:bg-orange-700', onClick: handleViewAlerts },
+    { icon: Plus, label: t('add_inventory_action'), color: 'bg-indigo-600 hover:bg-indigo-700', onClick: handleAddInventory },
+    { icon: ShoppingCart, label: t('new_order_action'), color: 'bg-green-600 hover:bg-green-700', onClick: handleNewOrder },
+    { icon: Download, label: t('export_report_action'), color: 'bg-blue-600 hover:bg-blue-700', onClick: handleExportReport },
+    { icon: Bell, label: t('view_alerts_action'), color: 'bg-orange-600 hover:bg-orange-700', onClick: handleViewAlerts },
   ];
 
   const maxSales = Math.max(...dailySalesData.map(d => d.value));
@@ -862,9 +863,9 @@ export default function ModernMSMEDashboard() {
 
             <div className="flex items-center gap-3 border-l border-gray-200 pl-6">
               <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900">{currentUser?.firstname || 'User'}</p>
+                <div className="text-sm font-semibold text-gray-900"><TranslatedText text={currentUser?.firstname || 'User'} /></div>
                 <div className="flex flex-col items-end">
-                  <p className="text-xs text-gray-500">{currentUser?.address ? currentUser.address.split(',')[0] : 'Coimbatore'}</p>
+                  <div className="text-xs text-gray-500"><TranslatedText text={currentUser?.address ? currentUser.address.split(',')[0] : 'Coimbatore'} /></div>
                   <p className="text-xs text-gray-400 font-mono">GST: {currentUser?.gstNumber || 'N/A'}</p>
                 </div>
               </div>
@@ -909,13 +910,13 @@ export default function ModernMSMEDashboard() {
                 )}
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-gray-900 text-sm leading-tight">{currentUser?.companyName || 'Company Name'}</p>
+                <p className="font-semibold text-gray-900 text-sm leading-tight"><TranslatedText text={currentUser?.companyName || 'Company Name'} /></p>
                 <p className="text-xs text-indigo-600 font-medium">{currentUser?.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-white rounded-lg shadow-sm">
               <Zap className="h-4 w-4 text-yellow-500" />
-              <span className="text-xs font-medium text-gray-600">{currentUser?.isApproved ? 'Approved' : 'Pending Approval'}</span>
+              <span className="text-xs font-medium text-gray-600">{currentUser?.isApproved ? t('approved_status') : t('pending_approval_status')}</span>
             </div>
           </div>
 
@@ -923,24 +924,24 @@ export default function ModernMSMEDashboard() {
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             <button onClick={() => { setCurrentView('dashboard'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'dashboard' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'dashboard' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
               <BarChart3 className="h-5 w-5" />
-              <span className="font-semibold">Dashboard</span>
+              <span className="font-semibold">{t('dashboard')}</span>
               {currentView === 'dashboard' && <ChevronRight className="h-4 w-4 ml-auto" />}
             </button>
             <button onClick={() => { setCurrentView('inventory'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <Lock className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Inventory</span>
+              <span className="font-medium">{t('inventory')}</span>
             </button>
             <button onClick={() => { setCurrentView('orders'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <ClipboardList className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Orders</span>
+              <span className="font-medium">{t('orders')}</span>
             </button>
             <button onClick={() => { setCurrentView('products'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <Box className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Products</span>
+              <span className="font-medium">{t('products')}</span>
             </button>
             <button onClick={() => { setCurrentView('issues'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <AlertCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Issues</span>
+              <span className="font-medium">{t('issues')}</span>
             </button>
           </nav>
 
@@ -948,7 +949,7 @@ export default function ModernMSMEDashboard() {
           <div className="p-4 border-t border-gray-200">
             <button onClick={() => { setCurrentView('profile'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">
               <Users className="h-5 w-5" />
-              <span className="font-medium">Profile</span>
+              <span className="font-medium">{t('profile')}</span>
             </button>
           </div>
         </div>
@@ -996,7 +997,7 @@ export default function ModernMSMEDashboard() {
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Sales Trends</h2>
+                  <h2 className="text-xl font-bold text-gray-900">{t('sales_trends')}</h2>
                   <p className="text-sm text-gray-500">{salesView === 'week' ? 'Last 7 days performance' : 'Monthly performance'}</p>
                 </div>
                 <div className="flex gap-2">

@@ -10,12 +10,13 @@ import { ProductBrowseView } from './ProductBrowseView';
 import BuyerOrdersView from './BuyerOrdersView';
 import BuyerProfileView from './BuyerProfileView';
 import BuyerIssuesView from './BuyerIssuesView';
+import { TranslatedText } from '../common/TranslatedText';
 
 type BuyerView = 'browse' | 'orders' | 'issues' | 'profile' | 'dashboard';
 
 export default function ModernBuyerDashboard() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const { language, setLanguage } = useLocalization();
+    const { language, setLanguage, t } = useLocalization();
     const [currentView, setCurrentView] = useState<BuyerView>(() => {
         const saved = localStorage.getItem('buyer-current-view');
         return (saved as BuyerView) || 'dashboard';
@@ -73,36 +74,36 @@ export default function ModernBuyerDashboard() {
     const stats = [
         {
             icon: ShoppingBag,
-            label: 'Total Orders',
+            label: t('total_orders_stat'),
             value: buyerStats.totalOrders.toString(),
-            subtext: 'All time orders',
+            subtext: t('all_time_orders'),
             color: 'from-blue-500 to-blue-600',
             iconBg: 'bg-blue-100',
             iconColor: 'text-blue-600'
         },
         {
             icon: Clock,
-            label: 'Pending Orders',
+            label: t('pending_orders_stat'),
             value: buyerStats.pendingOrders.toString(),
-            subtext: 'Awaiting delivery',
+            subtext: t('awaiting_delivery'),
             color: 'from-yellow-500 to-yellow-600',
             iconBg: 'bg-yellow-100',
             iconColor: 'text-yellow-600'
         },
         {
             icon: CheckCircle,
-            label: 'Completed Orders',
+            label: t('completed_orders_stat'),
             value: buyerStats.completedOrders.toString(),
-            subtext: 'Successfully delivered',
+            subtext: t('successfully_delivered'),
             color: 'from-green-500 to-green-600',
             iconBg: 'bg-green-100',
             iconColor: 'text-green-600'
         },
         {
             icon: TrendingUp,
-            label: 'Total Spent',
+            label: t('total_spent'),
             value: formatCurrency(buyerStats.totalSpent),
-            subtext: 'Lifetime spending',
+            subtext: t('lifetime_spending'),
             color: 'from-indigo-500 to-indigo-600',
             iconBg: 'bg-indigo-100',
             iconColor: 'text-indigo-600'
@@ -110,10 +111,10 @@ export default function ModernBuyerDashboard() {
     ];
 
     const quickActions = [
-        { icon: ShoppingBag, label: 'Browse Products', color: 'bg-indigo-600 hover:bg-indigo-700', onClick: () => setCurrentView('browse') },
-        { icon: Package, label: 'My Orders', color: 'bg-green-600 hover:bg-green-700', onClick: () => setCurrentView('orders') },
-        { icon: AlertCircle, label: 'Report Issue', color: 'bg-orange-600 hover:bg-orange-700', onClick: () => setCurrentView('issues') },
-        { icon: User, label: 'My Profile', color: 'bg-blue-600 hover:bg-blue-700', onClick: () => setCurrentView('profile') },
+        { icon: ShoppingBag, label: t('browse_products_title'), color: 'bg-indigo-600 hover:bg-indigo-700', onClick: () => setCurrentView('browse') },
+        { icon: Package, label: t('my_orders_title'), color: 'bg-green-600 hover:bg-green-700', onClick: () => setCurrentView('orders') },
+        { icon: AlertCircle, label: t('report_issue_title'), color: 'bg-orange-600 hover:bg-orange-700', onClick: () => setCurrentView('issues') },
+        { icon: User, label: t('my_profile_title'), color: 'bg-blue-600 hover:bg-blue-700', onClick: () => setCurrentView('profile') },
     ];
 
     const renderContent = () => {
@@ -161,10 +162,10 @@ export default function ModernBuyerDashboard() {
 
                         {/* Welcome Section */}
                         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl shadow-lg p-8 text-white">
-                            <h2 className="text-3xl font-bold mb-2">Welcome back, {currentUser?.firstname}! 👋</h2>
-                            <p className="text-indigo-100 mb-6">Discover quality textile products from verified MSMEs</p>
+                            <h2 className="text-3xl font-bold mb-2">{t('welcome_back')}, {currentUser?.firstname}! 👋</h2>
+                            <p className="text-indigo-100 mb-6">{t('discover_quality_products')}</p>
                             <button onClick={() => setCurrentView('browse')} className="bg-white text-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-indigo-50 transition shadow-lg">
-                                Start Shopping
+                                {t('start_shopping')}
                             </button>
                         </div>
                     </div>
@@ -189,11 +190,11 @@ export default function ModernBuyerDashboard() {
                                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                             </div>
                             <div>
-                                <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">TexConnect</span>
-                                <p className="text-xs text-gray-500">Buyer Portal</p>
+                                <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">{t('texconnect')}</span>
+                                <p className="text-xs text-gray-500">{t('buyer_portal')}</p>
                             </div>
                         </div>
-                        <span className="text-lg font-semibold text-gray-700">Dashboard</span>
+                        <span className="text-lg font-semibold text-gray-700">{t('dashboard')}</span>
                     </div>
 
                     <div className="flex items-center gap-6">
@@ -216,8 +217,8 @@ export default function ModernBuyerDashboard() {
 
                         <div className="flex items-center gap-3 border-l border-gray-200 pl-6">
                             <div className="text-right">
-                                <p className="text-sm font-semibold text-gray-900">{currentUser?.firstname || 'User'}</p>
-                                <p className="text-xs text-gray-500">Buyer</p>
+                                <p className="text-sm font-semibold text-gray-900"><TranslatedText text={currentUser?.firstname || 'User'} /></p>
+                                <p className="text-xs text-gray-500">{t('buyer')}</p>
                             </div>
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-lg">
                                 {currentUser?.firstname?.charAt(0) || 'U'}
@@ -252,20 +253,20 @@ export default function ModernBuyerDashboard() {
                     <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
                         <button onClick={() => { setCurrentView('dashboard'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'dashboard' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'dashboard' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <Grid className="h-5 w-5" />
-                            <span className="font-semibold">Dashboard</span>
+                            <span className="font-semibold">{t('dashboard')}</span>
                             {currentView === 'dashboard' && <ChevronRight className="h-4 w-4 ml-auto" />}
                         </button>
                         <button onClick={() => { setCurrentView('browse'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'browse' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'browse' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <ShoppingBag className="h-5 w-5" />
-                            <span className="font-medium">Browse Products</span>
+                            <span className="font-medium">{t('browse_products_title')}</span>
                         </button>
                         <button onClick={() => { setCurrentView('orders'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'orders' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'orders' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <Package className="h-5 w-5" />
-                            <span className="font-medium">My Orders</span>
+                            <span className="font-medium">{t('my_orders_title')}</span>
                         </button>
                         <button onClick={() => { setCurrentView('issues'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'issues' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'issues' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <AlertCircle className="h-5 w-5" />
-                            <span className="font-medium">Issues</span>
+                            <span className="font-medium">{t('issues')}</span>
                         </button>
                     </nav>
 
@@ -273,7 +274,7 @@ export default function ModernBuyerDashboard() {
                     <div className="p-4 border-t border-gray-200">
                         <button onClick={() => { setCurrentView('profile'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'profile' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'profile' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <User className="h-5 w-5" />
-                            <span className="font-medium">Profile</span>
+                            <span className="font-medium">{t('profile')}</span>
                         </button>
                     </div>
                 </div>
