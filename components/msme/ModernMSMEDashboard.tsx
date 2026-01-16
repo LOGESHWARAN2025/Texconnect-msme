@@ -3,6 +3,7 @@ import { Package, TrendingUp, AlertCircle, Users, BarChart3, ShoppingCart, Layer
 import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
 import { supabase } from '../../src/lib/supabase';
+import type { View } from '../../types';
 import Modal from '../common/Modal';
 import InventoryPage from './InventoryPage';
 import OrdersPage from './OrdersPage';
@@ -14,9 +15,9 @@ export default function ModernMSMEDashboard() {
   /* Use global localization hook instead of local state */
   const { language, setLanguage } = useLocalization();
   // Persist current view in localStorage
-  const [currentView, setCurrentView] = useState<'dashboard' | 'inventory' | 'orders' | 'products' | 'issues' | 'profile'>(() => {
+  const [currentView, setCurrentView] = useState<View>(() => {
     const saved = localStorage.getItem('msme-current-view');
-    return (saved as any) || 'dashboard';
+    return (saved as View) || 'dashboard';
   });
   const [salesView, setSalesView] = useState<'week' | 'month'>('week');
   const { currentUser, logout, inventory, orders, requestProfileUpdate } = useAppContext();
