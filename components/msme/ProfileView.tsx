@@ -9,7 +9,7 @@ import { supabase } from '../../src/lib/supabase';
 
 const ProfileView: React.FC = () => {
     const { t } = useLocalization();
-    const { currentUser, requestProfileUpdate } = useAppContext();
+    const { currentUser, requestProfileUpdate, addInventoryItem } = useAppContext();
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -25,6 +25,20 @@ const ProfileView: React.FC = () => {
     });
     const [gstCertificateFile, setGstCertificateFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
+    const [inventoryForm, setInventoryForm] = useState({
+        name: '',
+        category: '',
+        description: '',
+        price: '',
+        stock: '',
+        unitOfMeasure: 'unit',
+        minStockLevel: '',
+        status: 'active' as 'active' | 'inactive'
+    });
+    const [addingInventory, setAddingInventory] = useState(false);
+    const [inventoryError, setInventoryError] = useState<string | null>(null);
+    const [inventorySuccess, setInventorySuccess] = useState(false);
 
     const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -115,6 +129,13 @@ const ProfileView: React.FC = () => {
         }
     };
 
+    const handleInventoryInputChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    ) => {
+        const { name, value } = e.target;
+        setInventoryForm(prev => ({ ...prev, [name]: value }));
+    };
+
     const handleEditSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!currentUser) return;
@@ -166,18 +187,82 @@ const ProfileView: React.FC = () => {
         }
     };
 
+    const handleAddInventorySubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentUser) return;
+        setAddingInventory(true);
+        setInventoryError(null);
+        setInventorySuccess(false);
+
+        try {
+            const name = inventoryForm.name.trim();
+            const category = inventoryForm.category.trim();
+            const description = inventoryForm.description?.trim() || '';
+            const unitOfMeasure = inventoryForm.unitOfMeasure.trim() || 'unit';
+            const price = Number(inventoryForm.price);
+            const stock = Number(inventoryForm.stock);
+            const minStockLevel = Number(inventoryForm.minStockLevel || 0);
+
+            if (!name) throw new Error('Name is required');
+            if (Number.isNaN(price) || price < 0) throw new Error('Price must be 0 or more');
+            if (Number.isNaN(stock) || stock < 0) throw new Error('Stock must be 0 or more');
+            if (Number.isNaN(minStockLevel) || minStockLevel < 0) throw new Error('Min stock must be 0 or more');
+
+            await addInventoryItem({
+                msmeId: currentUser.id,
+                name,
+                category,
+                description,
+                stock,
+                price,
+                unitOfMeasure,
+                minStockLevel,
+                status: inventoryForm.status,
+            } as any);
+
+            setInventorySuccess(true);
+            setIsAddInventoryOpen(false);
+            setInventoryForm({
+                name: '',
+                category: '',
+                description: '',
+                price: '',
+                stock: '',
+                unitOfMeasure: 'unit',
+                minStockLevel: '',
+                status: 'active'
+            });
+        } catch (err: any) {
+            setInventoryError(err.message || 'Failed to add inventory');
+        } finally {
+            setAddingInventory(false);
+        }
+    };
+
     if (!currentUser) return null;
 
     return (
         <div className="max-w-4xl mx-auto p-6">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">MSME Profile</h2>
-                <button
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition shadow"
-                >
-                    {t('edit_profile')}
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsAddInventoryOpen(true)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl p-3 flex items-center gap-2 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                            <path d="M5 12h14"></path>
+                            <path d="M12 5v14"></path>
+                        </svg>
+                        <span className="font-semibold text-sm">Add Inventory</span>
+                    </button>
+                    <button
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition shadow"
+                    >
+                        {t('edit_profile')}
+                    </button>
+                </div>
             </div>
 
             {/* Profile Picture Section */}
@@ -433,6 +518,144 @@ const ProfileView: React.FC = () => {
                 </form>
             </Modal>
 
+            {/* Add Inventory Modal */}
+            <Modal isOpen={isAddInventoryOpen} onClose={() => setIsAddInventoryOpen(false)} title="Add Inventory">
+                <form onSubmit={handleAddInventorySubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="inv-name" className="block text-sm font-medium text-slate-700">Name</label>
+                        <input
+                            id="inv-name"
+                            type="text"
+                            name="name"
+                            value={inventoryForm.name}
+                            onChange={handleInventoryInputChange}
+                            required
+                            placeholder="Enter item name"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="inv-category" className="block text-sm font-medium text-slate-700">Category</label>
+                        <input
+                            id="inv-category"
+                            type="text"
+                            name="category"
+                            value={inventoryForm.category}
+                            onChange={handleInventoryInputChange}
+                            placeholder="e.g., Fabric, Thread, Dye"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="inv-description" className="block text-sm font-medium text-slate-700">Description</label>
+                        <textarea
+                            id="inv-description"
+                            name="description"
+                            value={inventoryForm.description}
+                            onChange={handleInventoryInputChange}
+                            placeholder="Optional description"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <label htmlFor="inv-price" className="block text-sm font-medium text-slate-700">Price</label>
+                            <input
+                                id="inv-price"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                name="price"
+                                value={inventoryForm.price}
+                                onChange={handleInventoryInputChange}
+                                required
+                                placeholder="0.00"
+                                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="inv-stock" className="block text-sm font-medium text-slate-700">Stock</label>
+                            <input
+                                id="inv-stock"
+                                type="number"
+                                min="0"
+                                name="stock"
+                                value={inventoryForm.stock}
+                                onChange={handleInventoryInputChange}
+                                required
+                                placeholder="0"
+                                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="inv-min" className="block text-sm font-medium text-slate-700">Min Stock</label>
+                            <input
+                                id="inv-min"
+                                type="number"
+                                min="0"
+                                name="minStockLevel"
+                                value={inventoryForm.minStockLevel}
+                                onChange={handleInventoryInputChange}
+                                placeholder="0"
+                                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="inv-uom" className="block text-sm font-medium text-slate-700">Unit</label>
+                            <select
+                                id="inv-uom"
+                                name="unitOfMeasure"
+                                value={inventoryForm.unitOfMeasure}
+                                onChange={handleInventoryInputChange}
+                                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                            >
+                                <option value="unit">Unit</option>
+                                <option value="pcs">Pcs</option>
+                                <option value="kg">Kg</option>
+                                <option value="m">Meter</option>
+                                <option value="box">Box</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="inv-status" className="block text-sm font-medium text-slate-700">Status</label>
+                            <select
+                                id="inv-status"
+                                name="status"
+                                value={inventoryForm.status}
+                                onChange={handleInventoryInputChange}
+                                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                            >
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    {inventoryError && (
+                        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded">
+                            {inventoryError}
+                        </div>
+                    )}
+                    <div className="flex justify-end space-x-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsAddInventoryOpen(false)}
+                            className="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg font-semibold hover:bg-slate-300 transition"
+                        >
+                            {t('cancel')}
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={addingInventory}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow disabled:bg-slate-400"
+                        >
+                            {addingInventory ? 'Adding...' : 'Add'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
             {/* Status Messages */}
             {uploading && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg flex items-center gap-2">
@@ -448,6 +671,14 @@ const ProfileView: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Profile updated successfully!
+                </div>
+            )}
+            {inventorySuccess && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Inventory item added successfully!
                 </div>
             )}
             {error && (
