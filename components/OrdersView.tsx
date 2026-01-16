@@ -105,7 +105,7 @@ const OrdersView: React.FC = () => {
       if ((newStatus === 'Prepared' || newStatus === 'Shipped') && order && order.totalUnits && order.totalUnits > 0) {
         const scannedCount = order.scannedUnits?.length || 0;
         if (scannedCount < order.totalUnits) {
-          alert(`You must scan all ${order.totalUnits} unit stickers before moving to ${newStatus}. (${scannedCount} scanned so far)`);
+          // Instead of a simple alert, we now show the scanner with a "Verification Required" context
           setScanningOrder(order);
           setUpdatingOrderId(null);
           return;
