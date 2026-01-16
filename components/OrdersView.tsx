@@ -24,6 +24,7 @@ const OrdersView: React.FC = () => {
   const [viewingInvoiceOrder, setViewingInvoiceOrder] = useState<Order | null>(null);
   const [printingQROrder, setPrintingQROrder] = useState<Order | null>(null);
   const [scanningOrder, setScanningOrder] = useState<Order | null>(null);
+  const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ orderId: string, status: OrderStatus } | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const userProductIds = useMemo(() => {
@@ -105,7 +106,8 @@ const OrdersView: React.FC = () => {
       if ((newStatus === 'Prepared' || newStatus === 'Shipped') && order && order.totalUnits && order.totalUnits > 0) {
         const scannedCount = order.scannedUnits?.length || 0;
         if (scannedCount < order.totalUnits) {
-          // Instead of a simple alert, we now show the scanner with a "Verification Required" context
+          // Store what we WANTED to do, and open the scanner instead
+          setPendingStatusUpdate({ orderId, status: newStatus });
           setScanningOrder(order);
           setUpdatingOrderId(null);
           return;
@@ -330,11 +332,47 @@ const OrdersView: React.FC = () => {
 
             // Check if complete and auto-update status?
             if (scannedIds.length === (scanningOrder.totalUnits || 0)) {
-              // We don't auto-update to avoid surprises, but user can now select Shipped
+              // The scan is complete! The scanner will close via internal onClose,
+              // and the pendingStatusUpdate logic below will handle showing the next dialog.
             }
           }
         }}
       />
+
+      {/* Final Update Status Confirmation Dialog (only after successful scan or direct update) */}
+      {pendingStatusUpdate && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+          <div className="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 animate-in zoom-in duration-300">
+            <div className="text-center space-y-6">
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Verification Successful!</h3>
+                <p className="text-slate-500 font-bold text-sm mt-2">All units have been verified. Do you want to update the order status to <span className="text-indigo-600 uppercase font-black">{t(pendingStatusUpdate.status.toLowerCase()) || pendingStatusUpdate.status}</span>?</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setPendingStatusUpdate(null)}
+                  className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const { orderId, status } = pendingStatusUpdate;
+                    setPendingStatusUpdate(null);
+                    await handleStatusChange(orderId, status);
+                  }}
+                  className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-600/30 hover:-translate-y-1 transition-all"
+                >
+                  Update Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
