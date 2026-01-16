@@ -491,6 +491,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'total_stock': 'Total Stock',
     'by': 'by',
     'product': 'Product',
+    'scan_units': 'Scan Units',
   },
   ta: {
     // General
@@ -855,5 +856,6 @@ export const translations: Record<Language, Record<string, string>> = {
     'total_stock': 'மொத்த இருப்பு',
     'by': 'மூலம்',
     'product': 'தயாரிப்பு',
+    'scan_units': 'அலகுகளை ஸ்கேன் செய்யுங்கள்',
   }
 };

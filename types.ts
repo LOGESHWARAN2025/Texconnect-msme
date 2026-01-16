@@ -128,6 +128,8 @@ export interface Order {
     price?: number;
   }[];
   shippingAddress?: Address;
+  totalUnits?: number;
+  scannedUnits?: string[]; // Array of unique sticker IDs scanned (e.g. ["ord_123_1", "ord_123_3"])
 }
 
 export interface SalesData {
@@ -136,8 +138,8 @@ export interface SalesData {
 }
 
 export interface StockData {
-    date: string;
-    stockLevel: number;
+  date: string;
+  stockLevel: number;
 }
 
 export interface AuditLogEntry {

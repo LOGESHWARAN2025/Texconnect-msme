@@ -4,6 +4,7 @@ import { useAppContext } from '../context/SupabaseContext';
 import type { OrderStatus, Order } from '../types';
 import InvoiceModal from './invoice/InvoiceModal';
 import QRCodeStickerPrinter from './QRCodeStickerPrinter';
+import OrderQRScanner from './OrderQRScanner';
 
 const getStatusColor = (status: OrderStatus) => {
   switch (status) {
@@ -21,6 +22,7 @@ const OrdersView: React.FC = () => {
   const { orders, updateOrderStatus, currentUser, products } = useAppContext();
   const [viewingInvoiceOrder, setViewingInvoiceOrder] = useState<Order | null>(null);
   const [printingQROrder, setPrintingQROrder] = useState<Order | null>(null);
+  const [scanningOrder, setScanningOrder] = useState<Order | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const userProductIds = useMemo(() => {
@@ -96,6 +98,18 @@ const OrdersView: React.FC = () => {
 
     try {
       setUpdatingOrderId(orderId);
+
+      const order = orders.find(o => o.id === orderId);
+      if (newStatus === 'Shipped' && order && order.totalUnits && order.totalUnits > 0) {
+        const scannedCount = order.scannedUnits?.length || 0;
+        if (scannedCount < order.totalUnits) {
+          alert(`You must scan all ${order.totalUnits} unit stickers before shipping. (${scannedCount} scanned so far)`);
+          setScanningOrder(order);
+          setUpdatingOrderId(null);
+          return;
+        }
+      }
+
       console.log('📝 Changing status to:', newStatus);
       await updateOrderStatus(orderId, newStatus);
       console.log('✅ Status changed successfully');
@@ -245,6 +259,21 @@ const OrdersView: React.FC = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                               </svg>
                             </button>
+                            <button
+                              onClick={() => setScanningOrder(order)}
+                              className="relative p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-green-600 hover:text-white transition-all hover:-translate-y-1 shadow-sm border border-slate-100"
+                              title={t('scan_units')}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              {order.totalUnits && order.totalUnits > 0 && (
+                                <span className={`absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[8px] font-black border ${order.scannedUnits?.length === order.totalUnits ? 'bg-green-500 text-white border-green-600' : 'bg-yellow-400 text-yellow-900 border-yellow-500'}`}>
+                                  {order.scannedUnits?.length || 0}/{order.totalUnits}
+                                </span>
+                              )}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -276,6 +305,25 @@ const OrdersView: React.FC = () => {
         isOpen={!!printingQROrder}
         onClose={() => setPrintingQROrder(null)}
         order={printingQROrder}
+      />
+      <OrderQRScanner
+        isOpen={!!scanningOrder}
+        onClose={() => setScanningOrder(null)}
+        order={scanningOrder}
+        onScanComplete={async (scannedIds) => {
+          if (scanningOrder) {
+            const { supabase } = await import('../src/lib/supabase');
+            await supabase
+              .from('orders')
+              .update({ scannedUnits: scannedIds })
+              .eq('id', scanningOrder.id);
+
+            // Check if complete and auto-update status?
+            if (scannedIds.length === (scanningOrder.totalUnits || 0)) {
+              // We don't auto-update to avoid surprises, but user can now select Shipped
+            }
+          }
+        }}
       />
     </>
   );
