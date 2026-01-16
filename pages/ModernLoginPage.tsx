@@ -264,8 +264,8 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
           <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', width: '100%' }}>
             {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '30px' }}>
-              <svg fill="none" stroke="white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '50px', height: '50px' }}>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+              <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
               </svg>
               <span style={{ color: 'white', fontSize: '36px', fontWeight: 700, letterSpacing: '2px' }}>TexConnect</span>
             </div>
@@ -325,8 +325,8 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
             <div style={{ animation: 'fadeIn 0.5s ease' }}>
               {/* Logo */}
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                <svg fill="none" stroke="rgb(79, 70, 229)" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '80px', height: '80px', margin: '0 auto 20px', color: 'rgb(79, 70, 229)' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+                <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 20px' }}>
+                  <path d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
                 </svg>
                 <h1 style={{ color: 'rgb(79, 70, 229)', fontSize: '48px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '3px' }}>{t('login_title')}</h1>
               </div>
@@ -538,8 +538,8 @@ const ModernLoginPage: React.FC<ModernLoginPageProps> = ({
             <div style={{ animation: 'fadeIn 0.5s ease' }}>
               {/* Logo */}
               <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                <svg fill="none" stroke="rgb(79, 70, 229)" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '80px', height: '80px', margin: '0 auto 20px', color: 'rgb(79, 70, 229)' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+                <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 20px' }}>
+                  <path d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
                 </svg>
                 <h1 style={{ color: 'rgb(79, 70, 229)', fontSize: '48px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '3px' }}>{t('signup_title')}</h1>
               </div>

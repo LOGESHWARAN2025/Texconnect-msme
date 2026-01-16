@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useLocalization } from '../hooks/useLocalization';
 import { useAppContext } from '../context/SupabaseContext';
-import { Camera, QrCode, ClipboardCheck } from 'lucide-react';
+import { Camera, QrCode, ClipboardCheck, Image as ImageIcon, Upload } from 'lucide-react';
 import type { Order } from '../types';
 
 interface OrderQRScannerProps {
@@ -17,42 +17,96 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
     const [scannedIds, setScannedIds] = useState<string[]>([]);
     const [lastScanned, setLastScanned] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [mode, setMode] = useState<'camera' | 'device'>('camera');
+    const [mode, setMode] = useState<'camera' | 'device' | 'file'>('camera');
     const [manualInput, setManualInput] = useState('');
-    const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+    const [isScanning, setIsScanning] = useState(false);
+    const [cameraPermission, setCameraPermission] = useState<'prompt' | 'granted' | 'denied'>('prompt');
+    const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Initialize/Cleanup Scanner
     useEffect(() => {
-        if (isOpen && order) {
-            setScannedIds(order.scannedUnits || []);
-            if (mode === 'camera') {
-                const scanner = new Html5QrcodeScanner(
-                    "qr-reader",
-                    {
+        if (isOpen && order && mode === 'camera') {
+            const startScanner = async () => {
+                try {
+                    const html5QrCode = new Html5Qrcode("qr-reader");
+                    html5QrCodeRef.current = html5QrCode;
+
+                    const config = {
                         fps: 10,
-                        qrbox: (viewfinderWidth, viewfinderHeight) => {
+                        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
                             const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
                             const edgeSize = Math.floor(minEdge * 0.7);
                             return { width: edgeSize, height: edgeSize };
                         }
-                    },
-                    /* verbose= */ false
-                );
+                    };
 
-                scanner.render(onScanSuccess, onScanFailure);
-                scannerRef.current = scanner;
+                    await html5QrCode.start(
+                        { facingMode: "environment" },
+                        config,
+                        onScanSuccess,
+                        onScanFailure
+                    );
+                    setIsScanning(true);
+                    setCameraPermission('granted');
+                } catch (err: any) {
+                    console.error("Failed to start scanner", err);
+                    if (err.toString().includes("NotAllowedError") || err.toString().includes("Permission denied")) {
+                        setCameraPermission('denied');
+                    }
+                    setError("Camera access denied or not available");
+                }
+            };
 
-                return () => {
-                    if (scannerRef.current) {
-                        scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+            startScanner();
+
+            return () => {
+                const stopScanner = async () => {
+                    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+                        try {
+                            await html5QrCodeRef.current.stop();
+                        } catch (e) {
+                            console.error("Failed to stop scanner", e);
+                        }
                     }
                 };
-            } else {
-                // Device mode - focus input
-                setTimeout(() => inputRef.current?.focus(), 100);
-            }
+                stopScanner();
+            };
+        } else if (mode === 'device') {
+            setTimeout(() => inputRef.current?.focus(), 100);
         }
     }, [isOpen, order, mode]);
+
+    // Sync scanned IDs when opened
+    useEffect(() => {
+        if (isOpen && order) {
+            setScannedIds(order.scannedUnits || []);
+            setLastScanned(null);
+            setError(null);
+        }
+    }, [isOpen, order]);
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !order) return;
+
+        try {
+            setError(null);
+            setLastScanned("Processing image...");
+
+            // We use a temporary Html5Qrcode instance for file scanning if the main one isn't ready
+            const html5QrCode = html5QrCodeRef.current || new Html5Qrcode("qr-reader", false);
+            const decodedText = await html5QrCode.scanFile(file, true);
+            handleProcessCode(decodedText);
+        } catch (err: any) {
+            console.error("File scan error:", err);
+            setError("Could not find a valid QR code in this image");
+            setLastScanned(null);
+        } finally {
+            if (event.target) event.target.value = ''; // Reset input
+        }
+    };
 
     const handleProcessCode = (decodedText: string) => {
         if (!order) return;
@@ -140,35 +194,83 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                     </div>
 
                     {/* Mode Toggle */}
-                    <div className="flex p-1 bg-slate-100 rounded-2xl">
+                    <div className="flex p-1 bg-slate-100 rounded-2xl overflow-x-auto no-scrollbar">
                         <button
                             onClick={() => setMode('camera')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'camera' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${mode === 'camera' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            <Camera className="w-4 h-4" /> Camera
+                            <Camera className="w-3.5 h-3.5" /> Camera
+                        </button>
+                        <button
+                            onClick={() => setMode('file')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${mode === 'file' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <ImageIcon className="w-3.5 h-3.5" /> File
                         </button>
                         <button
                             onClick={() => setMode('device')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'device' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${mode === 'device' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            <QrCode className="w-4 h-4" /> Scanner Device
+                            <QrCode className="w-3.5 h-3.5" /> Device
                         </button>
                     </div>
 
                     {/* Scanner Area */}
                     <div className="relative aspect-square bg-slate-900 rounded-[2.5rem] overflow-hidden border-8 border-slate-50 shadow-inner flex items-center justify-center">
-                        {mode === 'camera' ? (
-                            <div id="qr-reader" className="w-full h-full"></div>
-                        ) : (
-                            <div className="p-8 text-center space-y-6">
-                                <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                        {/* Always keep qr-reader in DOM but hide it when not in camera mode */}
+                        <div id="qr-reader" className={`w-full h-full ${mode === 'camera' ? 'block' : 'hidden'}`}></div>
+
+                        {mode === 'camera' && cameraPermission === 'denied' && (
+                            <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                                <div className="w-16 h-16 bg-rose-500/20 rounded-2xl flex items-center justify-center">
+                                    <Camera className="w-8 h-8 text-rose-500" />
+                                </div>
+                                <h3 className="text-white font-black">Camera Blocked</h3>
+                                <p className="text-slate-400 text-xs font-bold leading-relaxed">Please enable camera permissions in your browser settings to continue scanning.</p>
+                                <button
+                                    onClick={() => { setMode('device'); setTimeout(() => setMode('camera'), 50); }}
+                                    className="px-6 py-3 bg-white text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
+                        )}
+
+                        {mode === 'file' && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-900 p-8 text-center space-y-6 flex-col">
+                                <div className="w-24 h-24 bg-white/10 rounded-[2rem] flex items-center justify-center border-2 border-white/20">
+                                    <Upload className="w-10 h-10 text-white" />
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="text-white font-black text-xl">Upload Image</h3>
+                                    <p className="text-slate-400 text-sm font-bold">Select a photo of the QR code from your gallery.</p>
+                                </div>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                />
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all active:scale-95"
+                                >
+                                    Select Image
+                                </button>
+                            </div>
+                        )}
+
+                        {mode === 'device' && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-900 p-8 text-center space-y-6 flex-col">
+                                <div className="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center animate-pulse">
                                     <QrCode className="w-12 h-12 text-white" />
                                 </div>
                                 <div>
                                     <h3 className="text-white font-black text-xl mb-2">Ready to Scan</h3>
                                     <p className="text-slate-400 text-sm font-bold">Please scan the sticker using your connected QR scanner.</p>
                                 </div>
-                                <form onSubmit={handleManualSubmit}>
+                                <form onSubmit={handleManualSubmit} className="w-full">
                                     <input
                                         ref={inputRef}
                                         type="text"
