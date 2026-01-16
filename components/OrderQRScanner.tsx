@@ -115,17 +115,21 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
             <div className="bg-white rounded-[3rem] shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in duration-300">
                 <div className="p-10 space-y-8">
                     {/* Header */}
-                    <div className="flex items-center justify-between">
-                        <div>
+                    <div className="flex items-center gap-6">
+                        <button
+                            onClick={onClose}
+                            className="p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-indigo-600 transition-all group"
+                        >
+                            <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                        </button>
+                        <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-md">Step 2: Verification</span>
                             </div>
-                            <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">Security Check</h2>
-                            <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-2">Order ID: #{order.id.substring(0, 8)}</p>
+                            <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none">Security Check</h2>
                         </div>
-                        <button onClick={onClose} className="p-3 bg-slate-100 hover:bg-red-50 hover:text-red-500 rounded-2xl transition-all text-slate-400">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
                     </div>
 
                     {/* Mode Toggle */}
@@ -218,15 +222,23 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                     )}
 
                     {/* Action */}
-                    <button
-                        onClick={onClose}
-                        className={`w-full py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] transition-all transform active:scale-95 ${isComplete
+                    <div className="grid grid-cols-2 gap-4">
+                        <button
+                            onClick={onClose}
+                            className="w-full py-5 bg-slate-100 text-slate-500 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] transition-all transform active:scale-95 hover:bg-slate-200"
+                        >
+                            Back
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className={`w-full py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] transition-all transform active:scale-95 ${isComplete
                                 ? 'bg-slate-900 text-white shadow-2xl hover:-translate-y-1'
                                 : 'bg-slate-100 text-slate-400'
-                            }`}
-                    >
-                        {isComplete ? 'Confirm & Continue' : 'Cancel Scan'}
-                    </button>
+                                }`}
+                        >
+                            {isComplete ? 'Confirm' : 'Cancel'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

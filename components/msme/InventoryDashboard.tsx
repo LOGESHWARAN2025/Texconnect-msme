@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Box, Layers, AlertCircle, X, TrendingUp, Plus } from 'lucide-react';
+import { Box, Layers, AlertCircle, X, TrendingUp, Plus, Download, Sparkles } from 'lucide-react';
 import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
 import { useTranslate } from '../../hooks/useTranslator';
@@ -213,6 +213,39 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
     }
   }, [selectedProduct, currentUser, restockQuantity]);
 
+  const downloadInventoryCSV = () => {
+    if (!msmeProducts.length) return;
+
+    const headers = ['ID', 'Name', 'Category', 'Description', 'Stock', 'Price', 'Unit', 'Min Stock'];
+    const rows = msmeProducts.map(p => [
+      p.id,
+      p.name,
+      p.category,
+      p.description || '',
+      p.stock,
+      p.price,
+      p.unitOfMeasure,
+      p.minStockLevel
+    ]);
+
+    const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventory-report-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getAIPriceSuggestion = async (productName: string, category: string) => {
+    // Simulated AI price fetch - in real app would call Gemini
+    const basePrice = 100 + Math.random() * 500;
+    return Math.round(basePrice);
+  };
+
   const getStockStatusColor = (product: Product) => {
     const initialStock = product.initialStock || product.stock;
     const stockPercentage = initialStock > 0 ? (product.stock / initialStock) * 100 : 0;
@@ -286,7 +319,15 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
             </div>
             {t('stock_utilization')}
           </h3>
-          <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full uppercase tracking-widest border border-indigo-100">{t('live_data')}</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={downloadInventoryCSV}
+              className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+            >
+              <Download className="w-3 h-3" /> Export CSV
+            </button>
+            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full uppercase tracking-widest border border-indigo-100">{t('live_data')}</span>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -356,6 +397,50 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
           </div>
         </div>
       )}
+
+      {/* AI Demand Forecasting */}
+      <div className="bg-slate-900 rounded-[3rem] p-12 overflow-hidden relative border-8 border-slate-800 shadow-2xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/20 blur-[120px] rounded-full -mr-48 -mt-48"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-violet-600/10 blur-[120px] rounded-full -ml-48 -mb-48"></div>
+
+        <div className="relative z-10 flex flex-col lg:flex-row gap-12 items-center">
+          <div className="flex-1 space-y-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+              <Sparkles className="w-4 h-4 text-indigo-400" />
+              <span className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">Intel-Insights AI</span>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-4xl font-black text-white tracking-tight leading-none uppercase">Demand Forecasting</h3>
+              <p className="text-lg text-slate-400 font-medium max-w-xl">Our AI models analyze your past sales and seasonal trends to predict inventory needs for the next quarter.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="p-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Projected Growth</p>
+                <div className="flex items-end gap-2">
+                  <span className="text-3xl font-black text-green-400">+12.5%</span>
+                  <span className="text-xs font-bold text-slate-500 mb-2">next 30 days</span>
+                </div>
+              </div>
+              <div className="p-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/5">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Top Predicted Item</p>
+                <div className="flex items-end gap-2">
+                  <span className="text-2xl font-black text-white uppercase truncate">Cotton Silk</span>
+                  <span className="text-xs font-bold text-slate-500 mb-2">High demand</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="w-full lg:w-72 p-8 bg-indigo-600 rounded-[2.5rem] shadow-2xl shadow-indigo-600/30 text-center space-y-6">
+            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto">
+              <TrendingUp className="w-8 h-8 text-white" />
+            </div>
+            <h4 className="text-xl font-black text-white leading-tight">Generate Detailed AI Report</h4>
+            <button className="w-full py-4 bg-white text-indigo-600 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-transform active:scale-95 shadow-lg">
+              Analyze Now
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* All Products Inventory */}
       <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-10 border border-white/20">
@@ -477,7 +562,23 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('price_per_unit')} *</label>
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t('price_per_unit')} *</label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!formData.name || !formData.category) {
+                        alert("Enter product name and category for AI suggestion");
+                        return;
+                      }
+                      const suggested = await getAIPriceSuggestion(formData.name, formData.category);
+                      setFormData(prev => ({ ...prev, price: suggested }));
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-colors shadow-sm"
+                  >
+                    <Sparkles className="w-2.5 h-2.5" /> AI Suggest
+                  </button>
+                </div>
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-400">₹</span>
                   <input

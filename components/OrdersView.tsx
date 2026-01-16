@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
 import { useLocalization } from '../hooks/useLocalization';
 import { useAppContext } from '../context/SupabaseContext';
 import type { OrderStatus, Order } from '../types';
@@ -126,6 +127,33 @@ const OrdersView: React.FC = () => {
     }
   };
 
+  const downloadOrdersCSV = () => {
+    if (!userOrders.length) return;
+
+    const headers = ['Order ID', 'Buyer Name', 'Item Name', 'Date', 'Total Amount', 'Status', 'Units', 'Scanned'];
+    const rows = userOrders.map(o => [
+      o.id,
+      o.buyerName,
+      o.itemName || '',
+      o.createdAt || o.date || '',
+      o.totalAmount,
+      o.status,
+      o.totalUnits || 0,
+      o.scannedUnits?.length || 0
+    ]);
+
+    const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `orders-report-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Note: status transitions are handled inline per row to control allowed states
 
   return (
@@ -136,8 +164,16 @@ const OrdersView: React.FC = () => {
             <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-2">{t('track_orders')}</h3>
             <p className="text-slate-500 font-bold">{t('manage_fulfill_orders')}</p>
           </div>
-          <div className="px-6 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm">
-            <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">{userOrders.length} {t('orders')}</span>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={downloadOrdersCSV}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+            >
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
+            <div className="px-6 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm text-center">
+              <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">{userOrders.length} {t('orders')}</span>
+            </div>
           </div>
         </div>
 
@@ -340,39 +376,46 @@ const OrdersView: React.FC = () => {
       />
 
       {/* Final Update Status Confirmation Dialog (only after successful scan or direct update) */}
-      {pendingStatusUpdate && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-          <div className="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 animate-in zoom-in duration-300">
-            <div className="text-center space-y-6">
-              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
-                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Verification Successful!</h3>
-                <p className="text-slate-500 font-bold text-sm mt-2">All units have been verified. Do you want to update the order status to <span className="text-indigo-600 uppercase font-black">{t(pendingStatusUpdate.status.toLowerCase()) || pendingStatusUpdate.status}</span>?</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setPendingStatusUpdate(null)}
-                  className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    const { orderId, status } = pendingStatusUpdate;
-                    setPendingStatusUpdate(null);
-                    await handleStatusChange(orderId, status);
-                  }}
-                  className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-600/30 hover:-translate-y-1 transition-all"
-                >
-                  Update Now
-                </button>
+      {pendingStatusUpdate && (() => {
+        const order = orders.find(o => o.id === pendingStatusUpdate.orderId);
+        const isVerified = order && order.totalUnits && (order.scannedUnits?.length || 0) === order.totalUnits;
+
+        if (!isVerified) return null;
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+            <div className="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 animate-in zoom-in duration-300">
+              <div className="text-center space-y-6">
+                <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Verification Successful!</h3>
+                  <p className="text-slate-500 font-bold text-sm mt-2">All units have been verified. Do you want to update the order status to <span className="text-indigo-600 uppercase font-black">{t(pendingStatusUpdate.status.toLowerCase()) || pendingStatusUpdate.status}</span>?</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setPendingStatusUpdate(null)}
+                    className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const { orderId, status } = pendingStatusUpdate;
+                      setPendingStatusUpdate(null);
+                      await handleStatusChange(orderId, status);
+                    }}
+                    className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-600/30 hover:-translate-y-1 transition-all"
+                  >
+                    Update Now
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 };
