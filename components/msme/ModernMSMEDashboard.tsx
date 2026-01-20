@@ -423,7 +423,7 @@ export default function ModernMSMEDashboard() {
               </select>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black shadow-xl overflow-hidden">
-              {currentUser?.profilePictureUrl ? <img src={currentUser.profilePictureUrl} className="w-full h-full object-cover" /> : currentUser?.firstname?.charAt(0)}
+              {currentUser?.profilePictureUrl ? <img src={currentUser.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" /> : currentUser?.firstname?.charAt(0)}
             </div>
           </div>
         </header>

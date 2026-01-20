@@ -246,8 +246,12 @@ export default function ModernAdminDashboard() {
                                 <p className="text-sm font-semibold text-gray-800"><TranslatedText text={currentUser?.firstname || 'Admin'} /></p>
                                 <p className="text-xs text-gray-500 capitalize">{currentUser?.role}</p>
                             </div>
-                            <div className="h-10 w-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold">
-                                {currentUser?.firstname?.charAt(0) || 'A'}
+                            <div className="h-10 w-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold overflow-hidden">
+                                {currentUser?.profilePictureUrl ? (
+                                    <img src={currentUser.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    currentUser?.firstname?.charAt(0) || 'A'
+                                )}
                             </div>
                         </div>
 

@@ -222,8 +222,12 @@ export default function ModernBuyerDashboard() {
                                 <p className="text-sm font-semibold text-gray-900"><TranslatedText text={currentUser?.firstname || 'User'} /></p>
                                 <p className="text-xs text-gray-500">{t('buyer')}</p>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-lg">
-                                {currentUser?.firstname?.charAt(0) || 'U'}
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-lg overflow-hidden">
+                                {currentUser?.profilePictureUrl ? (
+                                    <img src={currentUser.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    currentUser?.firstname?.charAt(0) || 'U'
+                                )}
                             </div>
                             <button onClick={handleLogout} className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Logout">
                                 <LogOut className="h-5 w-5 text-red-600 hover:text-red-700" />
@@ -241,8 +245,12 @@ export default function ModernBuyerDashboard() {
                     {/* User Profile */}
                     <div className="p-6 border-b border-gray-200 bg-gradient-to-br from-indigo-50 to-purple-50">
                         <div className="flex items-center gap-3 mb-3">
-                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-                                <span className="text-2xl text-white">{currentUser?.firstname?.charAt(0) || '👤'}</span>
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg overflow-hidden">
+                                {currentUser?.profilePictureUrl ? (
+                                    <img src={currentUser.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-2xl text-white">{currentUser?.firstname?.charAt(0) || '👤'}</span>
+                                )}
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold text-gray-900 text-sm leading-tight">{currentUser?.firstname || 'Buyer'}</p>
