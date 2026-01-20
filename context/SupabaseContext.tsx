@@ -283,6 +283,22 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
         console.log('SupabaseContext: User data fetched:', userData, 'error:', error);
 
+        // Special logging for admin users to debug profile pictures
+        if (userData && userData.role === 'admin') {
+          console.log('🔐 ADMIN USER FETCHED FROM DATABASE:', {
+            email: userData.email,
+            firstname: userData.firstname,
+            ismainadmin: userData.ismainadmin,
+            profilepictureurl: userData.profilepictureurl,
+            profilePictureUrl: userData.profilePictureUrl,
+            profilepicture: userData.profilepicture,
+            profilePicture: userData.profilePicture,
+            hasProfilePictureUrl: !!userData.profilepictureurl || !!userData.profilePictureUrl,
+            hasProfilePicture: !!userData.profilepicture || !!userData.profilePicture,
+            allKeys: Object.keys(userData)
+          });
+        }
+
         if (userData && !error) {
           console.log('SupabaseContext: Setting current user and isLoading=false');
           const mappedUser = mapDatabaseUserToType(userData);

@@ -62,12 +62,13 @@ export default function ModernAdminDashboard() {
     // Debug: Log profile picture info
     useEffect(() => {
         if (currentUser) {
-            console.log('Admin Dashboard - Current User:', {
+            console.log('🖼️ Admin Dashboard - Profile Picture Debug:', {
                 id: currentUser.id,
                 firstname: currentUser.firstname,
                 role: currentUser.role,
                 profilePictureUrl: currentUser.profilePictureUrl,
-                profilePicture: currentUser.profilePicture
+                profilePicture: currentUser.profilePicture,
+                hasEither: !!(currentUser.profilePictureUrl || currentUser.profilePicture)
             });
         }
     }, [currentUser]);
@@ -260,13 +261,13 @@ export default function ModernAdminDashboard() {
                                 <p className="text-xs text-gray-500 capitalize">{currentUser?.role}</p>
                             </div>
                             <div className="h-10 w-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold overflow-hidden">
-                                {currentUser?.profilePictureUrl ? (
+                                {(currentUser?.profilePictureUrl || currentUser?.profilePicture) ? (
                                     <img
-                                        src={currentUser.profilePictureUrl}
+                                        src={currentUser.profilePictureUrl || currentUser.profilePicture}
                                         alt="Profile"
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
-                                            console.error('Failed to load admin profile picture:', currentUser.profilePictureUrl);
+                                            console.error('Failed to load admin profile picture:', currentUser.profilePictureUrl || currentUser.profilePicture);
                                             e.currentTarget.style.display = 'none';
                                         }}
                                     />
