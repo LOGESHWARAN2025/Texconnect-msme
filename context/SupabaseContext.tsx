@@ -76,7 +76,18 @@ interface AppProviderProps {
 
 // Helper function to map database columns (lowercase) to TypeScript User type (camelCase)
 const mapDatabaseUserToType = (dbUser: any): User => {
-  return {
+  // Debug logging for admin users to track profile pictures
+  if (dbUser.role === 'admin') {
+    console.log('🔍 Mapping Admin User from Database:', {
+      email: dbUser.email,
+      firstname: dbUser.firstname,
+      profilepictureurl: dbUser.profilepictureurl,
+      profilePictureUrl: dbUser.profilePictureUrl,
+      raw_dbUser: dbUser
+    });
+  }
+
+  const mappedUser = {
     id: dbUser.id,
     email: dbUser.email,
     username: dbUser.username,
@@ -97,6 +108,16 @@ const mapDatabaseUserToType = (dbUser: any): User => {
     pendingChanges: dbUser.pendingchanges || dbUser.pendingChanges,
     createdAt: dbUser.createdat || dbUser.createdAt,
   };
+
+  // Debug log the mapped result for admin users
+  if (dbUser.role === 'admin') {
+    console.log('✅ Mapped Admin User Result:', {
+      email: mappedUser.email,
+      profilePictureUrl: mappedUser.profilePictureUrl
+    });
+  }
+
+  return mappedUser;
 };
 
 // Helper function to map database Product to TypeScript Product type
