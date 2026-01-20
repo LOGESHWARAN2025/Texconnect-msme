@@ -20,7 +20,7 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
   const [showPassword, setShowPassword] = useState(false);
 
   const adminUser = MOCK_USERS.find(user => user.role === 'admin');
-  
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -30,7 +30,7 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
     try {
       // Try to login first with the provided email/username
       const result = await login(email, password);
-      
+
       if (!result.success) {
         setError('Invalid admin credentials');
         setIsLoading(false);
@@ -100,139 +100,139 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
       {/* Sewing Items Background */}
       {/* Scissor */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '50px', height: '50px', top: '8%', left: '12%', animationDelay: '0s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="1.5">
-        <path d="M9 3L5 6.99h11.53a2 2 0 011.4 3.43L13 15m-4 0l-3 3m8-3l3 3m-3-3v-2.5M9 21a2 2 0 100-4 2 2 0 000 4zm0 0V9m12 12a2 2 0 100-4 2 2 0 000 4z"/>
+        <path d="M9 3L5 6.99h11.53a2 2 0 011.4 3.43L13 15m-4 0l-3 3m8-3l3 3m-3-3v-2.5M9 21a2 2 0 100-4 2 2 0 000 4zm0 0V9m12 12a2 2 0 100-4 2 2 0 000 4z" />
       </svg>
 
       {/* Thread Roll 1 */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '40px', height: '40px', top: '15%', right: '10%', animationDelay: '2s' }} viewBox="0 0 24 24" fill="rgb(79, 70, 229)" stroke="rgb(79, 70, 229)" strokeWidth="1">
-        <circle cx="12" cy="12" r="8" fill="none" strokeWidth="2"/>
-        <circle cx="12" cy="12" r="5" fill="none" strokeWidth="1.5"/>
-        <path d="M12 4v4M12 16v4M4 12h4M16 12h4" strokeWidth="1.5"/>
+        <circle cx="12" cy="12" r="8" fill="none" strokeWidth="2" />
+        <circle cx="12" cy="12" r="5" fill="none" strokeWidth="1.5" />
+        <path d="M12 4v4M12 16v4M4 12h4M16 12h4" strokeWidth="1.5" />
       </svg>
 
       {/* Thread Roll 2 */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '45px', height: '45px', bottom: '12%', left: '8%', animationDelay: '4s' }} viewBox="0 0 24 24" fill="rgb(99, 102, 241)" stroke="rgb(99, 102, 241)" strokeWidth="1">
-        <circle cx="12" cy="12" r="8" fill="none" strokeWidth="2"/>
-        <circle cx="12" cy="12" r="5" fill="none" strokeWidth="1.5"/>
-        <path d="M12 4v4M12 16v4M4 12h4M16 12h4" strokeWidth="1.5"/>
+        <circle cx="12" cy="12" r="8" fill="none" strokeWidth="2" />
+        <circle cx="12" cy="12" r="5" fill="none" strokeWidth="1.5" />
+        <path d="M12 4v4M12 16v4M4 12h4M16 12h4" strokeWidth="1.5" />
       </svg>
 
       {/* Needle */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '35px', height: '35px', top: '55%', right: '18%', animationDelay: '1s', transform: 'rotate(45deg)' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="2">
-        <path d="M3 3l18 18M6 6l12 12" strokeLinecap="round"/>
-        <circle cx="5" cy="5" r="1.5" fill="rgb(79, 70, 229)"/>
+        <path d="M3 3l18 18M6 6l12 12" strokeLinecap="round" />
+        <circle cx="5" cy="5" r="1.5" fill="rgb(79, 70, 229)" />
       </svg>
 
       {/* Button */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '30px', height: '30px', top: '35%', left: '6%', animationDelay: '3s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="2">
-        <circle cx="12" cy="12" r="9"/>
-        <circle cx="9" cy="9" r="1" fill="rgb(79, 70, 229)"/>
-        <circle cx="15" cy="9" r="1" fill="rgb(79, 70, 229)"/>
-        <circle cx="9" cy="15" r="1" fill="rgb(79, 70, 229)"/>
-        <circle cx="15" cy="15" r="1" fill="rgb(79, 70, 229)"/>
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="9" cy="9" r="1" fill="rgb(79, 70, 229)" />
+        <circle cx="15" cy="9" r="1" fill="rgb(79, 70, 229)" />
+        <circle cx="9" cy="15" r="1" fill="rgb(79, 70, 229)" />
+        <circle cx="15" cy="15" r="1" fill="rgb(79, 70, 229)" />
       </svg>
 
       {/* Pin */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '35px', height: '35px', bottom: '20%', right: '8%', animationDelay: '2.5s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="2">
-        <path d="M12 2v20M8 4h8l-1 2H9l-1-2z" strokeLinecap="round"/>
-        <circle cx="12" cy="3" r="2" fill="rgb(245, 158, 11)"/>
+        <path d="M12 2v20M8 4h8l-1 2H9l-1-2z" strokeLinecap="round" />
+        <circle cx="12" cy="3" r="2" fill="rgb(245, 158, 11)" />
       </svg>
 
       {/* Cotton */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '42px', height: '42px', top: '30%', right: '22%', animationDelay: '4.5s' }} viewBox="0 0 24 24" fill="rgb(79, 70, 229)">
-        <circle cx="12" cy="12" r="8"/>
-        <circle cx="8" cy="8" r="3" fill="rgb(99, 102, 241)"/>
-        <circle cx="16" cy="10" r="2.5" fill="rgb(129, 140, 248)"/>
-        <circle cx="10" cy="16" r="2.5" fill="rgb(129, 140, 248)"/>
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="8" cy="8" r="3" fill="rgb(99, 102, 241)" />
+        <circle cx="16" cy="10" r="2.5" fill="rgb(129, 140, 248)" />
+        <circle cx="10" cy="16" r="2.5" fill="rgb(129, 140, 248)" />
       </svg>
 
       {/* Measuring Tape */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '55px', height: '55px', bottom: '8%', right: '15%', animationDelay: '6.5s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="1.5">
-        <path d="M3 9h18v6H3z"/>
-        <path d="M5 9v6M7 9v6M9 9v6M11 9v6M13 9v6M15 9v6M17 9v6M19 9v6" strokeWidth="0.8"/>
+        <path d="M3 9h18v6H3z" />
+        <path d="M5 9v6M7 9v6M9 9v6M11 9v6M13 9v6M15 9v6M17 9v6M19 9v6" strokeWidth="0.8" />
       </svg>
 
       {/* Bobbin */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '32px', height: '32px', top: '70%', left: '18%', animationDelay: '4s' }} viewBox="0 0 24 24" fill="rgb(99, 102, 241)" stroke="rgb(99, 102, 241)" strokeWidth="1.5">
-        <rect x="8" y="6" width="8" height="12" rx="1" fill="none"/>
-        <circle cx="12" cy="12" r="3" fill="none"/>
-        <path d="M9 9h6M9 15h6"/>
+        <rect x="8" y="6" width="8" height="12" rx="1" fill="none" />
+        <circle cx="12" cy="12" r="3" fill="none" />
+        <path d="M9 9h6M9 15h6" />
       </svg>
 
       {/* Zipper */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '38px', height: '38px', bottom: '35%', left: '22%', animationDelay: '5.5s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="1.5">
-        <rect x="10" y="3" width="4" height="18" fill="none"/>
-        <path d="M8 5h8M8 8h8M8 11h8M8 14h8M8 17h8M8 20h8" strokeWidth="0.8"/>
-        <rect x="11" y="10" width="2" height="4" fill="rgb(79, 70, 229)"/>
+        <rect x="10" y="3" width="4" height="18" fill="none" />
+        <path d="M8 5h8M8 8h8M8 11h8M8 14h8M8 17h8M8 20h8" strokeWidth="0.8" />
+        <rect x="11" y="10" width="2" height="4" fill="rgb(79, 70, 229)" />
       </svg>
 
       {/* Needle 2 */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '32px', height: '32px', bottom: '30%', left: '15%', animationDelay: '3.5s', transform: 'rotate(-30deg)' }} viewBox="0 0 24 24" fill="none" stroke="rgb(99, 102, 241)" strokeWidth="2">
-        <path d="M3 3l18 18M6 6l12 12" strokeLinecap="round"/>
-        <circle cx="5" cy="5" r="1.5" fill="rgb(99, 102, 241)"/>
+        <path d="M3 3l18 18M6 6l12 12" strokeLinecap="round" />
+        <circle cx="5" cy="5" r="1.5" fill="rgb(99, 102, 241)" />
       </svg>
 
       {/* Button 2 */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '28px', height: '28px', top: '65%', right: '12%', animationDelay: '5s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(99, 102, 241)" strokeWidth="2">
-        <circle cx="12" cy="12" r="9"/>
-        <circle cx="9" cy="9" r="1" fill="rgb(99, 102, 241)"/>
-        <circle cx="15" cy="9" r="1" fill="rgb(99, 102, 241)"/>
-        <circle cx="9" cy="15" r="1" fill="rgb(99, 102, 241)"/>
-        <circle cx="15" cy="15" r="1" fill="rgb(99, 102, 241)"/>
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="9" cy="9" r="1" fill="rgb(99, 102, 241)" />
+        <circle cx="15" cy="9" r="1" fill="rgb(99, 102, 241)" />
+        <circle cx="9" cy="15" r="1" fill="rgb(99, 102, 241)" />
+        <circle cx="15" cy="15" r="1" fill="rgb(99, 102, 241)" />
       </svg>
 
       {/* Button 3 */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '32px', height: '32px', bottom: '40%', right: '6%', animationDelay: '7s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(129, 140, 248)" strokeWidth="2">
-        <circle cx="12" cy="12" r="9"/>
-        <circle cx="9" cy="9" r="1" fill="rgb(129, 140, 248)"/>
-        <circle cx="15" cy="9" r="1" fill="rgb(129, 140, 248)"/>
-        <circle cx="9" cy="15" r="1" fill="rgb(129, 140, 248)"/>
-        <circle cx="15" cy="15" r="1" fill="rgb(129, 140, 248)"/>
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="9" cy="9" r="1" fill="rgb(129, 140, 248)" />
+        <circle cx="15" cy="9" r="1" fill="rgb(129, 140, 248)" />
+        <circle cx="9" cy="15" r="1" fill="rgb(129, 140, 248)" />
+        <circle cx="15" cy="15" r="1" fill="rgb(129, 140, 248)" />
       </svg>
 
       {/* Pin 2 */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '33px', height: '33px', top: '45%', right: '5%', animationDelay: '5.5s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(99, 102, 241)" strokeWidth="2">
-        <path d="M12 2v20M8 4h8l-1 2H9l-1-2z" strokeLinecap="round"/>
-        <circle cx="12" cy="3" r="2" fill="rgb(239, 68, 68)"/>
+        <path d="M12 2v20M8 4h8l-1 2H9l-1-2z" strokeLinecap="round" />
+        <circle cx="12" cy="3" r="2" fill="rgb(239, 68, 68)" />
       </svg>
 
       {/* Thimble */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '35px', height: '35px', top: '25%', left: '20%', animationDelay: '1.5s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="1.5">
-        <path d="M8 20c0-3.314 2.686-6 6-6h4c1.105 0 2 .895 2 2v2c0 1.105-.895 2-2 2h-8c-1.105 0-2-.895-2-2z"/>
-        <circle cx="10" cy="16" r="0.5" fill="rgb(79, 70, 229)"/>
-        <circle cx="13" cy="16" r="0.5" fill="rgb(79, 70, 229)"/>
-        <circle cx="16" cy="16" r="0.5" fill="rgb(79, 70, 229)"/>
+        <path d="M8 20c0-3.314 2.686-6 6-6h4c1.105 0 2 .895 2 2v2c0 1.105-.895 2-2 2h-8c-1.105 0-2-.895-2-2z" />
+        <circle cx="10" cy="16" r="0.5" fill="rgb(79, 70, 229)" />
+        <circle cx="13" cy="16" r="0.5" fill="rgb(79, 70, 229)" />
+        <circle cx="16" cy="16" r="0.5" fill="rgb(79, 70, 229)" />
       </svg>
 
       {/* Safety Pin */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '40px', height: '40px', top: '18%', left: '25%', animationDelay: '2s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="1.5">
-        <path d="M4 12c0-2 2-4 4-4h8c2 0 4 2 4 4M8 8V6c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-        <circle cx="6" cy="12" r="2" fill="rgb(79, 70, 229)"/>
+        <path d="M4 12c0-2 2-4 4-4h8c2 0 4 2 4 4M8 8V6c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        <circle cx="6" cy="12" r="2" fill="rgb(79, 70, 229)" />
       </svg>
 
       {/* Hook */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '28px', height: '28px', top: '60%', left: '10%', animationDelay: '3s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(99, 102, 241)" strokeWidth="2">
-        <path d="M8 12c0-2 1-4 4-4s4 2 4 4-1 4-4 4"/>
-        <circle cx="12" cy="8" r="1.5" fill="rgb(99, 102, 241)"/>
+        <path d="M8 12c0-2 1-4 4-4s4 2 4 4-1 4-4 4" />
+        <circle cx="12" cy="8" r="1.5" fill="rgb(99, 102, 241)" />
       </svg>
 
       {/* Fabric Roll */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '48px', height: '48px', bottom: '45%', right: '20%', animationDelay: '7.5s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="1.5">
-        <rect x="6" y="4" width="12" height="16" rx="2" fill="none"/>
-        <path d="M6 8h12M6 12h12M6 16h12" strokeWidth="1"/>
+        <rect x="6" y="4" width="12" height="16" rx="2" fill="none" />
+        <path d="M6 8h12M6 12h12M6 16h12" strokeWidth="1" />
       </svg>
 
       {/* Seam Ripper */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '36px', height: '36px', top: '40%', right: '28%', animationDelay: '4.5s' }} viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="1.5">
-        <path d="M6 18l12-12M10 18c1-1 2-3 2-5"/>
-        <circle cx="6" cy="18" r="2" fill="rgb(239, 68, 68)"/>
+        <path d="M6 18l12-12M10 18c1-1 2-3 2-5" />
+        <circle cx="6" cy="18" r="2" fill="rgb(239, 68, 68)" />
       </svg>
 
       {/* Thread Roll 3 */}
       <svg style={{ position: 'absolute', opacity: 0.12, animation: 'float 15s ease-in-out infinite', width: '38px', height: '38px', top: '50%', left: '5%', animationDelay: '6s' }} viewBox="0 0 24 24" fill="rgb(129, 140, 248)" stroke="rgb(129, 140, 248)" strokeWidth="1">
-        <circle cx="12" cy="12" r="8" fill="none" strokeWidth="2"/>
-        <circle cx="12" cy="12" r="5" fill="none" strokeWidth="1.5"/>
-        <path d="M12 4v4M12 16v4M4 12h4M16 12h4" strokeWidth="1.5"/>
+        <circle cx="12" cy="12" r="8" fill="none" strokeWidth="2" />
+        <circle cx="12" cy="12" r="5" fill="none" strokeWidth="1.5" />
+        <path d="M12 4v4M12 16v4M4 12h4M16 12h4" strokeWidth="1.5" />
       </svg>
 
       <style>{`
@@ -273,7 +273,7 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
       `}</style>
 
       {/* User Login Button */}
-      <button 
+      <button
         onClick={onSwitchToUserLogin}
         style={{
           position: 'absolute',
@@ -331,13 +331,10 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
             gap: '12px',
             marginBottom: '20px',
           }}>
-            <svg style={{
-              width: '50px',
-              height: '50px',
-              color: 'rgb(79, 70, 229)',
+            <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="rgb(79, 70, 229)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{
               filter: 'drop-shadow(0 0 10px rgba(79, 70, 229, 0.5))',
-            }} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+            }}>
+              <path d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
             </svg>
             <span style={{
               fontSize: '32px',
