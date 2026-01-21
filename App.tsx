@@ -85,7 +85,7 @@ const AppRouter: React.FC = () => {
 };
 
 const AppUI: React.FC = () => {
-  const { isOffline } = useAppContext();
+  const { isOffline, currentUser } = useAppContext();
   const [scanOpen, setScanOpen] = useState(false);
   const [scanOrderId, setScanOrderId] = useState<string | null>(null);
   
@@ -94,14 +94,55 @@ const AppUI: React.FC = () => {
       const params = new URLSearchParams(window.location.search);
       const scan = params.get('scan');
       const orderId = params.get('orderId');
+      const uid = params.get('uid');
+      const unit = params.get('unit');
+
       if (scan === '1' && orderId) {
-        setScanOrderId(orderId);
-        setScanOpen(true);
+        if (!currentUser || !currentUser.isEmailVerified) {
+          try {
+            const payload = { orderId, uid: uid || '', unit: unit || '' };
+            window.localStorage.setItem('pendingScan', JSON.stringify(payload));
+          } catch (_) {}
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('scan');
+            url.searchParams.delete('orderId');
+            url.searchParams.delete('uid');
+            url.searchParams.delete('unit');
+            window.history.replaceState({}, document.title, url.toString());
+          } catch (_) {}
+        } else {
+          setScanOrderId(orderId);
+          setScanOpen(true);
+        }
       }
     } catch (e) {
       // ignore
     }
-  }, []);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser || !currentUser.isEmailVerified) return;
+    try {
+      const raw = window.localStorage.getItem('pendingScan');
+      if (!raw) return;
+      const data = JSON.parse(raw || '{}');
+      if (!data?.orderId) return;
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('scan', '1');
+      url.searchParams.set('orderId', data.orderId);
+      if (data.uid) url.searchParams.set('uid', data.uid);
+      if (data.unit) url.searchParams.set('unit', data.unit);
+      window.history.replaceState({}, document.title, url.toString());
+
+      setScanOrderId(data.orderId as string);
+      setScanOpen(true);
+      window.localStorage.removeItem('pendingScan');
+    } catch (_) {
+      // ignore
+    }
+  }, [currentUser]);
   
   return (
     <div className="h-screen bg-slate-100 text-slate-800">
