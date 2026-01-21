@@ -117,6 +117,8 @@ const AppUI: React.FC = () => {
             const url = new URL(window.location.href);
             url.searchParams.delete('scan');
             url.searchParams.delete('orderId');
+            url.searchParams.delete('uid');
+            url.searchParams.delete('unit');
             window.history.replaceState({}, document.title, url.toString());
           } catch (e) {
             // ignore

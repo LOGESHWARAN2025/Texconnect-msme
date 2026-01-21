@@ -20,7 +20,7 @@ const getAllowedNextStatuses = (status: OrderStatus): OrderStatus[] => {
 };
 
 const ScanStatusModal: React.FC<ScanStatusModalProps> = ({ isOpen, orderId, onClose }) => {
-  const { orders, updateOrderStatus } = useAppContext();
+  const { orders, updateOrderStatus, updateOrderScannedUnits } = useAppContext();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +30,23 @@ const ScanStatusModal: React.FC<ScanStatusModalProps> = ({ isOpen, orderId, onCl
   }, [orders, orderId]);
 
   const [selected, setSelected] = useState<OrderStatus | ''>('');
+
+  useEffect(() => {
+    if (!isOpen || !order) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const uid = params.get('uid');
+      if (uid) {
+        const already = (order.scannedUnits || []).includes(uid);
+        if (!already) {
+          const newScanned = [ ...(order.scannedUnits || []), uid ];
+          updateOrderScannedUnits(order.id, newScanned)
+            .catch(() => {/* ignore, UI will reflect next fetch */});
+        }
+      }
+    } catch (_) {
+    }
+  }, [isOpen, order, updateOrderScannedUnits]);
 
   useEffect(() => {
     if (order) {
@@ -74,6 +91,11 @@ const ScanStatusModal: React.FC<ScanStatusModalProps> = ({ isOpen, orderId, onCl
                 <p className="text-xs text-slate-500">Current Status</p>
                 <span className="inline-block mt-1 text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">{order.status}</span>
               </div>
+              {typeof order.totalUnits === 'number' && order.totalUnits > 0 && (
+                <div className="text-xs text-slate-600">
+                  <span className="font-semibold">Verification</span>: {order.scannedUnits?.length || 0}/{order.totalUnits} scanned. {Math.max((order.totalUnits || 0) - (order.scannedUnits?.length || 0), 0)} remaining.
+                </div>
+              )}
               {getAllowedNextStatuses(order.status).length > 0 ? (
                 <div>
                   <label className="block text-xs text-slate-600 mb-1">Set Status</label>
@@ -82,7 +104,7 @@ const ScanStatusModal: React.FC<ScanStatusModalProps> = ({ isOpen, orderId, onCl
                     onChange={(e) => setSelected(e.target.value as OrderStatus)}
                     className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-primary focus:border-primary"
                     aria-label="Update status"
-                    disabled={submitting}
+                    disabled={submitting || (order.totalUnits || 0) > 0 && (order.scannedUnits?.length || 0) < (order.totalUnits || 0)}
                   >
                     {getAllowedNextStatuses(order.status).map(s => (
                       <option key={s} value={s}>{s}</option>
@@ -100,7 +122,7 @@ const ScanStatusModal: React.FC<ScanStatusModalProps> = ({ isOpen, orderId, onCl
           <button onClick={onClose} className="px-3 py-2 text-sm rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700">Close</button>
           <button
             onClick={handleUpdate}
-            disabled={!order || !selected || submitting || getAllowedNextStatuses(order?.status as OrderStatus).length === 0}
+            disabled={!order || !selected || submitting || getAllowedNextStatuses(order?.status as OrderStatus).length === 0 || ((order?.totalUnits || 0) > 0 && (order?.scannedUnits?.length || 0) < (order?.totalUnits || 0))}
             className={`px-3 py-2 text-sm rounded-md text-white ${submitting ? 'bg-primary/60' : 'bg-primary hover:bg-primary/90'}`}
           >
             {submitting ? 'Updating...' : 'Update'}
