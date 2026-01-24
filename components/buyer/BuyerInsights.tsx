@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    LineChart, Line, AreaChart, Area
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    AreaChart, Area
 } from 'recharts';
-import { TrendingUp, Calendar, Filter } from 'lucide-react';
+import { TrendingUp, Calendar } from 'lucide-react';
 import { Order } from '../../types';
-import { format, startOfWeek, startOfMonth, startOfYear, isSameWeek, isSameMonth, isSameYear, parseISO, eachDayOfInterval, subDays, eachMonthOfInterval, subMonths } from 'date-fns';
+import { format, startOfWeek, startOfYear, isSameWeek, isSameMonth, parseISO, eachDayOfInterval, subDays, eachMonthOfInterval, isValid } from 'date-fns';
 
 interface BuyerInsightsProps {
     orders: Order[];
@@ -13,39 +13,57 @@ interface BuyerInsightsProps {
 }
 
 export default function BuyerInsights({ orders, t }: BuyerInsightsProps) {
-    const [timeRange, setTimeRange] = React.useState<'week' | 'month' | 'year'>('month');
+    const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month');
 
     const chartData = useMemo(() => {
         const now = new Date();
-        const deliveredOrders = orders.filter(o => o.status === 'Delivered');
+        const deliveredOrders = Array.isArray(orders) ? orders.filter(o => o.status === 'Delivered') : [];
+
+        const formatDateSafely = (date: Date, formatStr: string) => {
+            try {
+                if (!isValid(date)) return '';
+                return format(date, formatStr);
+            } catch (e) {
+                return '';
+            }
+        };
+
+        const parseDateSafely = (dateStr: any) => {
+            if (!dateStr) return null;
+            try {
+                const d = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+                return isValid(d) ? d : null;
+            } catch (e) {
+                return null;
+            }
+        };
 
         if (timeRange === 'week') {
-            // Last 7 days
             const days = eachDayOfInterval({
                 start: subDays(now, 6),
                 end: now
             });
 
             return days.map(day => {
-                const dayStr = format(day, 'EEE');
+                const dayStr = formatDateSafely(day, 'EEE');
                 const amount = deliveredOrders
                     .filter(o => {
-                        const orderDate = parseISO(o.createdAt || '');
-                        return format(orderDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+                        const orderDate = parseDateSafely(o.createdAt);
+                        if (!orderDate) return false;
+                        return formatDateSafely(orderDate, 'yyyy-MM-dd') === formatDateSafely(day, 'yyyy-MM-dd');
                     })
                     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
                 return { name: dayStr, amount };
             });
         } else if (timeRange === 'month') {
-            // Last 30 days grouped by week or just last 4 weeks
             const weeks = [3, 2, 1, 0].map(w => {
                 const date = subDays(now, w * 7);
-                const weekStart = startOfWeek(date);
                 const label = `Week ${4 - w}`;
                 const amount = deliveredOrders
                     .filter(o => {
-                        const orderDate = parseISO(o.createdAt || '');
+                        const orderDate = parseDateSafely(o.createdAt);
+                        if (!orderDate || !isValid(date)) return false;
                         return isSameWeek(orderDate, date);
                     })
                     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
@@ -53,17 +71,17 @@ export default function BuyerInsights({ orders, t }: BuyerInsightsProps) {
             });
             return weeks;
         } else {
-            // Monthly for the current year
             const months = eachMonthOfInterval({
                 start: startOfYear(now),
                 end: now
             });
 
             return months.map(month => {
-                const monthStr = format(month, 'MMM');
+                const monthStr = formatDateSafely(month, 'MMM');
                 const amount = deliveredOrders
                     .filter(o => {
-                        const orderDate = parseISO(o.createdAt || '');
+                        const orderDate = parseDateSafely(o.createdAt);
+                        if (!orderDate || !isValid(month)) return false;
                         return isSameMonth(orderDate, month);
                     })
                     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
@@ -175,7 +193,7 @@ export default function BuyerInsights({ orders, t }: BuyerInsightsProps) {
                             <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider mb-2">Insight</p>
                             <p className="text-sm text-gray-600 leading-relaxed">
                                 {totalInPeriod > 0
-                                    ? `Your average spending in this period is approx ${formatCurrency(Math.round(totalInPeriod / chartData.length))} per ${timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month'}.`
+                                    ? `Your average spending in this period is approx ${formatCurrency(Math.round(totalInPeriod / (chartData.length || 1)))} per ${timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month'}.`
                                     : "No spending data available for this period."}
                             </p>
                         </div>

@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     AreaChart, Area
 } from 'recharts';
 import { TrendingUp, Calendar, DollarSign } from 'lucide-react';
 import { Order } from '../../types';
-import { format, startOfWeek, startOfMonth, startOfYear, isSameWeek, isSameMonth, isSameYear, parseISO, eachDayOfInterval, subDays, eachMonthOfInterval, subMonths } from 'date-fns';
+import { format, startOfYear, isSameWeek, isSameMonth, parseISO, eachDayOfInterval, subDays, eachMonthOfInterval, isValid } from 'date-fns';
 
 interface SalesInsightsProps {
     orders: Order[];
@@ -13,11 +13,30 @@ interface SalesInsightsProps {
 }
 
 export default function SalesInsights({ orders, t }: SalesInsightsProps) {
-    const [timeRange, setTimeRange] = React.useState<'week' | 'month' | 'year'>('month');
+    const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month');
 
     const chartData = useMemo(() => {
         const now = new Date();
-        const completedOrders = orders.filter(o => o.status === 'Delivered' || o.status === 'Shipped' || o.status === 'Accepted');
+        const completedOrders = Array.isArray(orders) ? orders.filter(o => o.status === 'Delivered' || o.status === 'Shipped' || o.status === 'Accepted') : [];
+
+        const formatDateSafely = (date: Date, formatStr: string) => {
+            try {
+                if (!isValid(date)) return '';
+                return format(date, formatStr);
+            } catch (e) {
+                return '';
+            }
+        };
+
+        const parseDateSafely = (dateStr: any) => {
+            if (!dateStr) return null;
+            try {
+                const d = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+                return isValid(d) ? d : null;
+            } catch (e) {
+                return null;
+            }
+        };
 
         if (timeRange === 'week') {
             const days = eachDayOfInterval({
@@ -26,11 +45,12 @@ export default function SalesInsights({ orders, t }: SalesInsightsProps) {
             });
 
             return days.map(day => {
-                const dayStr = format(day, 'EEE');
+                const dayStr = formatDateSafely(day, 'EEE');
                 const amount = completedOrders
                     .filter(o => {
-                        const orderDate = parseISO(o.createdAt || '');
-                        return format(orderDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+                        const orderDate = parseDateSafely(o.createdAt);
+                        if (!orderDate) return false;
+                        return formatDateSafely(orderDate, 'yyyy-MM-dd') === formatDateSafely(day, 'yyyy-MM-dd');
                     })
                     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
@@ -42,7 +62,8 @@ export default function SalesInsights({ orders, t }: SalesInsightsProps) {
                 const label = `Week ${4 - w}`;
                 const amount = completedOrders
                     .filter(o => {
-                        const orderDate = parseISO(o.createdAt || '');
+                        const orderDate = parseDateSafely(o.createdAt);
+                        if (!orderDate || !isValid(date)) return false;
                         return isSameWeek(orderDate, date);
                     })
                     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
@@ -56,10 +77,11 @@ export default function SalesInsights({ orders, t }: SalesInsightsProps) {
             });
 
             return months.map(month => {
-                const monthStr = format(month, 'MMM');
+                const monthStr = formatDateSafely(month, 'MMM');
                 const amount = completedOrders
                     .filter(o => {
-                        const orderDate = parseISO(o.createdAt || '');
+                        const orderDate = parseDateSafely(o.createdAt);
+                        if (!orderDate || !isValid(month)) return false;
                         return isSameMonth(orderDate, month);
                     })
                     .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
@@ -175,7 +197,7 @@ export default function SalesInsights({ orders, t }: SalesInsightsProps) {
                             </div>
                             <p className="text-sm text-slate-600 font-bold leading-relaxed">
                                 {totalInPeriod > 0
-                                    ? `Averaging ${formatCurrency(Math.round(totalInPeriod / chartData.length))} per ${timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month'}.`
+                                    ? `Averaging ${formatCurrency(Math.round(totalInPeriod / (chartData.length || 1)))} per ${timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month'}.`
                                     : "No sales recorded in this period."}
                             </p>
                         </div>

@@ -39,7 +39,7 @@ export default function ModernBuyerDashboard() {
     // Calculate buyer stats
     useEffect(() => {
         if (orders && currentUser) {
-            const buyerOrders = orders.filter(o => o.buyerId === currentUser.id);
+            const buyerOrders = (orders || []).filter(o => o.buyerId === currentUser.id);
             const pending = buyerOrders.filter(o => o.status === 'Pending' || o.status === 'Accepted').length;
             const completed = buyerOrders.filter(o => o.status === 'Delivered').length;
             const totalSpent = buyerOrders
