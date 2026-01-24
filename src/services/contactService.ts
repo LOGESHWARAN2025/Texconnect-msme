@@ -1,8 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Reuse the centralized Supabase client to avoid env/key mismatch issues
+import { supabase } from '../lib/supabase';
 
 export interface ContactFormData {
   fullName: string;
