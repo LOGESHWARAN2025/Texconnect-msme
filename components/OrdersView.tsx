@@ -413,7 +413,7 @@ const OrdersView: React.FC = () => {
         const order = orders.find(o => o.id === pendingStatusUpdate.orderId);
         if (!order) return null;
 
-        const total = order.totalUnits || 0;
+        const total = order.printedUnits || order.totalUnits || 0;
         const scanned = order.scannedUnits?.length || 0;
         const remaining = total - scanned;
         const isVerified = total > 0 && scanned === total;

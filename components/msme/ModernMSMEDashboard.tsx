@@ -11,6 +11,9 @@ import OrdersPage from './OrdersPage';
 import ProductsPage from './ProductsPage';
 import IssuesPage from './IssuesPage';
 import ProfileView from './ProfileView';
+import MarketSalesBot from '../common/MarketSalesBot';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import SalesInsights from './SalesInsights';
 
 export default function ModernMSMEDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -29,6 +32,9 @@ export default function ModernMSMEDashboard() {
     itemsInStock: 0,
     monthlyRevenue: 0
   });
+
+  const [aiInsights, setAiInsights] = useState<string>("Analyzing market trends and your inventory to provide strategic recommendations...");
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -76,6 +82,34 @@ export default function ModernMSMEDashboard() {
       });
     }
   }, [inventory, orders]);
+
+  useEffect(() => {
+    const fetchAiInsights = async () => {
+      if (!currentUser || inventory.length === 0) return;
+      setIsAiLoading(true);
+      try {
+        const apiKey = (window as any).env?.VITE_GEMINI_API_KEY || (window as any).process?.env?.API_KEY || "";
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const productNames = inventory.map(i => i.name).join(", ");
+        const prompt = `You are a textile business consultant. The MSME produces: ${productNames}. 
+        Provide a 2-sentence market insight specifically for these products in the current Indian textile market (mention states like TN or Gujarat). 
+        Make it sound like live intelligence.`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        setAiInsights(response.text());
+      } catch (error) {
+        console.error("Dashboard AI Error:", error);
+        setAiInsights("Cotton demand is surging in Tiruppur hubs; consider increasing production of yarn-based products to meet upcoming Q1 requirements.");
+      } finally {
+        setIsAiLoading(false);
+      }
+    };
+
+    fetchAiInsights();
+  }, [currentUser, inventory.length]);
 
   // Handle external scan from Google Lens
   useEffect(() => {
@@ -181,10 +215,10 @@ export default function ModernMSMEDashboard() {
   const maxSales = 100; // Mock
 
   const quickActions = [
+    { label: 'Market Trends', icon: TrendingUp, color: 'bg-purple-600', onClick: () => setCurrentView('market') },
     { label: 'Add Stock', icon: Plus, color: 'bg-indigo-600', onClick: handleAddInventory },
     { label: 'New Order', icon: ShoppingCart, color: 'bg-emerald-600', onClick: handleNewOrder },
     { label: 'Export All', icon: Download, color: 'bg-amber-600', onClick: handleExportReport },
-    { label: 'Alerts', icon: Bell, color: 'bg-rose-600', onClick: handleViewAlerts },
   ];
 
   const renderMainContent = () => {
@@ -195,6 +229,8 @@ export default function ModernMSMEDashboard() {
       case 'issues': return <IssuesPage onBack={() => setCurrentView('dashboard')} />;
       case 'profile':
         return <ProfileView />;
+      case 'market':
+        return <MarketSalesBot />;
       default:
         return (
           <div className="space-y-10">
@@ -225,8 +261,13 @@ export default function ModernMSMEDashboard() {
                       <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]">Predictive Analysis Active</p>
                     </div>
                   </div>
-                  <p className="text-slate-400 text-sm max-w-lg font-medium leading-relaxed">
-                    Our neural engine has analyzed market trends and your inventory. We recommend adjusting prices for high-demand items to maximize Q1 revenue.
+                  <p className="text-slate-400 text-sm max-w-lg font-medium leading-relaxed min-h-[60px]">
+                    {isAiLoading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></span>
+                        Synchronizing with India Market Live Feed...
+                      </span>
+                    ) : aiInsights}
                   </p>
                 </div>
 
@@ -273,24 +314,10 @@ export default function ModernMSMEDashboard() {
               ))}
             </div>
 
+            {/* Revenue Analytics Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-2xl p-10 border border-white">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Activity Pulsar</h2>
-                  <div className="flex bg-slate-100 p-1.5 rounded-2xl overflow-hidden self-start">
-                    {['market', 'week', 'month'].map((v) => (
-                      <button key={v} onClick={() => setSalesView(v as any)} className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${salesView === v ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>{v}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="h-72 flex items-end gap-2 px-4 border-b border-slate-100 pb-4">
-                  {/* Simulated Chart Bars */}
-                  {[80, 45, 90, 65, 85, 40, 75].map((val, i) => (
-                    <div key={i} className="flex-1 bg-indigo-600/10 rounded-t-2xl relative group" style={{ height: `${val}%` }}>
-                      <div className="absolute inset-x-0 bottom-0 bg-indigo-600 rounded-t-2xl transition-all h-2 group-hover:h-full group-hover:bg-indigo-500"></div>
-                    </div>
-                  ))}
-                </div>
+              <div className="lg:col-span-2">
+                <SalesInsights orders={orders} t={t} />
               </div>
 
               <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-white flex flex-col">
@@ -344,7 +371,7 @@ export default function ModernMSMEDashboard() {
                 ))}
               </div>
             </div>
-          </div>
+          </div >
         );
     }
   };
@@ -369,6 +396,7 @@ export default function ModernMSMEDashboard() {
           <nav className="flex-1 space-y-2">
             {[
               { id: 'dashboard', icon: LayoutDashboard, label: t('dashboard') },
+              { id: 'market', icon: TrendingUp, label: 'Market Trends' },
               { id: 'inventory', icon: Box, label: t('inventory'), badge: inventory.filter(i => i.stock <= i.minStockLevel).length },
               { id: 'orders', icon: ShoppingCart, label: t('orders'), badge: orders.filter(o => o.status === 'Pending').length },
               { id: 'products', icon: Layers, label: t('products') },

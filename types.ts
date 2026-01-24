@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'inventory' | 'orders' | 'profile' | 'products' | 'inventory-dashboard' | 'issues' | 'resolved';
+export type View = 'dashboard' | 'inventory' | 'orders' | 'profile' | 'products' | 'inventory-dashboard' | 'issues' | 'resolved' | 'market';
 export type UserRole = 'msme' | 'buyer' | 'admin';
 export type MSMEDomain = 'Spinning Mills' | 'Knitting and Weaving' | 'Dyeing and Finishing' | 'Apparel Manufacturing';
 
@@ -129,6 +129,7 @@ export interface Order {
   }[];
   shippingAddress?: Address;
   totalUnits?: number;
+  printedUnits?: number;
   scannedUnits?: string[]; // Array of unique sticker IDs scanned (e.g. ["ord_123_1", "ord_123_3"])
 }
 

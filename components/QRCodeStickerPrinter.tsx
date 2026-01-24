@@ -61,10 +61,13 @@ const QRCodeStickerPrinter: React.FC<QRCodeStickerPrinterProps> = ({ isOpen, onC
       const { supabase } = await import('../src/lib/supabase');
       await supabase
         .from('orders')
-        .update({ totalUnits: stickerCount })
+        .update({
+          totalUnits: stickerCount,
+          printedUnits: stickerCount
+        })
         .eq('id', order.id);
     } catch (e) {
-      console.error('Failed to update totalUnits:', e);
+      console.error('Failed to update units:', e);
     }
 
     const printWindow = window.open('', '', 'height=600,width=600');

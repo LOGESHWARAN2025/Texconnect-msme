@@ -11,8 +11,10 @@ import BuyerOrdersView from './BuyerOrdersView';
 import BuyerProfileView from './BuyerProfileView';
 import BuyerIssuesView from './BuyerIssuesView';
 import { TranslatedText } from '../common/TranslatedText';
+import BuyerInsights from './BuyerInsights';
+import MarketSalesBot from '../common/MarketSalesBot';
 
-type BuyerView = 'browse' | 'orders' | 'issues' | 'profile' | 'dashboard';
+type BuyerView = 'browse' | 'orders' | 'issues' | 'profile' | 'dashboard' | 'market';
 
 export default function ModernBuyerDashboard() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -112,9 +114,9 @@ export default function ModernBuyerDashboard() {
 
     const quickActions = [
         { icon: ShoppingBag, label: t('browse_products_title'), color: 'bg-indigo-600 hover:bg-indigo-700', onClick: () => setCurrentView('browse') },
+        { icon: TrendingUp, label: 'Market Insights', color: 'bg-purple-600 hover:bg-purple-700', onClick: () => setCurrentView('market') },
         { icon: Package, label: t('my_orders_title'), color: 'bg-green-600 hover:bg-green-700', onClick: () => setCurrentView('orders') },
         { icon: AlertCircle, label: t('report_issue_title'), color: 'bg-orange-600 hover:bg-orange-700', onClick: () => setCurrentView('issues') },
-        { icon: User, label: t('my_profile_title'), color: 'bg-blue-600 hover:bg-blue-700', onClick: () => setCurrentView('profile') },
     ];
 
     const renderContent = () => {
@@ -127,10 +129,13 @@ export default function ModernBuyerDashboard() {
                 return <BuyerIssuesView />;
             case 'profile':
                 return <BuyerProfileView />;
+            case 'market':
+                return <MarketSalesBot />;
             case 'dashboard':
             default:
+                const buyerOrders = orders ? orders.filter(o => o.buyerId === currentUser?.id) : [];
                 return (
-                    <div className="space-y-6">
+                    <div className="space-y-6 pb-10">
                         {/* Quick Actions Bar */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             {quickActions.map((action, idx) => (
@@ -140,6 +145,9 @@ export default function ModernBuyerDashboard() {
                                 </button>
                             ))}
                         </div>
+
+                        {/* Recent Spending Graph */}
+                        <BuyerInsights orders={buyerOrders} t={t} />
 
                         {/* Stats Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -269,6 +277,10 @@ export default function ModernBuyerDashboard() {
                         <button onClick={() => { setCurrentView('browse'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'browse' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'browse' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <ShoppingBag className="h-5 w-5" />
                             <span className="font-medium">{t('browse_products_title')}</span>
+                        </button>
+                        <button onClick={() => { setCurrentView('market'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'market' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'market' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+                            <TrendingUp className="h-5 w-5" />
+                            <span className="font-medium">Market Trends</span>
                         </button>
                         <button onClick={() => { setCurrentView('orders'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'orders' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'orders' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <Package className="h-5 w-5" />
