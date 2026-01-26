@@ -11,8 +11,12 @@ interface ScanStatusModalProps {
 const getAllowedNextStatuses = (status: OrderStatus): OrderStatus[] => {
   switch (status) {
     case 'Accepted':
-      return ['Shipped', 'Delivered'];
+      return ['Prepared', 'Shipped', 'Out for Delivery', 'Delivered'];
+    case 'Prepared':
+      return ['Shipped', 'Out for Delivery', 'Delivered'];
     case 'Shipped':
+      return ['Out for Delivery', 'Delivered'];
+    case 'Out for Delivery':
       return ['Delivered'];
     default:
       return [];
@@ -41,7 +45,7 @@ const ScanStatusModal: React.FC<ScanStatusModalProps> = ({ isOpen, orderId, onCl
         if (!already) {
           const newScanned = [ ...(order.scannedUnits || []), uid ];
           updateOrderScannedUnits(order.id, newScanned)
-            .catch(() => {/* ignore, UI will reflect next fetch */});
+            .catch(() => {});
         }
       }
     } catch (_) {

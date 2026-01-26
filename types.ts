@@ -105,7 +105,7 @@ export interface Product {
   updatedAt?: Date | null; // Date object
 }
 
-export type OrderStatus = 'Pending' | 'Accepted' | 'Prepared' | 'Shipped' | 'Delivered' | 'Cancelled';
+export type OrderStatus = 'Pending' | 'Accepted' | 'Prepared' | 'Shipped' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
 
 // Updated to match new database schema with camelCase columns
 export interface Order {

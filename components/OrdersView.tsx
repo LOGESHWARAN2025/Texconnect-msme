@@ -13,6 +13,7 @@ const getStatusColor = (status: OrderStatus) => {
     case 'Accepted': return 'bg-cyan-100 text-cyan-800';
     case 'Prepared': return 'bg-purple-100 text-purple-800';
     case 'Shipped': return 'bg-blue-100 text-blue-800';
+    case 'Out for Delivery': return 'bg-orange-100 text-orange-800';
     case 'Delivered': return 'bg-green-100 text-green-800';
     case 'Cancelled': return 'bg-red-100 text-red-800';
     default: return 'bg-slate-100 text-slate-800';
@@ -136,8 +137,8 @@ const OrdersView: React.FC = () => {
       setUpdatingOrderId(orderId);
 
       const order = orders.find(o => o.id === orderId);
-      // Scan required for BOTH Prepared and Shipped to ensure quality control
-      if ((newStatus === 'Prepared' || newStatus === 'Shipped') && order && order.totalUnits && order.totalUnits > 0) {
+      // Scan required for Prepared, Shipped and Out for Delivery to ensure quality control
+      if ((newStatus === 'Prepared' || newStatus === 'Shipped' || newStatus === 'Out for Delivery') && order && order.totalUnits && order.totalUnits > 0) {
         const scannedCount = order.scannedUnits?.length || 0;
         if (scannedCount < order.totalUnits) {
           // Store what we WANTED to do, and open the scanner instead
@@ -293,6 +294,7 @@ const OrdersView: React.FC = () => {
                                   <option value="Accepted" disabled>{t('accepted')}</option>
                                   <option value="Prepared">{t('prepared') || 'Prepared'}</option>
                                   <option value="Shipped">{t('shipped')}</option>
+                                  <option value="Out for Delivery">{'Out for Delivery'}</option>
                                   <option value="Delivered">{t('delivered')}</option>
                                 </>
                               )}
@@ -300,12 +302,20 @@ const OrdersView: React.FC = () => {
                                 <>
                                   <option value="Prepared" disabled>{t('prepared') || 'Prepared'}</option>
                                   <option value="Shipped">{t('shipped')}</option>
+                                  <option value="Out for Delivery">{'Out for Delivery'}</option>
                                   <option value="Delivered">{t('delivered')}</option>
                                 </>
                               )}
                               {order.status === 'Shipped' && (
                                 <>
                                   <option value="Shipped" disabled>{t('shipped')}</option>
+                                  <option value="Out for Delivery">{'Out for Delivery'}</option>
+                                  <option value="Delivered">{t('delivered')}</option>
+                                </>
+                              )}
+                              {order.status === 'Out for Delivery' && (
+                                <>
+                                  <option value="Out for Delivery" disabled>{'Out for Delivery'}</option>
                                   <option value="Delivered">{t('delivered')}</option>
                                 </>
                               )}
@@ -320,7 +330,7 @@ const OrdersView: React.FC = () => {
                             </div>
                           </div>
                         )}
-                        {(order.status === 'Accepted' || order.status === 'Prepared' || order.status === 'Shipped' || order.status === 'Delivered') && (
+                        {(order.status === 'Accepted' || order.status === 'Prepared' || order.status === 'Shipped' || order.status === 'Out for Delivery' || order.status === 'Delivered') && (
                           <div className="flex gap-2">
                             <button
                               onClick={() => setViewingInvoiceOrder(order)}
