@@ -7,6 +7,8 @@ import {
     ActivityIndicator,
     TouchableOpacity,
     Alert,
+    Modal,
+    Pressable,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +20,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     const { orderId } = route.params || {};
     const [order, setOrder] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [statusModalOpen, setStatusModalOpen] = useState(false);
+    const [updating, setUpdating] = useState(false);
 
     useEffect(() => {
         if (orderId) {
@@ -43,7 +47,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         setLoading(true);
         const { data, error } = await supabase
             .from('orders')
-            .select('*, buyer:buyerId(displayName, email)')
+            .select('*')
             .eq('id', orderId)
             .single();
 
@@ -56,25 +60,38 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         setLoading(false);
     }
 
-    async function handleUpdateStatus() {
+    const getAllowedNextStatuses = (status: string): string[] => {
+        switch ((status || '').toLowerCase()) {
+            case 'accepted':
+                return ['Prepared', 'Shipped', 'Out for Delivery', 'Delivered'];
+            case 'prepared':
+                return ['Shipped', 'Out for Delivery', 'Delivered'];
+            case 'shipped':
+                return ['Out for Delivery', 'Delivered'];
+            case 'out for delivery':
+                return ['Delivered'];
+            default:
+                return [];
+        }
+    };
+
+    async function handleUpdateStatus(targetStatus: string) {
         if (!order) return;
+        try {
+            setUpdating(true);
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: targetStatus, updatedAt: new Date().toISOString() })
+                .eq('id', order.id);
 
-        const currentIndex = getStatusIndex(order.status);
-        if (currentIndex === -1 || currentIndex >= STATUS_STEPS.length - 1) return;
-
-        const nextStatusRaw = STATUS_STEPS[currentIndex + 1];
-        // Capitalize for database consistency (Pending, Accepted, etc.)
-        const nextStatus = nextStatusRaw.charAt(0).toUpperCase() + nextStatusRaw.slice(1);
-
-        const { error } = await supabase
-            .from('orders')
-            .update({ status: nextStatus })
-            .eq('id', order.id);
-
-        if (error) {
-            Alert.alert('Update Failed', error.message);
-        } else {
-            fetchOrderDetails(); // Refresh
+            if (error) {
+                Alert.alert('Update Failed', error.message);
+                return;
+            }
+            setStatusModalOpen(false);
+            fetchOrderDetails();
+        } finally {
+            setUpdating(false);
         }
     }
 
@@ -94,6 +111,14 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     if (!order) return null;
 
     const currentStatusIndex = getStatusIndex(order.status);
+    const totalUnits = order.printedUnits || order.totalUnits || 0;
+    const scannedUnitsCount = order.scannedUnits?.length || 0;
+    const isVerified = totalUnits > 0 && scannedUnitsCount >= totalUnits;
+    const allowedStatuses = getAllowedNextStatuses(order.status);
+    const itemName = order.itemName || order.items?.[0]?.productName || '';
+    const quantity = order.quantity ?? order.totalUnits ?? order.items?.[0]?.quantity ?? 0;
+    const totalAmount = order.totalAmount ?? order.totalPrice ?? 0;
+    const buyerName = order.buyerName || order.buyer?.displayName || 'N/A';
 
     return (
         <View style={styles.container}>
@@ -118,22 +143,22 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     <View style={styles.infoRow}>
                         <View>
                             <Text style={styles.itemLabel}>Item</Text>
-                            <Text style={styles.itemValue}>{order.itemName}</Text>
+                            <Text style={styles.itemValue}>{itemName}</Text>
                         </View>
                         <View style={styles.alignRight}>
                             <Text style={styles.itemLabel}>Quantity</Text>
-                            <Text style={styles.itemValue}>{order.quantity}</Text>
+                            <Text style={styles.itemValue}>{quantity}</Text>
                         </View>
                     </View>
 
                     <View style={styles.infoRow}>
                         <View>
                             <Text style={styles.itemLabel}>Customer</Text>
-                            <Text style={styles.itemValue}>{order.buyer?.displayName || 'N/A'}</Text>
+                            <Text style={styles.itemValue}>{buyerName}</Text>
                         </View>
                         <View style={styles.alignRight}>
                             <Text style={styles.itemLabel}>Total</Text>
-                            <Text style={[styles.itemValue, { color: '#38bdf8' }]}>₹{order.totalPrice}</Text>
+                            <Text style={[styles.itemValue, { color: '#38bdf8' }]}>₹{totalAmount}</Text>
                         </View>
                     </View>
                 </View>
@@ -155,9 +180,9 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                         </View>
                         <View style={styles.progressFooter}>
                             <Text style={styles.progressText}>
-                                {order.scannedUnits?.length || 0} of {order.printedUnits || order.totalUnits} Units Scanned
+                                {scannedUnitsCount} of {totalUnits} Units Scanned
                             </Text>
-                            {(order.scannedUnits?.length || 0) >= (order.printedUnits || order.totalUnits || 0) ? (
+                            {isVerified ? (
                                 <Text style={styles.verifiedText}>Fully Verified</Text>
                             ) : (
                                 <Text style={styles.pendingText}>Verification Pending</Text>
@@ -221,30 +246,27 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
                 {/* Conditional Update Button */}
                 {(() => {
-                    const total = order.printedUnits || order.totalUnits || 0;
-                    const scanned = order.scannedUnits?.length || 0;
-                    const isVerified = total > 0 && scanned >= total;
                     const currentIndex = getStatusIndex(order.status);
 
-                    if (currentIndex < STATUS_STEPS.length - 1) {
-                        const nextStep = STATUS_STEPS[currentIndex + 1];
-                        const btnLabel = `Mark as ${nextStep}`;
-
+                    if (allowedStatuses.length > 0) {
                         if (isVerified) {
                             return (
                                 <TouchableOpacity
-                                    style={styles.updateButton}
-                                    onPress={handleUpdateStatus}
+                                    style={[styles.updateButton, updating ? { opacity: 0.7 } : null]}
+                                    onPress={() => setStatusModalOpen(true)}
+                                    disabled={updating}
                                 >
                                     <LucideCheckCircle color="#fff" size={20} />
-                                    <Text style={styles.updateButtonText}>{btnLabel}</Text>
+                                    <Text style={styles.updateButtonText}>Update Status</Text>
                                 </TouchableOpacity>
                             );
-                        } else if (currentIndex >= 1) { // Higher than 'Pending'
+                        }
+
+                        if (currentIndex >= 1) {
                             return (
                                 <View style={styles.warningContainer}>
                                     <Text style={styles.warningText}>
-                                        Scan {total - scanned} more boxes to unlock "{nextStep}"
+                                        Scan {Math.max(totalUnits - scannedUnitsCount, 0)} more boxes to unlock status update
                                     </Text>
                                 </View>
                             );
@@ -252,6 +274,39 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     }
                     return null;
                 })()}
+
+                <Modal
+                    visible={statusModalOpen}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setStatusModalOpen(false)}
+                >
+                    <Pressable style={styles.modalBackdrop} onPress={() => setStatusModalOpen(false)}>
+                        <Pressable style={styles.modalCard} onPress={() => {}}>
+                            <Text style={styles.modalTitle}>Update Order Status</Text>
+                            <Text style={styles.modalSubtitle}>Select the next status</Text>
+                            <View style={styles.modalList}>
+                                {allowedStatuses.map((s) => (
+                                    <TouchableOpacity
+                                        key={s}
+                                        style={[styles.modalItem, updating ? { opacity: 0.7 } : null]}
+                                        onPress={() => handleUpdateStatus(s)}
+                                        disabled={updating}
+                                    >
+                                        <Text style={styles.modalItemText}>{s}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                            <TouchableOpacity
+                                style={styles.modalClose}
+                                onPress={() => setStatusModalOpen(false)}
+                                disabled={updating}
+                            >
+                                <Text style={styles.modalCloseText}>Close</Text>
+                            </TouchableOpacity>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
             </ScrollView>
         </View>
     );
@@ -467,6 +522,57 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         textAlign: 'center',
+    },
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    modalCard: {
+        backgroundColor: '#0f172a',
+        borderRadius: 20,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    modalTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 6,
+    },
+    modalSubtitle: {
+        color: '#94a3b8',
+        fontSize: 13,
+        fontWeight: '600',
+        marginBottom: 14,
+    },
+    modalList: {
+        gap: 10,
+    },
+    modalItem: {
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    modalItemText: {
+        color: '#f8fafc',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    modalClose: {
+        marginTop: 14,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    modalCloseText: {
+        color: '#94a3b8',
+        fontSize: 14,
+        fontWeight: '700',
     },
     scanProgressCard: {
         backgroundColor: 'rgba(56, 189, 248, 0.1)',

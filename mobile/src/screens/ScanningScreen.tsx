@@ -33,6 +33,22 @@ export default function ScanningScreen({ navigation }: any) {
         );
     }
 
+    const parseQueryParams = (input: string): Record<string, string> => {
+        const out: Record<string, string> = {};
+        const qIndex = input.indexOf('?');
+        if (qIndex === -1) return out;
+        const query = input.slice(qIndex + 1);
+        const pairs = query.split('&');
+        for (const p of pairs) {
+            if (!p) continue;
+            const [kRaw, vRaw] = p.split('=');
+            const k = decodeURIComponent((kRaw || '').trim());
+            const v = decodeURIComponent((vRaw || '').trim());
+            if (k) out[k] = v;
+        }
+        return out;
+    };
+
     const handleBarCodeScanned = async ({ type, data }: any) => {
         if (scanned) return;
         setScanned(true);
@@ -40,15 +56,12 @@ export default function ScanningScreen({ navigation }: any) {
         let orderId = '';
         let uid = '';
 
-        if (data.includes('orderId=')) {
-            // It's a sticker URL
-            const queryString = data.split('?')[1];
-            const urlParams = new URLSearchParams(queryString);
-            orderId = urlParams.get('orderId') || '';
-            uid = urlParams.get('uid') || '';
+        if (typeof data === 'string' && data.includes('orderId=')) {
+            const params = parseQueryParams(data);
+            orderId = params.orderId || '';
+            uid = params.uid || '';
         } else {
-            // It might be just the order UUID
-            orderId = data;
+            orderId = typeof data === 'string' ? data.trim() : '';
         }
 
         if (!orderId) {
