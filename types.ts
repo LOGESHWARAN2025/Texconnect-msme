@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'inventory' | 'orders' | 'profile' | 'products' | 'inventory-dashboard' | 'issues' | 'resolved' | 'market';
+export type View = 'dashboard' | 'inventory' | 'orders' | 'profile' | 'products' | 'inventory-dashboard' | 'issues' | 'resolved' | 'market' | 'ai-market';
 export type UserRole = 'msme' | 'buyer' | 'admin';
 export type MSMEDomain = 'Spinning Mills' | 'Knitting and Weaving' | 'Dyeing and Finishing' | 'Apparel Manufacturing';
 
@@ -197,4 +197,14 @@ export interface ResolvedIssue {
   resolutionDate: string;
   reportedAt: string;
   resolvedAt: string;
+}
+
+export interface PerformanceMetric {
+  id: string;
+  timestamp: string;
+  metricType: 'network' | 'web_app' | 'mobile_app';
+  value: number;
+  unit: string;
+  context?: any;
+  status: 'good' | 'warning' | 'critical';
 }

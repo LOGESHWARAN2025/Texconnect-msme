@@ -13,6 +13,7 @@ import BuyerIssuesView from './BuyerIssuesView';
 import { TranslatedText } from '../common/TranslatedText';
 import BuyerInsights from './BuyerInsights';
 import MarketSalesBot from '../common/MarketSalesBot';
+import EnhancedMarketAnalysisAI from '../ai/EnhancedMarketAnalysisAI';
 
 type BuyerView = 'browse' | 'orders' | 'issues' | 'profile' | 'dashboard' | 'market';
 
@@ -130,7 +131,7 @@ export default function ModernBuyerDashboard() {
             case 'profile':
                 return <BuyerProfileView />;
             case 'market':
-                return <MarketSalesBot />;
+                return <EnhancedMarketAnalysisAI userRole="buyer" />;
             case 'dashboard':
             default:
                 const buyerOrders = orders ? orders.filter(o => o.buyerId === currentUser?.id) : [];

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, TrendingUp, AlertCircle, Users, BarChart3, ShoppingCart, Layers, Bell, Settings, Search, Menu, X, Filter, Download, Plus, Shirt, Clock, DollarSign, LogOut, Globe, Lock, ClipboardList, Box, FileText, ChevronRight, Zap, Activity, LayoutDashboard } from 'lucide-react';
+import { Package, TrendingUp, AlertCircle, Users, BarChart3, ShoppingCart, Layers, Bell, Settings, Search, Menu, X, Filter, Download, Plus, Shirt, Clock, DollarSign, LogOut, Globe, Lock, ClipboardList, Box, FileText, ChevronRight, Zap, Activity, LayoutDashboard, Brain } from 'lucide-react';
 import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
 import { supabase } from '../../src/lib/supabase';
@@ -14,6 +14,8 @@ import ProfileView from './ProfileView';
 import MarketSalesBot from '../common/MarketSalesBot';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import SalesInsights from './SalesInsights';
+import AIMarketDashboard from '../ai/AIMarketDashboard';
+import EnhancedMarketAnalysisAI from '../ai/EnhancedMarketAnalysisAI';
 
 export default function ModernMSMEDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -230,7 +232,16 @@ export default function ModernMSMEDashboard() {
       case 'profile':
         return <ProfileView />;
       case 'market':
-        return <MarketSalesBot />;
+        return <EnhancedMarketAnalysisAI userRole="msme" />;
+      case 'ai-market':
+        return (
+          <AIMarketDashboard
+            userId={currentUser?.id || ''}
+            userRole="msme"
+            products={inventory || []}
+            userHistory={orders || []}
+          />
+        );
       default:
         return (
           <div className="space-y-10">
@@ -396,6 +407,7 @@ export default function ModernMSMEDashboard() {
           <nav className="flex-1 space-y-2">
             {[
               { id: 'dashboard', icon: LayoutDashboard, label: t('dashboard') },
+              { id: 'ai-market', icon: Brain, label: 'AI Market Intelligence' },
               { id: 'market', icon: TrendingUp, label: 'Market Trends' },
               { id: 'inventory', icon: Box, label: t('inventory'), badge: inventory.filter(i => i.stock <= i.minStockLevel).length },
               { id: 'orders', icon: ShoppingCart, label: t('orders'), badge: orders.filter(o => o.status === 'Pending').length },

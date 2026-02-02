@@ -12,9 +12,10 @@ import AuditLogView from './AuditLogView';
 import FeedbackLogsView from './FeedbackLogsView';
 import IssueLogView from './IssueLogView';
 import ResolvedIssuesView from './ResolvedIssuesView';
+import PerformanceDashboard from './PerformanceDashboard';
 import { TranslatedText } from '../common/TranslatedText';
 
-type AdminView = 'dashboard' | 'users' | 'profile' | 'audit' | 'feedback' | 'issues' | 'resolved';
+type AdminView = 'dashboard' | 'users' | 'profile' | 'audit' | 'feedback' | 'issues' | 'resolved' | 'performance';
 
 export default function ModernAdminDashboard() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -22,7 +23,7 @@ export default function ModernAdminDashboard() {
         const saved = localStorage.getItem('admin-current-view');
         return (saved as AdminView) || 'dashboard';
     });
-    const { currentUser, logout, users } = useAppContext(); // Fixed: users instead of allUsers
+    const { currentUser, logout, users } = useAppContext();
     const { t, setLanguage, currentLanguage } = useLocalization();
 
     // Dashboard Stats State
@@ -45,7 +46,7 @@ export default function ModernAdminDashboard() {
                 totalUsers: users.length,
                 msmeCount: users.filter(u => u.role === 'msme').length,
                 buyerCount: users.filter(u => u.role === 'buyer').length,
-                activeUsers: users.filter(u => u.isApproved).length // Fixed: isApproved instead of isAdminVerified
+                activeUsers: users.filter(u => u.isApproved).length
             });
         }
     }, [users]);
@@ -111,7 +112,7 @@ export default function ModernAdminDashboard() {
     const quickActions = [
         { label: t('manage_users'), icon: Users, color: 'bg-indigo-600', onClick: () => setCurrentView('users') },
         { label: t('view_issues'), icon: AlertTriangle, color: 'bg-orange-600', onClick: () => setCurrentView('issues') },
-        { label: t('audit_logs'), icon: FileText, color: 'bg-slate-600', onClick: () => setCurrentView('audit') },
+        { label: t('system_performance'), icon: Activity, color: 'bg-cyan-600', onClick: () => setCurrentView('performance') },
         { label: t('user_feedback'), icon: MessageSquare, color: 'bg-pink-600', onClick: () => setCurrentView('feedback') }
     ];
 
@@ -129,6 +130,8 @@ export default function ModernAdminDashboard() {
                 return <IssueLogView />;
             case 'resolved':
                 return <ResolvedIssuesView />;
+            case 'performance':
+                return <PerformanceDashboard />;
             case 'dashboard':
             default:
                 return (
@@ -174,12 +177,15 @@ export default function ModernAdminDashboard() {
                                         </div>
                                         <span className="text-xs font-bold px-2 py-1 bg-green-200 text-green-800 rounded-lg">{t('online')}</span>
                                     </div>
-                                    <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                    <div
+                                        className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100 cursor-pointer hover:bg-blue-100 transition"
+                                        onClick={() => setCurrentView('performance')}
+                                    >
                                         <div className="flex items-center gap-3">
                                             <Activity className="h-5 w-5 text-blue-600" />
                                             <span className="font-medium text-blue-900">{t('system_performance')}</span>
                                         </div>
-                                        <span className="text-xs font-bold px-2 py-1 bg-blue-200 text-blue-800 rounded-lg">{t('optimal')}</span>
+                                        <span className="text-xs font-bold px-2 py-1 bg-blue-200 text-blue-800 rounded-lg">View Metrics</span>
                                     </div>
                                 </div>
                                 <div>
@@ -222,6 +228,7 @@ export default function ModernAdminDashboard() {
                     <NavButton view="users" icon={Users} label={t('user_management')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
 
                     <div className="text-xs font-semibold text-slate-500 uppercase mb-2 px-4 mt-6">Monitoring</div>
+                    <NavButton view="performance" icon={Activity} label={t('system_performance')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
                     <NavButton view="audit" icon={FileText} label={t('audit_logs')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
                     <NavButton view="issues" icon={AlertTriangle} label={t('issue_logs')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
                     <NavButton view="resolved" icon={CheckCircle} label={t('resolved_issues')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />

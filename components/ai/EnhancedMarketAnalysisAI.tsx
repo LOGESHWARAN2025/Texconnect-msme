@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { TrendingUp, DollarSign, AlertCircle, Sparkles } from 'lucide-react';
+import { TrendingUp, DollarSign, AlertCircle, Sparkles, Filter, MapPin, MessageSquare } from 'lucide-react';
+import { useLocalization } from '../../hooks/useLocalization';
+import MarketSalesBot from '../common/MarketSalesBot';
 
 interface MarketInsight {
     type: 'price' | 'demand' | 'supply' | 'trend';
@@ -21,8 +23,21 @@ export default function EnhancedMarketAnalysisAI({
     userRole,
     historicalData
 }: EnhancedMarketAnalysisProps) {
+    const { t } = useLocalization();
     const [insights, setInsights] = useState<MarketInsight[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [showBot, setShowBot] = useState(true);
+
+    // Filtering States
+    const [filters, setFilters] = useState({
+        country: 'India',
+        state: 'All',
+        district: 'All'
+    });
+
+    const countries = ['India', 'USA', 'China', 'Bangladesh', 'Vietnam'];
+    const states = ['All', 'Tamil Nadu', 'Gujarat', 'Maharashtra', 'Karnataka', 'Telangana'];
+    const districts = ['All', 'Tiruppur', 'Coimbatore', 'Surat', 'Mumbai', 'Ahmedabad', 'Erode'];
 
     const analyzeMarket = async () => {
         setIsLoading(true);
@@ -32,18 +47,25 @@ export default function EnhancedMarketAnalysisAI({
             const genAI = new GoogleGenerativeAI(apiKey);
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-            // Advanced prompt for structured market analysis
-            const prompt = `You are an expert textile market analyst in India.
+            // Advanced prompt for structured market analysis including location context
+            const locationContext = `
+                Country: ${filters.country}
+                State: ${filters.state !== 'All' ? filters.state : 'Across ' + filters.country}
+                District: ${filters.district !== 'All' ? filters.district : 'Major textile hubs'}
+            `;
+
+            const prompt = `You are an expert textile market analyst.
             
 Product: ${productName}
 User Type: ${userRole}
+Location Context: ${locationContext}
 Current Date: ${new Date().toLocaleDateString('en-IN')}
 
-Provide a comprehensive market analysis in JSON format with these insights:
-1. Price Trends - Current pricing and forecast
-2. Demand Analysis - Market demand patterns
-3. Supply Chain - Availability and lead times
-4. Regional Insights - Best states for buying/selling (TN, Gujarat, Maharashtra)
+Provide a comprehensive market analysis in JSON format with these insights specifically tailored to the selected region/location:
+1. Price Trends - Current pricing and forecast for this region
+2. Demand Analysis - Market demand patterns in this area
+3. Supply Chain - Local availability and lead times
+4. Competitive Landscape - Specific to ${filters.district !== 'All' ? filters.district : filters.state !== 'All' ? filters.state : filters.country}
 
 Format your response as a JSON array with this structure:
 [
@@ -53,18 +75,11 @@ Format your response as a JSON array with this structure:
     "description": "Brief insight about pricing",
     "confidence": 85,
     "impact": "high"
-  },
-  {
-    "type": "demand",
-    "title": "Demand Forecast",
-    "description": "Brief insight about demand",
-    "confidence": 90,
-    "impact": "medium"
   }
 ]
 
 Include 4-5 specific insights relevant to ${userRole === 'buyer' ? 'purchasing decisions' : 'selling strategies'}.
-Make insights actionable and specific to Indian textile markets.`;
+Make insights actionable and specific to the selected location (${locationContext}).`;
 
             const result = await model.generateContent(prompt);
             const response = await result.response;
@@ -89,26 +104,26 @@ Make insights actionable and specific to Indian textile markets.`;
             }
         } catch (error) {
             console.error('Market Analysis Error:', error);
-            // Provide fallback insights
+            // Fallback insights
             setInsights([
                 {
                     type: 'price',
-                    title: 'Cotton Yarn Pricing',
-                    description: 'Prices in Tiruppur are stable at ₹250-280/kg. Gujarat markets showing 3% increase.',
+                    title: `${filters.district !== 'All' ? filters.district : 'Regional'} Pricing Analysis`,
+                    description: `Prices in ${filters.district !== 'All' ? filters.district : 'key markets'} are showing stability. Expected variance ±2% this week.`,
                     confidence: 80,
                     impact: 'high'
                 },
                 {
                     type: 'demand',
-                    title: 'Export Demand Rising',
-                    description: 'Export orders from US and EU increasing by 12% this quarter.',
+                    title: 'Local Demand Trends',
+                    description: `Demand in ${filters.state !== 'All' ? filters.state : 'major types'} is steady, driven by seasonal requirements.`,
                     confidence: 85,
-                    impact: 'high'
+                    impact: 'medium'
                 },
                 {
                     type: 'supply',
-                    title: 'Supply Chain Status',
-                    description: 'Raw material availability good. Lead times: 3-5 days for local, 2 weeks for interstate.',
+                    title: 'Supply Availability',
+                    description: `Supply chain into ${filters.country} is robust with minimal delays reported.`,
                     confidence: 75,
                     impact: 'medium'
                 }
@@ -137,74 +152,131 @@ Make insights actionable and specific to Indian textile markets.`;
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <Sparkles className="h-6 w-6 text-indigo-600" />
-                        AI Market Analysis
-                    </h2>
-                    <p className="text-sm text-gray-500">Powered by Advanced LLM Technology</p>
+        <div className="space-y-6">
+            {/* Structured Analysis Card */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                            <Sparkles className="h-6 w-6 text-indigo-600" />
+                            {t('market_insights')}
+                        </h2>
+                        <p className="text-sm text-gray-500">{t('regional_insights')}</p>
+                    </div>
+
+                    {/* Location Filters */}
+                    <div className="flex flex-wrap gap-2 items-center bg-gray-50 p-2 rounded-xl border border-gray-200">
+                        <MapPin className="h-4 w-4 text-gray-500 ml-2" />
+
+                        <select
+                            value={filters.country}
+                            onChange={(e) => setFilters({ ...filters, country: e.target.value })}
+                            className="bg-transparent text-sm font-medium text-gray-700 border-none focus:ring-0 cursor-pointer"
+                        >
+                            {countries.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <span className="text-gray-300">|</span>
+
+                        <select
+                            value={filters.state}
+                            onChange={(e) => setFilters({ ...filters, state: e.target.value })}
+                            className="bg-transparent text-sm font-medium text-gray-700 border-none focus:ring-0 cursor-pointer"
+                        >
+                            {states.map(s => <option key={s} value={s}>{s === 'All' ? `${t('state')} (All)` : s}</option>)}
+                        </select>
+                        <span className="text-gray-300">|</span>
+
+                        <select
+                            value={filters.district}
+                            onChange={(e) => setFilters({ ...filters, district: e.target.value })}
+                            className="bg-transparent text-sm font-medium text-gray-700 border-none focus:ring-0 cursor-pointer"
+                        >
+                            {districts.map(d => <option key={d} value={d}>{d === 'All' ? `${t('district')} (All)` : d}</option>)}
+                        </select>
+                    </div>
+
+                    <button
+                        onClick={analyzeMarket}
+                        disabled={isLoading}
+                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg whitespace-nowrap"
+                    >
+                        {isLoading ? t('analyzing') : t('analyze_market')}
+                    </button>
                 </div>
-                <button
-                    onClick={analyzeMarket}
-                    disabled={isLoading}
-                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg"
-                >
-                    {isLoading ? 'Analyzing...' : 'Analyze Market'}
-                </button>
+
+                {isLoading && (
+                    <div className="flex items-center justify-center py-20">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-gray-600 font-medium">{t('analyzing')} {filters.district !== 'All' ? filters.district : filters.state !== 'All' ? filters.state : filters.country}...</p>
+                        </div>
+                    </div>
+                )}
+
+                {!isLoading && insights.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {insights.map((insight, idx) => (
+                            <div
+                                key={idx}
+                                className={`p-5 rounded-xl border-2 transition-all hover:shadow-md ${getImpactColor(insight.impact)}`}
+                            >
+                                <div className="flex items-start gap-3 mb-3">
+                                    {getTypeIcon(insight.type)}
+                                    <div className="flex-1">
+                                        <h3 className="font-bold text-gray-900 mb-1">{insight.title}</h3>
+                                        <p className="text-sm text-gray-700 leading-relaxed">{insight.description}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
+                                    <span className="text-xs font-semibold text-gray-500 uppercase">
+                                        {t('impact')}: {t(insight.impact)}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-32 bg-gray-200 rounded-full h-2">
+                                            <div
+                                                className="bg-indigo-600 h-2 rounded-full"
+                                                style={{ width: `${insight.confidence}%` }}
+                                            ></div>
+                                        </div>
+                                        <span className="text-xs font-bold text-gray-600">
+                                            {insight.confidence}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {!isLoading && insights.length === 0 && (
+                    <div className="text-center py-12">
+                        <Sparkles className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">{t('select_location_msg')}</p>
+                    </div>
+                )}
             </div>
 
-            {isLoading && (
-                <div className="flex items-center justify-center py-20">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-gray-600 font-medium">Analyzing market trends...</p>
+            {/* AI Assistant Section */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div
+                    className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition"
+                    onClick={() => setShowBot(!showBot)}
+                >
+                    <div className="flex items-center gap-3">
+                        <MessageSquare className="h-5 w-5 text-indigo-600" />
+                        <h3 className="font-bold text-gray-900">{t('live_market_assistant')}</h3>
                     </div>
+                    <button className="text-indigo-600 text-sm font-semibold">
+                        {showBot ? 'Hide Chat' : 'Show Chat'}
+                    </button>
                 </div>
-            )}
 
-            {!isLoading && insights.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {insights.map((insight, idx) => (
-                        <div
-                            key={idx}
-                            className={`p-5 rounded-xl border-2 transition-all hover:shadow-md ${getImpactColor(insight.impact)}`}
-                        >
-                            <div className="flex items-start gap-3 mb-3">
-                                {getTypeIcon(insight.type)}
-                                <div className="flex-1">
-                                    <h3 className="font-bold text-gray-900 mb-1">{insight.title}</h3>
-                                    <p className="text-sm text-gray-700 leading-relaxed">{insight.description}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
-                                <span className="text-xs font-semibold text-gray-500 uppercase">
-                                    Impact: {insight.impact}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className="bg-indigo-600 h-2 rounded-full"
-                                            style={{ width: `${insight.confidence}%` }}
-                                        ></div>
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-600">
-                                        {insight.confidence}%
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {!isLoading && insights.length === 0 && (
-                <div className="text-center py-12">
-                    <Sparkles className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">Click "Analyze Market" to get AI-powered insights</p>
-                </div>
-            )}
+                {showBot && (
+                    <div className="h-[500px]">
+                        <MarketSalesBot />
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

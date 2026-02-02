@@ -32,8 +32,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-      <div className={`bg-white rounded-lg shadow-xl w-full ${modalSizeClass} transform transition-all`}>
-        <div className="p-5 border-b border-slate-200 flex justify-between items-center">
+      <div className={`bg-white rounded-lg shadow-xl w-full ${modalSizeClass} transform transition-all max-h-[90vh] flex flex-col`}>
+        <div className="p-5 border-b border-slate-200 flex justify-between items-center shrink-0">
           <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
           <button
             onClick={onClose}
@@ -46,7 +46,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
             </svg>
           </button>
         </div>
-        <div className="p-5">
+        <div className="p-5 overflow-y-auto">
           {children}
         </div>
       </div>
