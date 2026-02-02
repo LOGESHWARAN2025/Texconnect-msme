@@ -52,7 +52,7 @@ export default function MarketSalesBot() {
         setIsLoading(true);
 
         try {
-            const apiKey = (window as any).env?.VITE_GEMINI_API_KEY || (window as any).process?.env?.API_KEY || "";
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (window as any).env?.VITE_GEMINI_API_KEY || "";
             const genAI = new GoogleGenerativeAI(apiKey);
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
