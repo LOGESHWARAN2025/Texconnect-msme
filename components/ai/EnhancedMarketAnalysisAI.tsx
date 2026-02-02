@@ -62,7 +62,7 @@ Location Context: ${locationContext}
 Current Date: ${new Date().toLocaleDateString('en-IN')}
 
 Provide a comprehensive market analysis in JSON format with these insights specifically tailored to the selected region/location:
-1. Price Trends - Current pricing and forecast for this region
+1. Price Trends - Current pricing (e.g., ₹/kg for Yarn) and forecast for this region. If Tiruppur, ALWAYS include specific rates for 30s/40s count (e.g. ₹260/kg).
 2. Demand Analysis - Market demand patterns in this area
 3. Supply Chain - Local availability and lead times
 4. Competitive Landscape - Specific to ${filters.district !== 'All' ? filters.district : filters.state !== 'All' ? filters.state : filters.country}
@@ -72,14 +72,14 @@ Format your response as a JSON array with this structure:
   {
     "type": "price",
     "title": "Price Trend",
-    "description": "Brief insight about pricing",
+    "description": "Brief insight about pricing including specific numbers (e.g. ₹265/kg)",
     "confidence": 85,
     "impact": "high"
   }
 ]
 
 Include 4-5 specific insights relevant to ${userRole === 'buyer' ? 'purchasing decisions' : 'selling strategies'}.
-Make insights actionable and specific to the selected location (${locationContext}).`;
+Make insights actionable and specific to the selected location (${locationContext}). IMPORTANT: If the location is Tiruppur, you MUST mention specific yarn prices in Rupees.`;
 
             const result = await model.generateContent(prompt);
             const response = await result.response;

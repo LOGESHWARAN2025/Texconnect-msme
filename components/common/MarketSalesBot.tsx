@@ -60,7 +60,8 @@ export default function MarketSalesBot() {
             The user is a buyer in India. 
             Provide live-sounding market insights for: ${userMsg}. 
             Focus on Indian states like Tamil Nadu (Tiruppur, Coimbatore), Gujarat (Surat, Ahmedabad), Maharashtra, etc.
-            Include specific price trends, demand-supply gaps, and state-wise highlights.
+            Include specific price trends in ₹/kg (e.g. Cotton Yarn 30s at ₹265/kg), demand-supply gaps, and state-wise highlights.
+            If the user asks about specific locations like Tiruppur, ALWAYS provide specific price points for standard counts (30s, 40s).
             Keep the response professional, concise, and insightful. 
             Format with bullet points if needed.`;
 
@@ -131,8 +132,8 @@ export default function MarketSalesBot() {
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[85%] rounded-2xl p-4 ${msg.role === 'user'
-                                        ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg'
-                                        : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none shadow-sm'
+                                    ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg'
+                                    : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none shadow-sm'
                                     }`}>
                                     <div className="flex items-center gap-2 mb-1">
                                         {msg.role === 'bot' && <Sparkles className="h-3 w-3 text-indigo-500" />}
