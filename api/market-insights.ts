@@ -27,6 +27,60 @@ type RapidApiCommoditiesMarketDataResponse = {
   >;
 };
 
+const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const fetchLiveCottonMarketData = async (baseCurrency: string) => {
+  const key = process.env.RAPIDAPI_KEY;
+  const host = process.env.RAPIDAPI_HOST;
+
+  if (!key || !host) {
+    return null;
+  }
+
+  const url = `https://${host}/rates?base_currency=${encodeURIComponent(baseCurrency)}&symbols=COTTON`;
+  const res = await fetchWithTimeout(
+    url,
+    {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': key,
+        'X-RapidAPI-Host': host
+      }
+    },
+    8000
+  );
+
+  if (!res.ok) {
+    return null;
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  const raw = contentType.includes('application/json') ? await res.json() : await res.text();
+  if (!raw || typeof raw === 'string') {
+    return null;
+  }
+
+  const data = raw as RapidApiCommoditiesMarketDataResponse;
+  if (!data.success || !data.rates) {
+    return null;
+  }
+
+  return {
+    base_currency: data.base_currency || baseCurrency,
+    cotton: data.rates?.COTTON || null,
+    provider: 'rapidapi'
+  };
+};
+
 const readBody = async (req: VercelRequest): Promise<any> => {
   if (req.body && typeof req.body === 'object') return req.body;
 
