@@ -85,6 +85,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     liveCotton = null;
   }
 
+  const liveDataAvailable = Boolean(liveCotton);
+
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
@@ -99,11 +101,12 @@ Rules:
 - Be concise and actionable
 - Use bullet points when helpful
 - If you mention pricing, include units (e.g. ₹/kg)
-- If you do not have reliable live data, explicitly say "estimate" and provide ranges instead of exact numbers.`;
+- If you do not have reliable live data, explicitly say "estimate" and provide ranges instead of exact numbers.
+- If live commodity data is NOT available, do NOT claim specific facts about specific cities/regions (e.g. "Tiruppur exports are up 5% this week"). Only provide general guidance and explain that live feed is unavailable.`;
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      res.status(200).json({ text: response.text() });
+      res.status(200).json({ text: response.text(), meta: { liveDataAvailable } });
       return;
     }
 

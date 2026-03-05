@@ -4,6 +4,7 @@ import { useLocalization } from '../../hooks/useLocalization';
 import type { Product } from '../../types';
 import Modal from '../common/Modal';
 import InventoryProgressBar from '../common/InventoryProgressBar';
+import { MATERIAL_CATEGORY_SUGGESTIONS } from '../../src/data/textileMaterials';
 
 const ProductCard: React.FC<{ item: Product; onEdit: (item: Product) => void; onDelete: (item: Product) => void }> = ({ item, onEdit, onDelete }) => {
     const { t } = useLocalization();
@@ -89,6 +90,7 @@ const ProductManagementView: React.FC = () => {
     const [selectedItem, setSelectedItem] = useState<Product | null>(null);
     const [formData, setFormData] = useState({
         name: '',
+        category: '',
         description: '',
         price: 0,
         stock: 0,
@@ -116,6 +118,7 @@ const ProductManagementView: React.FC = () => {
     const resetForm = () => {
         setFormData({
             name: '',
+            category: '',
             description: '',
             price: 0,
             stock: 0,
@@ -132,6 +135,7 @@ const ProductManagementView: React.FC = () => {
         setSelectedItem(item);
         setFormData({
             name: item.name,
+            category: (item as any).category || '',
             description: item.description || '',
             price: item.price,
             stock: item.stock,
@@ -153,6 +157,7 @@ const ProductManagementView: React.FC = () => {
         try {
             await addProduct({
                 ...formData,
+                category: (formData as any).category,
                 msmeId: currentUser.id
             });
             setIsAddModalOpen(false);
@@ -334,6 +339,17 @@ const ProductManagementView: React.FC = () => {
                         />
                     </div>
                     <div>
+                        <label className="block text-sm font-medium text-slate-700">Category / Material</label>
+                        <input
+                            type="text"
+                            name="category"
+                            value={(formData as any).category}
+                            onChange={handleInputChange}
+                            list="texconnect-materials-category"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        />
+                    </div>
+                    <div>
                         <label className="block text-sm font-medium text-slate-700">Description</label>
                         <textarea
                             name="description"
@@ -419,6 +435,17 @@ const ProductManagementView: React.FC = () => {
                         />
                     </div>
                     <div>
+                        <label className="block text-sm font-medium text-slate-700">Category / Material</label>
+                        <input
+                            type="text"
+                            name="category"
+                            value={(formData as any).category}
+                            onChange={handleInputChange}
+                            list="texconnect-materials-category"
+                            className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        />
+                    </div>
+                    <div>
                         <label className="block text-sm font-medium text-slate-700">Description</label>
                         <textarea
                             name="description"
@@ -498,6 +525,12 @@ const ProductManagementView: React.FC = () => {
                     </div>
                 </div>
             </Modal>
+
+            <datalist id="texconnect-materials-category">
+                {MATERIAL_CATEGORY_SUGGESTIONS.map((m) => (
+                    <option key={m} value={m} />
+                ))}
+            </datalist>
         </div>
     );
 };

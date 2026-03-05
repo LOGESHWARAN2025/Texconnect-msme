@@ -4,6 +4,7 @@ import { useAppContext } from '../context/SupabaseContext';
 import Modal from './common/Modal';
 import type { InventoryItem } from '../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { MATERIAL_CATEGORY_SUGGESTIONS } from '../src/data/textileMaterials';
 
 const InventoryView: React.FC = () => {
   const { t } = useLocalization();
@@ -222,7 +223,21 @@ const InventoryView: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t('category')}</label>
-                <input type="text" name="category" value={formData.category} onChange={handleInputChange} required className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none" placeholder={t('category_placeholder')} />
+                <input
+                  type="text"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  required
+                  list="texconnect-materials-category"
+                  className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all outline-none"
+                  placeholder={t('category_placeholder')}
+                />
+                <datalist id="texconnect-materials-category">
+                  {MATERIAL_CATEGORY_SUGGESTIONS.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
               </div>
             </div>
 
