@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { TrendingUp, DollarSign, AlertCircle, Sparkles, Filter, MapPin, MessageSquare } from 'lucide-react';
 import { useLocalization } from '../../hooks/useLocalization';
 import MarketSalesBot from '../common/MarketSalesBot';
+import { fetchMarketInsights } from '../../src/services/market/marketInsightsService';
 
 interface MarketInsight {
     type: 'price' | 'demand' | 'supply' | 'trend';
@@ -42,89 +42,48 @@ export default function EnhancedMarketAnalysisAI({
     const analyzeMarket = async () => {
         setIsLoading(true);
         try {
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (window as any).env?.VITE_GEMINI_API_KEY || "";
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const result = await fetchMarketInsights({
+                productName,
+                userRole,
+                filters
+            });
 
-            // Advanced prompt for structured market analysis including location context
-            const locationContext = `
-                Country: ${filters.country}
-                State: ${filters.state !== 'All' ? filters.state : 'Across ' + filters.country}
-                District: ${filters.district !== 'All' ? filters.district : 'Major textile hubs'}
-            `;
+            if ('error' in result && result.error) {
+                setInsights([
+                    {
+                        type: 'trend',
+                        title: 'Market Insights Unavailable',
+                        description: `${result.error}${result.details ? ` (${result.details})` : ''}`,
+                        confidence: 0,
+                        impact: 'low'
+                    }
+                ]);
+                return;
+            }
 
-            const prompt = `You are an expert textile market analyst.
-            
-Product: ${productName}
-User Type: ${userRole}
-Location Context: ${locationContext}
-Current Date: ${new Date().toLocaleDateString('en-IN')}
-
-Provide a comprehensive market analysis in JSON format with these insights specifically tailored to the selected region/location:
-1. Price Trends - Current pricing (e.g., ₹/kg for Yarn) and forecast for this region. If Tiruppur, ALWAYS include specific rates for 30s/40s count (e.g. ₹260/kg).
-2. Demand Analysis - Market demand patterns in this area
-3. Supply Chain - Local availability and lead times
-4. Competitive Landscape - Specific to ${filters.district !== 'All' ? filters.district : filters.state !== 'All' ? filters.state : filters.country}
-
-Format your response as a JSON array with this structure:
-[
-  {
-    "type": "price",
-    "title": "Price Trend",
-    "description": "Brief insight about pricing including specific numbers (e.g. ₹265/kg)",
-    "confidence": 85,
-    "impact": "high"
-  }
-]
-
-Include 4-5 specific insights relevant to ${userRole === 'buyer' ? 'purchasing decisions' : 'selling strategies'}.
-Make insights actionable and specific to the selected location (${locationContext}). IMPORTANT: If the location is Tiruppur, you MUST mention specific yarn prices in Rupees.`;
-
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
-
-            // Extract JSON from response
-            const jsonMatch = text.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-                const parsedInsights = JSON.parse(jsonMatch[0]);
-                setInsights(parsedInsights);
-            } else {
-                // Fallback if AI doesn't return proper JSON
+            if ('raw' in result && result.raw) {
                 setInsights([
                     {
                         type: 'trend',
                         title: 'Market Momentum',
-                        description: text.substring(0, 200),
-                        confidence: 75,
+                        description: result.raw.substring(0, 200),
+                        confidence: 50,
                         impact: 'medium'
                     }
                 ]);
+                return;
             }
+
+            setInsights(result.insights || []);
         } catch (error) {
             console.error('Market Analysis Error:', error);
-            // Fallback insights
             setInsights([
                 {
-                    type: 'price',
-                    title: `${filters.district !== 'All' ? filters.district : 'Regional'} Pricing Analysis`,
-                    description: `Prices in ${filters.district !== 'All' ? filters.district : 'key markets'} are showing stability. Expected variance ±2% this week.`,
-                    confidence: 80,
-                    impact: 'high'
-                },
-                {
-                    type: 'demand',
-                    title: 'Local Demand Trends',
-                    description: `Demand in ${filters.state !== 'All' ? filters.state : 'major types'} is steady, driven by seasonal requirements.`,
-                    confidence: 85,
-                    impact: 'medium'
-                },
-                {
-                    type: 'supply',
-                    title: 'Supply Availability',
-                    description: `Supply chain into ${filters.country} is robust with minimal delays reported.`,
-                    confidence: 75,
-                    impact: 'medium'
+                    type: 'trend',
+                    title: 'Market Insights Unavailable',
+                    description: error instanceof Error ? error.message : 'Unexpected error',
+                    confidence: 0,
+                    impact: 'low'
                 }
             ]);
         } finally {

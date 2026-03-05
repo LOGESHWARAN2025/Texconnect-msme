@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MessageSquare, Send, Bot, Sparkles, MapPin, TrendingUp, Search, Globe, X } from 'lucide-react';
 import { TranslatedText } from '../common/TranslatedText';
+import { fetchMarketChatReply } from '../../src/services/market/marketInsightsService';
 
 interface MarketData {
     state: string;
@@ -30,17 +30,11 @@ export default function MarketSalesBot() {
     }, [messages]);
 
     useEffect(() => {
-        // Simulated Live Market Data
-        const states = ['Tamil Nadu', 'Gujarat', 'Maharashtra', 'Karnataka', 'Punjab', 'West Bengal'];
-        const products = ['Cotton Yarn', 'Silk Fabric', 'Denim', 'Polyester Blend', 'Organic Linen'];
-        const initialTrends: MarketData[] = states.map(state => ({
-            state,
-            product: products[Math.floor(Math.random() * products.length)],
-            trend: Math.random() > 0.3 ? 'up' : 'down',
-            change: `+${(Math.random() * 5 + 1).toFixed(1)}%`,
-            volume: `${(Math.random() * 50 + 10).toFixed(0)}k units`
-        }));
-        setMarketTrends(initialTrends);
+        setMarketTrends([
+            { state: 'Tamil Nadu', product: 'Cotton Yarn', trend: 'stable', change: '—', volume: '—' },
+            { state: 'Gujarat', product: 'Polyester Blend', trend: 'stable', change: '—', volume: '—' },
+            { state: 'Maharashtra', product: 'Denim', trend: 'stable', change: '—', volume: '—' }
+        ]);
     }, []);
 
     const handleSend = async () => {
@@ -52,27 +46,21 @@ export default function MarketSalesBot() {
         setIsLoading(true);
 
         try {
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (window as any).env?.VITE_GEMINI_API_KEY || "";
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const result = await fetchMarketChatReply({
+                userRole: 'buyer',
+                filters: { country: 'India', state: 'All', district: 'All' },
+                userMsg
+            });
 
-            const prompt = `You are a textile market expert bot for TexConnect. 
-            The user is a buyer in India. 
-            Provide live-sounding market insights for: ${userMsg}. 
-            Focus on Indian states like Tamil Nadu (Tiruppur, Coimbatore), Gujarat (Surat, Ahmedabad), Maharashtra, etc.
-            Include specific price trends in ₹/kg (e.g. Cotton Yarn 30s at ₹265/kg), demand-supply gaps, and state-wise highlights.
-            If the user asks about specific locations like Tiruppur, ALWAYS provide specific price points for standard counts (30s, 40s).
-            Keep the response professional, concise, and insightful. 
-            Format with bullet points if needed.`;
+            if (result?.error) {
+                setMessages(prev => [...prev, { role: 'bot', content: `${result.error}${result.details ? ` (${result.details})` : ''}` }]);
+                return;
+            }
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
-
-            setMessages(prev => [...prev, { role: 'bot', content: text }]);
+            setMessages(prev => [...prev, { role: 'bot', content: result?.text || 'No response' }]);
         } catch (error) {
             console.error("AI Assistant Error:", error);
-            setMessages(prev => [...prev, { role: 'bot', content: "I'm having trouble connecting to the live market data right now. However, I can tell you that Tiruppur's knitwear segment is seeing a 5% increase in export orders this week." }]);
+            setMessages(prev => [...prev, { role: 'bot', content: error instanceof Error ? error.message : 'Unexpected error' }]);
         } finally {
             setIsLoading(false);
         }

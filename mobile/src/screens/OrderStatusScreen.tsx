@@ -62,6 +62,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
     const getAllowedNextStatuses = (status: string): string[] => {
         switch ((status || '').toLowerCase()) {
+            case 'pending':
+                return ['Accepted'];
             case 'accepted':
                 return ['Prepared', 'Shipped', 'Out for Delivery', 'Delivered'];
             case 'prepared':
@@ -111,9 +113,10 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     if (!order) return null;
 
     const currentStatusIndex = getStatusIndex(order.status);
-    const totalUnits = order.printedUnits || order.totalUnits || 0;
-    const scannedUnitsCount = order.scannedUnits?.length || 0;
-    const isVerified = totalUnits > 0 && scannedUnitsCount >= totalUnits;
+    const totalUnits = Number(order.printedUnits ?? order.totalUnits ?? 0);
+    const scannedUnitsCount = Array.isArray(order.scannedUnits) ? order.scannedUnits.length : 0;
+    const verificationRequired = totalUnits > 0;
+    const isVerified = !verificationRequired || scannedUnitsCount >= totalUnits;
     const allowedStatuses = getAllowedNextStatuses(order.status);
     const itemName = order.itemName || order.items?.[0]?.productName || '';
     const quantity = order.quantity ?? order.totalUnits ?? order.items?.[0]?.quantity ?? 0;
@@ -262,7 +265,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                             );
                         }
 
-                        if (currentIndex >= 1) {
+                        if (verificationRequired && currentIndex >= 1) {
                             return (
                                 <View style={styles.warningContainer}>
                                     <Text style={styles.warningText}>

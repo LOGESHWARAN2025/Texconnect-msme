@@ -12,10 +12,10 @@ import ProductsPage from './ProductsPage';
 import IssuesPage from './IssuesPage';
 import ProfileView from './ProfileView';
 import MarketSalesBot from '../common/MarketSalesBot';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import SalesInsights from './SalesInsights';
 import AIMarketDashboard from '../ai/AIMarketDashboard';
 import EnhancedMarketAnalysisAI from '../ai/EnhancedMarketAnalysisAI';
+import { fetchMarketChatReply } from '../../src/services/market/marketInsightsService';
 
 export default function ModernMSMEDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -90,21 +90,23 @@ export default function ModernMSMEDashboard() {
       if (!currentUser || inventory.length === 0) return;
       setIsAiLoading(true);
       try {
-        const apiKey = (window as any).env?.VITE_GEMINI_API_KEY || (window as any).process?.env?.API_KEY || "";
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
         const productNames = inventory.map(i => i.name).join(", ");
-        const prompt = `You are a textile business consultant. The MSME produces: ${productNames}. 
-        Provide a 2-sentence market insight specifically for these products in the current Indian textile market (mention states like TN or Gujarat). 
-        Make it sound like live intelligence.`;
+        const prompt = `You are a textile business consultant. The MSME produces: ${productNames}. Provide a 2-sentence market insight specifically for these products in the current Indian textile market (mention states like TN or Gujarat). If you are unsure about real-time prices, label them as estimates and provide ranges.`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        setAiInsights(response.text());
+        const result = await fetchMarketChatReply({
+          userRole: 'msme',
+          filters: { country: 'India', state: 'All', district: 'All' },
+          userMsg: prompt
+        });
+
+        if (result?.error) {
+          setAiInsights(`${result.error}${result.details ? ` (${result.details})` : ''}`);
+        } else {
+          setAiInsights(result?.text || 'No response');
+        }
       } catch (error) {
         console.error("Dashboard AI Error:", error);
-        setAiInsights("Cotton demand is surging in Tiruppur hubs; consider increasing production of yarn-based products to meet upcoming Q1 requirements.");
+        setAiInsights(error instanceof Error ? error.message : 'Unable to load AI insights');
       } finally {
         setIsAiLoading(false);
       }
