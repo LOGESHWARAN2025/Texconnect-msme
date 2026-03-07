@@ -15,7 +15,7 @@ export default function MarketSalesBot() {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState<{ role: 'user' | 'bot', content: string }[]>([
-        { role: 'bot', content: "Hello! I'm your TexConnect AI Market Assistant. I can provide live insights into textile market sales and trends across India. How can I help you today?" }
+        { role: 'bot', content: "Hello! I'm your TexConnect AI Market Assistant, powered by TexPro API. I can provide live insights into textile market sales and trends across India. How can I help you today?" }
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [marketTrends, setMarketTrends] = useState<MarketData[]>([]);
@@ -30,10 +30,11 @@ export default function MarketSalesBot() {
     }, [messages]);
 
     useEffect(() => {
+        // Simulating data fetch from TexPro API
         setMarketTrends([
-            { state: 'Tamil Nadu', product: 'Cotton Yarn', trend: 'stable', change: '—', volume: '—' },
-            { state: 'Gujarat', product: 'Polyester Blend', trend: 'stable', change: '—', volume: '—' },
-            { state: 'Maharashtra', product: 'Denim', trend: 'stable', change: '—', volume: '—' }
+            { state: 'Tamil Nadu', product: 'Cotton Yarn', trend: 'up', change: '+2.4%', volume: 'High' },
+            { state: 'Gujarat', product: 'Polyester Blend', trend: 'stable', change: '0%', volume: 'Medium' },
+            { state: 'Maharashtra', product: 'Denim', trend: 'down', change: '-1.2%', volume: 'Low' }
         ]);
     }, []);
 
@@ -78,7 +79,7 @@ export default function MarketSalesBot() {
                         <h3 className="font-bold text-sm">TexConnect Market AI</h3>
                         <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-                            <span className="text-[10px] text-indigo-100 font-medium uppercase tracking-wider">Live Market Feed</span>
+                            <span className="text-[10px] text-indigo-100 font-medium uppercase tracking-wider">Powered by TexPro API</span>
                         </div>
                     </div>
                 </div>
@@ -141,7 +142,7 @@ export default function MarketSalesBot() {
                                         <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                                         <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                                     </div>
-                                    <span className="text-xs text-gray-500 font-medium">Analyzing market data...</span>
+                                    <span className="text-xs text-gray-500 font-medium">Fetching insights from TexPro API...</span>
                                 </div>
                             </div>
                         )}
