@@ -18,6 +18,11 @@ WHERE tablename = 'orders';
 -- PART 2: Fix Status Constraint
 -- =====================================================
 
+-- Ensure QR tracking columns exist
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS printedUnits INTEGER DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS "totalUnits" INTEGER DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS scannedUnits TEXT[] DEFAULT ARRAY[]::TEXT[];
+
 -- Drop old constraint
 ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
 
