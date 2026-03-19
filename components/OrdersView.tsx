@@ -11,12 +11,30 @@ const getStatusColor = (status: OrderStatus) => {
   switch (status) {
     case 'Pending': return 'bg-yellow-100 text-yellow-800';
     case 'Accepted': return 'bg-cyan-100 text-cyan-800';
+    case 'Ready to Prepare': return 'bg-indigo-100 text-indigo-800';
     case 'Prepared': return 'bg-purple-100 text-purple-800';
     case 'Shipped': return 'bg-blue-100 text-blue-800';
     case 'Out for Delivery': return 'bg-orange-100 text-orange-800';
     case 'Delivered': return 'bg-green-100 text-green-800';
     case 'Cancelled': return 'bg-red-100 text-red-800';
     default: return 'bg-slate-100 text-slate-800';
+  }
+};
+
+const getNextStatus = (status: OrderStatus): OrderStatus | null => {
+  switch (status) {
+    case 'Pending':
+      return 'Accepted';
+    case 'Accepted':
+      return 'Ready to Prepare';
+    case 'Ready to Prepare':
+      return 'Prepared';
+    case 'Prepared':
+      return 'Shipped';
+    case 'Shipped':
+      return 'Delivered';
+    default:
+      return null;
   }
 };
 
@@ -282,53 +300,46 @@ const OrdersView: React.FC = () => {
                             {t('retrieve')}
                           </button>
                         ) : (
-                          <div className="relative group/select">
-                            <select
-                              value={order.status}
-                              onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                              disabled={updatingOrderId === order.id}
-                              className="appearance-none block w-40 pl-6 pr-10 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-slate-50 focus:outline-none focus:border-indigo-600 focus:bg-white rounded-2xl bg-slate-50/50 transition-all cursor-pointer disabled:opacity-50"
-                            >
-                              {order.status === 'Accepted' && (
-                                <>
-                                  <option value="Accepted" disabled>{t('accepted')}</option>
-                                  <option value="Prepared">{t('prepared') || 'Prepared'}</option>
-                                  <option value="Shipped">{t('shipped')}</option>
-                                  <option value="Out for Delivery">{'Out for Delivery'}</option>
-                                  <option value="Delivered">{t('delivered')}</option>
-                                </>
-                              )}
-                              {order.status === 'Prepared' && (
-                                <>
-                                  <option value="Prepared" disabled>{t('prepared') || 'Prepared'}</option>
-                                  <option value="Shipped">{t('shipped')}</option>
-                                  <option value="Out for Delivery">{'Out for Delivery'}</option>
-                                  <option value="Delivered">{t('delivered')}</option>
-                                </>
-                              )}
-                              {order.status === 'Shipped' && (
-                                <>
-                                  <option value="Shipped" disabled>{t('shipped')}</option>
-                                  <option value="Out for Delivery">{'Out for Delivery'}</option>
-                                  <option value="Delivered">{t('delivered')}</option>
-                                </>
-                              )}
-                              {order.status === 'Out for Delivery' && (
-                                <>
-                                  <option value="Out for Delivery" disabled>{'Out for Delivery'}</option>
-                                  <option value="Delivered">{t('delivered')}</option>
-                                </>
-                              )}
-                              {order.status === 'Delivered' && (
-                                <option value="Delivered" disabled>{t('delivered')}</option>
-                              )}
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 group-hover/select:translate-y-0.5 transition-transform">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </div>
-                          </div>
+                          (() => {
+                            const total = order.printedUnits || order.totalUnits || 0;
+                            const scanned = order.scannedUnits?.length || 0;
+                            const verified = total === 0 || scanned >= total;
+                            const next = getNextStatus(order.status);
+                            const canAdvance = Boolean(next) && verified;
+
+                            if (!next) {
+                              return (
+                                <button
+                                  disabled
+                                  className="px-6 py-2.5 bg-slate-50 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all opacity-60 cursor-not-allowed"
+                                >
+                                  {t('status_locked') || 'Locked'}
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleStatusChange(order.id, next)}
+                                  disabled={updatingOrderId === order.id || !canAdvance}
+                                  className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${canAdvance ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0' : 'bg-slate-100 text-slate-400 opacity-60 cursor-not-allowed'}`}
+                                  title={!verified ? `Scan ${Math.max(total - scanned, 0)} more boxes to unlock` : ''}
+                                >
+                                  {t(next.toLowerCase()) || next}
+                                </button>
+                                {order.status === 'Accepted' && (
+                                  <button
+                                    onClick={() => handleStatusChange(order.id, 'Cancelled')}
+                                    disabled={updatingOrderId === order.id}
+                                    className="px-6 py-2.5 bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 disabled:opacity-50"
+                                  >
+                                    {t('cancel')}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()
                         )}
                         {(order.status === 'Accepted' || order.status === 'Prepared' || order.status === 'Shipped' || order.status === 'Out for Delivery' || order.status === 'Delivered') && (
                           <div className="flex gap-2">
