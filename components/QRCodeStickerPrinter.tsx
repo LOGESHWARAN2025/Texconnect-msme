@@ -62,11 +62,12 @@ const QRCodeStickerPrinter: React.FC<QRCodeStickerPrinterProps> = ({ isOpen, onC
       const { error } = await supabase
         .from('orders')
         .update({
-          totalUnits: stickerCount,
-          printedUnits: stickerCount
+          totalunits: stickerCount,
+          printedunits: stickerCount,
+          updatedat: new Date().toISOString()
         })
         .eq('id', order.id)
-        .select('id, totalUnits, printedUnits')
+        .select('id, totalunits, printedunits')
         .single();
 
       if (error) {
