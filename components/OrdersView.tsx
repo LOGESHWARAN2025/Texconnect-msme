@@ -161,7 +161,7 @@ const OrdersView: React.FC = () => {
       if ((newStatus === 'Ready to Prepare' || newStatus === 'Prepared' || newStatus === 'Shipped' || newStatus === 'Out for Delivery' || newStatus === 'Delivered') && order) {
         const required = order.printedUnits || order.totalUnits || 0;
         const scannedCount = order.scannedUnits?.length || 0;
-        if (required > 0 && scannedCount < required) {
+        if (required <= 0 || scannedCount < required) {
           // Store what we WANTED to do, and open the scanner instead
           setPendingStatusUpdate({ orderId, status: newStatus });
           setScanningOrder(order);
@@ -335,7 +335,7 @@ const OrdersView: React.FC = () => {
                             );
                           })()
                         )}
-                        {(order.status === 'Accepted' || order.status === 'Prepared' || order.status === 'Shipped' || order.status === 'Out for Delivery' || order.status === 'Delivered') && (
+                        {(order.status === 'Prepared' || order.status === 'Shipped' || order.status === 'Out for Delivery' || order.status === 'Delivered') && (
                           <div className="flex gap-2">
                             <button
                               onClick={() => setViewingInvoiceOrder(order)}

@@ -23,7 +23,16 @@ ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
 
 -- Add new constraint with Accepted
 ALTER TABLE orders ADD CONSTRAINT orders_status_check 
-CHECK (status IN ('Pending', 'Accepted', 'Shipped', 'Delivered', 'Cancelled'));
+CHECK (status IN (
+  'Pending',
+  'Accepted',
+  'Ready to Prepare',
+  'Prepared',
+  'Shipped',
+  'Out for Delivery',
+  'Delivered',
+  'Cancelled'
+));
 
 -- =====================================================
 -- PART 3: Fix RLS Policies for Updates
@@ -78,7 +87,10 @@ USING (
 
 UPDATE orders SET status = 'Pending' WHERE LOWER(status) = 'pending' OR status IS NULL;
 UPDATE orders SET status = 'Accepted' WHERE LOWER(status) = 'accepted';
+UPDATE orders SET status = 'Ready to Prepare' WHERE LOWER(status) IN ('ready to prepare', 'ready_to_prepare', 'readytoprepare');
+UPDATE orders SET status = 'Prepared' WHERE LOWER(status) = 'prepared';
 UPDATE orders SET status = 'Shipped' WHERE LOWER(status) = 'shipped';
+UPDATE orders SET status = 'Out for Delivery' WHERE LOWER(status) IN ('out for delivery', 'out_for_delivery', 'outfordelivery');
 UPDATE orders SET status = 'Delivered' WHERE LOWER(status) = 'delivered';
 UPDATE orders SET status = 'Cancelled' WHERE LOWER(status) = 'cancelled';
 
@@ -124,7 +136,10 @@ BEGIN
     RAISE NOTICE 'Status options:';
     RAISE NOTICE '  - Pending';
     RAISE NOTICE '  - Accepted';
+    RAISE NOTICE '  - Ready to Prepare';
+    RAISE NOTICE '  - Prepared';
     RAISE NOTICE '  - Shipped';
+    RAISE NOTICE '  - Out for Delivery';
     RAISE NOTICE '  - Delivered';
     RAISE NOTICE '  - Cancelled';
     RAISE NOTICE '========================================';
