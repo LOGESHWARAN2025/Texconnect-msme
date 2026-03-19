@@ -331,15 +331,6 @@ const OrdersView: React.FC = () => {
                                 >
                                   {t(next.toLowerCase()) || next}
                                 </button>
-                                {order.status === 'Accepted' && (
-                                  <button
-                                    onClick={() => handleStatusChange(order.id, 'Cancelled')}
-                                    disabled={updatingOrderId === order.id}
-                                    className="px-6 py-2.5 bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 disabled:opacity-50"
-                                  >
-                                    {t('cancel')}
-                                  </button>
-                                )}
                               </div>
                             );
                           })()

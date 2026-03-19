@@ -167,7 +167,7 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
 
     if (!isOpen || !order) return null;
 
-    const totalUnits = order.totalUnits || 1;
+    const totalUnits = order.printedUnits || order.totalUnits || 1;
     const balance = totalUnits - scannedIds.length;
     const isComplete = scannedIds.length >= totalUnits;
 
