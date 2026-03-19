@@ -14,7 +14,7 @@ import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LucideChevronLeft, LucidePackage, LucideTruck, LucideCheckCircle, LucideClock } from 'lucide-react-native';
 
-const STATUS_STEPS = ['Pending', 'Accepted', 'Prepared', 'Shipped', 'Out for Delivery', 'Delivered'];
+const STATUS_STEPS = ['Pending', 'Accepted', 'Shipped', 'Delivered', 'Cancelled'];
 
 export default function OrderStatusScreen({ route, navigation }: any) {
     const { orderId } = route.params || {};
@@ -65,12 +65,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             case 'pending':
                 return ['Accepted'];
             case 'accepted':
-                return ['Prepared', 'Shipped', 'Out for Delivery', 'Delivered'];
-            case 'prepared':
-                return ['Shipped', 'Out for Delivery', 'Delivered'];
+                return ['Shipped', 'Delivered'];
             case 'shipped':
-                return ['Out for Delivery', 'Delivered'];
-            case 'out for delivery':
                 return ['Delivered'];
             default:
                 return [];

@@ -59,8 +59,7 @@ export default function ModernBuyerDashboard() {
     const handleLogout = async () => {
         try {
             await logout();
-            setSidebarOpen(false);
-            setCurrentView('dashboard');
+            window.location.href = '/';
         } catch (error) {
             console.error('Logout failed:', error);
             alert('Logout failed. Please try again.');

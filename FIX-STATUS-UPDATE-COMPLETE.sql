@@ -7,7 +7,7 @@
 -- =====================================================
 
 -- Check orders table
-SELECT id, "buyerName", status, date FROM orders ORDER BY date DESC;
+SELECT id, "buyerName", status FROM orders ORDER BY id DESC;
 
 -- Check RLS policies on orders
 SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
@@ -103,11 +103,9 @@ SELECT
     id,
     "buyerId"::text,
     "buyerName",
-    status,
-    total,
-    jsonb_array_length(items) as items
+    status
 FROM orders
-ORDER BY date DESC;
+ORDER BY id DESC;
 
 -- =====================================================
 -- SUCCESS MESSAGE

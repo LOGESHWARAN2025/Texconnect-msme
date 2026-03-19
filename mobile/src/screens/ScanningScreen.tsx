@@ -94,7 +94,7 @@ export default function ScanningScreen({ navigation }: any) {
                     .eq('id', orderId);
 
                 if (updateError) {
-                    Alert.alert('Update Failed', 'Could not record the unit scan.');
+                    Alert.alert('Update Failed', updateError.message || 'Could not record the unit scan.');
                 }
             }
         }
