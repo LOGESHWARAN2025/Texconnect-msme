@@ -578,7 +578,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         status: o.status,
         items: o.items
       })));
-      setOrders(data as Order[]);
+      const mappedOrders = (data as any[]).map((o) => ({
+        ...o,
+        totalUnits: o.totalunits ?? o.totalUnits ?? o.total_units ?? 0,
+        printedUnits: o.printedunits ?? o.printedUnits ?? o.printed_units ?? 0,
+        scannedUnits: o.scannedunits ?? o.scannedUnits ?? o.scanned_units ?? [],
+        createdAt: o.createdat ?? o.createdAt,
+        updatedAt: o.updatedat ?? o.updatedAt,
+      }));
+      setOrders(mappedOrders as Order[]);
     } else {
       console.log('⚠️ No orders data returned');
       setOrders([]);
@@ -1130,7 +1138,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('orders')
       .update({
         status,
-        updatedAt: new Date().toISOString() // Explicitly update timestamp
+        updatedat: new Date().toISOString() // Explicitly update timestamp
       })
       .eq('id', orderId)
       .select();
@@ -1157,8 +1165,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const { error } = await supabase
       .from('orders')
       .update({
-        scannedUnits,
-        updatedAt: new Date().toISOString()
+        scannedunits: scannedUnits,
+        updatedat: new Date().toISOString()
       })
       .eq('id', orderId);
 
