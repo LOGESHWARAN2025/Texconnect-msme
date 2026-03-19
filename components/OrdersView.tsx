@@ -155,10 +155,11 @@ const OrdersView: React.FC = () => {
       setUpdatingOrderId(orderId);
 
       const order = orders.find(o => o.id === orderId);
-      // Scan required for Prepared, Shipped and Out for Delivery to ensure quality control
-      if ((newStatus === 'Prepared' || newStatus === 'Shipped' || newStatus === 'Out for Delivery') && order && order.totalUnits && order.totalUnits > 0) {
+      // Scan required for Ready to Prepare onwards to ensure verification
+      if ((newStatus === 'Ready to Prepare' || newStatus === 'Prepared' || newStatus === 'Shipped' || newStatus === 'Out for Delivery' || newStatus === 'Delivered') && order) {
+        const required = order.printedUnits || order.totalUnits || 0;
         const scannedCount = order.scannedUnits?.length || 0;
-        if (scannedCount < order.totalUnits) {
+        if (required > 0 && scannedCount < required) {
           // Store what we WANTED to do, and open the scanner instead
           setPendingStatusUpdate({ orderId, status: newStatus });
           setScanningOrder(order);
