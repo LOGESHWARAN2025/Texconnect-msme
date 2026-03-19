@@ -42,7 +42,7 @@ const getNextStatus = (status: OrderStatus): OrderStatus | null => {
 
 const OrdersView: React.FC = () => {
   const { t, formatDate } = useLocalization();
-  const { orders, updateOrderStatus, currentUser, products } = useAppContext();
+  const { orders, updateOrderStatus, updateOrderScannedUnits, currentUser, products } = useAppContext();
   const [viewingInvoiceOrder, setViewingInvoiceOrder] = useState<Order | null>(null);
   const [printingQROrder, setPrintingQROrder] = useState<Order | null>(null);
   const [scanningOrder, setScanningOrder] = useState<Order | null>(null);
@@ -408,14 +408,17 @@ const OrdersView: React.FC = () => {
         order={scanningOrder}
         onScanComplete={async (scannedIds) => {
           if (scanningOrder) {
-            const { supabase } = await import('../src/lib/supabase');
-            await supabase
-              .from('orders')
-              .update({ scannedUnits: scannedIds })
-              .eq('id', scanningOrder.id);
+            try {
+              await updateOrderScannedUnits(scanningOrder.id, scannedIds);
+            } catch (e: any) {
+              const message = e?.message || e?.code || 'Failed to store scanned units';
+              console.error('❌ Failed to persist scanned units:', e);
+              alert(`Failed to store scanned units in Supabase: ${message}`);
+            }
 
             // Check if complete and auto-update status?
-            if (scannedIds.length === (scanningOrder.totalUnits || 0)) {
+            const required = scanningOrder.printedUnits || scanningOrder.totalUnits || 0;
+            if (required > 0 && scannedIds.length === required) {
               // The scan is complete! The scanner will close via internal onClose,
               // and the pendingStatusUpdate logic below will handle showing the next dialog.
             }
