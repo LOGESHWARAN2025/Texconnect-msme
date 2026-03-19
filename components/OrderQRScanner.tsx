@@ -167,9 +167,10 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
 
     if (!isOpen || !order) return null;
 
-    const totalUnits = order.printedUnits || order.totalUnits || 1;
+    const requiredUnits = order.printedUnits || order.totalUnits || 0;
+    const totalUnits = requiredUnits > 0 ? requiredUnits : 1;
     const balance = totalUnits - scannedIds.length;
-    const isComplete = scannedIds.length >= totalUnits;
+    const isComplete = requiredUnits > 0 && scannedIds.length >= requiredUnits;
 
     return (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 sm:p-6">
@@ -302,7 +303,7 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                             <div className="space-y-1 flex-1">
                                 <h4 className="text-slate-900 font-black text-2xl leading-none tracking-tighter">{scannedIds.length} Scanned</h4>
                                 <p className={`font-black text-[10px] uppercase tracking-widest ${balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>
-                                    {balance > 0 ? `${balance} boxes remaining` : 'System Verified'}
+                                    {requiredUnits <= 0 ? 'Print stickers to start verification' : (balance > 0 ? `${balance} boxes remaining` : 'System Verified')}
                                 </p>
                             </div>
                             <div className="text-right">
