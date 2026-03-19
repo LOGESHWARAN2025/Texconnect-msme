@@ -335,7 +335,7 @@ const OrdersView: React.FC = () => {
                             );
                           })()
                         )}
-                        {(order.status === 'Ready to Prepare' || order.status === 'Prepared' || order.status === 'Shipped' || order.status === 'Out for Delivery' || order.status === 'Delivered') && (
+                        {(order.status === 'Accepted' || order.status === 'Ready to Prepare' || order.status === 'Prepared' || order.status === 'Shipped' || order.status === 'Out for Delivery' || order.status === 'Delivered') && (
                           <div className="flex gap-2">
                             <button
                               onClick={() => setViewingInvoiceOrder(order)}
