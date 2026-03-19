@@ -32,6 +32,8 @@ const getNextStatus = (status: OrderStatus): OrderStatus | null => {
     case 'Prepared':
       return 'Shipped';
     case 'Shipped':
+      return 'Out for Delivery';
+    case 'Out for Delivery':
       return 'Delivered';
     default:
       return null;
