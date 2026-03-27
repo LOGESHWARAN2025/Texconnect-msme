@@ -24,6 +24,8 @@ export default function ModernBuyerDashboard() {
         const saved = localStorage.getItem('buyer-current-view');
         return (saved as BuyerView) || 'dashboard';
     });
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [hasReadNotifications, setHasReadNotifications] = useState(false);
     const { currentUser, logout, orders } = useAppContext();
     const [buyerStats, setBuyerStats] = useState({
         totalOrders: 0,
@@ -181,6 +183,17 @@ export default function ModernBuyerDashboard() {
         }
     };
 
+    const buyerOrders = orders ? orders.filter(o => o.buyerId === currentUser?.id) : [];
+    const recentNotifications = buyerOrders
+        .filter(o => o.status !== 'Pending')
+        .slice(0, 5)
+        .map(o => ({
+            id: o.id,
+            message: `Order #${o.id.slice(0, 8)} status updated to ${o.status}`,
+            time: o.updatedAt ? new Date(o.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
+            status: o.status
+        }));
+
     return (
         <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{
             scrollbarWidth: 'thin',
@@ -197,7 +210,6 @@ export default function ModernBuyerDashboard() {
                                         <path d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
                                     </svg>
                                 </div>
-                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                             </div>
                             <div>
                                 <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">{t('texconnect')}</span>
@@ -220,10 +232,52 @@ export default function ModernBuyerDashboard() {
                             </select>
                         </div>
 
-                        <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                            <Bell className="h-5 w-5 text-gray-600" />
-                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                        </button>
+                        <div className="relative">
+                            <button 
+                                onClick={() => {
+                                    setShowNotifications(!showNotifications);
+                                    setHasReadNotifications(true);
+                                }}
+                                className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                title={t('notifications')}
+                            >
+                                <Bell className="h-5 w-5 text-gray-600" />
+                                {recentNotifications.length > 0 && !hasReadNotifications && (
+                                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                                )}
+                            </button>
+
+                            {showNotifications && (
+                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[100] p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-50">
+                                        <h3 className="font-bold text-gray-900">{t('notifications')}</h3>
+                                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{recentNotifications.length} Recent</span>
+                                    </div>
+                                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                                        {recentNotifications.length > 0 ? (
+                                            recentNotifications.map((notif) => (
+                                                <div key={notif.id} className="p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
+                                                    <p className="text-xs font-semibold text-gray-800 mb-1">{notif.message}</p>
+                                                    <p className="text-[10px] text-gray-500 font-medium">{notif.time}</p>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-6">
+                                                <p className="text-xs text-gray-400">No new notifications</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {recentNotifications.length > 0 && (
+                                        <button 
+                                            onClick={() => { setCurrentView('orders'); setShowNotifications(false); }}
+                                            className="w-full mt-4 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 transition-colors text-center"
+                                        >
+                                            View All Orders
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         <div className="flex items-center gap-3 border-l border-gray-200 pl-6">
                             <div className="text-right">

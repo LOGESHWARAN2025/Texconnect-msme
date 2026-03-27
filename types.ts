@@ -132,6 +132,7 @@ export interface Order {
   totalUnits?: number;
   printedUnits?: number;
   scannedUnits?: string[]; // Array of unique sticker IDs scanned (e.g. ["ord_123_1", "ord_123_3"])
+  deliveryDate?: string;
 }
 
 export interface SalesData {
