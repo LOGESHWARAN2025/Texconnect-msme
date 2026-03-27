@@ -192,6 +192,7 @@ const OrdersView: React.FC = () => {
       o.itemName || '',
       o.createdAt || o.date || '',
       o.totalAmount,
+      o.deliveryDate || '',
       o.status,
       o.totalUnits || 0,
       o.scannedUnits?.length || 0
@@ -241,6 +242,7 @@ const OrdersView: React.FC = () => {
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('buyer_name')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('item_name')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('date')}</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('delivery_date')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('total')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('status')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('actions')}</th>
@@ -262,7 +264,10 @@ const OrdersView: React.FC = () => {
                       <div className="text-xs font-bold text-slate-600">{formatDate(order.createdAt || order.date || new Date().toISOString())}</div>
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap">
-                      <div className="text-sm font-black text-indigo-600 tracking-tight">₹{(order.totalAmount || 0).toLocaleString('en-IN')}</div>
+                      <div className="text-xs font-black text-indigo-600">{order.deliveryDate ? formatDate(order.deliveryDate) : t('not_specified')}</div>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="text-sm font-black text-slate-900 tracking-tight">₹{(order.totalAmount || 0).toLocaleString('en-IN')}</div>
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap">
                       <span className={`px-4 py-1.5 inline-flex text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm border border-black/5 ${getStatusColor(order.status)}`}>

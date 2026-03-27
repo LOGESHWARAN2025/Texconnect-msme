@@ -92,6 +92,7 @@ export const ProductBrowseView: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Product | null>(null);
     const [quantity, setQuantity] = useState(1);
+    const [deliveryDate, setDeliveryDate] = useState<string>('');
     const [isOffline, setIsOffline] = useState(!cacheService.isApplicationOnline());
 
     // ⚡ Prefetch data on component mount for better performance
@@ -242,6 +243,7 @@ export const ProductBrowseView: React.FC = () => {
     const handleOrderClick = (item: Product) => {
         setSelectedItem(item);
         setQuantity(1);
+        setDeliveryDate('');
         setIsModalOpen(true);
     };
 
@@ -249,7 +251,7 @@ export const ProductBrowseView: React.FC = () => {
         if (selectedItem && quantity > 0) {
             setIsSubmitting(true);
             try {
-                await placeOrder(selectedItem, quantity);
+                await placeOrder(selectedItem, quantity, deliveryDate);
                 setIsModalOpen(false);
                 setSelectedItem(null);
             } catch (error: any) {
@@ -409,6 +411,18 @@ export const ProductBrowseView: React.FC = () => {
                                 />
                                 <div className="text-slate-400 font-black uppercase tracking-widest text-xs">{t('units_label')}</div>
                             </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">{t('delivery_date')}</label>
+                            <input
+                                type="date"
+                                value={deliveryDate}
+                                onChange={e => setDeliveryDate(e.target.value)}
+                                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-lg focus:ring-4 focus:ring-indigo-600/10 focus:bg-white focus:border-indigo-600 outline-none transition-all cursor-pointer"
+                                min={new Date().toISOString().split('T')[0]}
+                                required
+                            />
                         </div>
 
                         <div className="p-8 bg-indigo-600 rounded-[2rem] shadow-xl shadow-indigo-600/30 text-white">

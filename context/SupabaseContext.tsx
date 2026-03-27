@@ -53,7 +53,7 @@ interface AppContextType {
   updateOrderScannedUnits: (orderId: string, scannedUnits: string[]) => Promise<void>;
 
   // Buyer Actions
-  placeOrder: (item: InventoryItem | Product, quantity: number) => Promise<void>;
+  placeOrder: (item: InventoryItem | Product, quantity: number, deliveryDate?: string) => Promise<void>;
 
   // Admin Actions
   approveUser: (userId: string) => Promise<void>;
@@ -1179,7 +1179,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     await fetchOrders();
   };
 
-  const placeOrder = async (item: InventoryItem | Product, quantity: number) => {
+  const placeOrder = async (item: InventoryItem | Product, quantity: number, deliveryDate?: string) => {
     if (!currentUser) throw new Error('User not authenticated');
     if (item.stock < quantity) throw new Error('Insufficient stock');
 
@@ -1195,6 +1195,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }],
       totalAmount: item.price * quantity,
       status: 'Pending' as OrderStatus,
+      deliveryDate: deliveryDate,
       createdAt: new Date().toISOString()
     };
 
