@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 type UserRole = 'msme' | 'buyer';
 
@@ -40,7 +40,7 @@ const getGeminiModelName = () => {
   const envModel = process.env.GEMINI_MODEL;
   if (envModel && String(envModel).trim()) return String(envModel).trim();
 
-  return 'gemini-1.5-flash';
+  return 'gemini-2.0-flash';
 };
 
 const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
@@ -222,9 +222,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const ai = new GoogleGenAI({ apiKey });
     const preferredModelName = getGeminiModelName();
-    const fallbackModelNames = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+    const fallbackModelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
     const modelNames = [preferredModelName, ...fallbackModelNames].filter(
       (v, i, a) => Boolean(v) && a.indexOf(v) === i
     );
@@ -233,10 +233,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let lastErr: any;
       for (const modelName of modelNames) {
         try {
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          return response.text();
+          const result = await ai.models.generateContent({
+            model: modelName,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+          });
+
+          const text = (result as any)?.text;
+          if (typeof text === 'string' && text.trim()) return text;
+
+          const candidates = (result as any)?.candidates;
+          const fromCandidates =
+            candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('') || '';
+          if (fromCandidates.trim()) return fromCandidates;
+
+          throw new Error('Empty response from Gemini');
         } catch (e: any) {
           lastErr = e;
           const msg = String(e?.message || e);
