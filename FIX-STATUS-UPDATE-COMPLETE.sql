@@ -154,3 +154,137 @@ BEGIN
     RAISE NOTICE '  3. Check console for errors';
     RAISE NOTICE '========================================';
 END $$;
+
+
+-- =============================================
+-- TEXTILE MATERIAL MASTER (Catalog + Attributes + Prices)
+-- =============================================
+
+-- 1) Categories
+CREATE TABLE IF NOT EXISTS public.material_categories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  slug text NOT NULL,
+  description text,
+  parent_id uuid REFERENCES public.material_categories(id) ON DELETE SET NULL,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (slug)
+);
+
+-- 2) Materials
+CREATE TABLE IF NOT EXISTS public.materials (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id uuid REFERENCES public.material_categories(id) ON DELETE SET NULL,
+  name text NOT NULL,
+  slug text NOT NULL,
+  description text,
+  synonyms text[] NOT NULL DEFAULT '{}'::text[],
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (slug)
+);
+
+-- 3) Attribute definitions
+CREATE TABLE IF NOT EXISTS public.material_attributes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  key text NOT NULL,
+  label text NOT NULL,
+  data_type text NOT NULL DEFAULT 'text' CHECK (data_type IN ('text','number','bool','select')),
+  unit text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (key)
+);
+
+-- 4) Attribute values per material
+CREATE TABLE IF NOT EXISTS public.material_attribute_values (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  material_id uuid NOT NULL REFERENCES public.materials(id) ON DELETE CASCADE,
+  attribute_id uuid NOT NULL REFERENCES public.material_attributes(id) ON DELETE CASCADE,
+  value_text text,
+  value_number numeric,
+  value_bool boolean,
+  value_select text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (material_id, attribute_id)
+);
+
+-- 5) Prices (manual/supplier/market snapshots)
+CREATE TABLE IF NOT EXISTS public.material_prices (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  material_id uuid NOT NULL REFERENCES public.materials(id) ON DELETE CASCADE,
+  price numeric NOT NULL CHECK (price >= 0),
+  currency text NOT NULL DEFAULT 'INR',
+  unit text NOT NULL DEFAULT 'kg',
+  region_country text,
+  region_state text,
+  region_district text,
+  source text NOT NULL DEFAULT 'manual' CHECK (source IN ('manual','supplier','market','api')),
+  source_ref text,
+  effective_date date NOT NULL DEFAULT (now()::date),
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.material_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.materials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.material_attributes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.material_attribute_values ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.material_prices ENABLE ROW LEVEL SECURITY;
+
+-- Public read access (catalog)
+DROP POLICY IF EXISTS "read_material_categories" ON public.material_categories;
+CREATE POLICY "read_material_categories" ON public.material_categories
+FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "read_materials" ON public.materials;
+CREATE POLICY "read_materials" ON public.materials
+FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "read_material_attributes" ON public.material_attributes;
+CREATE POLICY "read_material_attributes" ON public.material_attributes
+FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "read_material_attribute_values" ON public.material_attribute_values;
+CREATE POLICY "read_material_attribute_values" ON public.material_attribute_values
+FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "read_material_prices" ON public.material_prices;
+CREATE POLICY "read_material_prices" ON public.material_prices
+FOR SELECT
+USING (true);
+
+-- Only authenticated users can write price snapshots (manual/supplier)
+DROP POLICY IF EXISTS "insert_material_prices_authenticated" ON public.material_prices;
+CREATE POLICY "insert_material_prices_authenticated" ON public.material_prices
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "update_material_prices_owner" ON public.material_prices;
+CREATE POLICY "update_material_prices_owner" ON public.material_prices
+FOR UPDATE
+TO authenticated
+USING (created_by = auth.uid())
+WITH CHECK (created_by = auth.uid());
+
+DROP POLICY IF EXISTS "delete_material_prices_owner" ON public.material_prices;
+CREATE POLICY "delete_material_prices_owner" ON public.material_prices
+FOR DELETE
+TO authenticated
+USING (created_by = auth.uid());
+
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Textile material master tables ensured: material_categories, materials, material_attributes, material_attribute_values, material_prices';
+END $$;

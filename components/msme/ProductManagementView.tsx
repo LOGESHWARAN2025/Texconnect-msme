@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../../context/SupabaseContext';
 import { useLocalization } from '../../hooks/useLocalization';
 import type { Product } from '../../types';
 import Modal from '../common/Modal';
 import InventoryProgressBar from '../common/InventoryProgressBar';
 import { MATERIAL_CATEGORY_SUGGESTIONS } from '../../src/data/textileMaterials';
+import { supabase } from '../../src/lib/supabase';
 
 const ProductCard: React.FC<{ item: Product; onEdit: (item: Product) => void; onDelete: (item: Product) => void }> = ({ item, onEdit, onDelete }) => {
     const { t } = useLocalization();
@@ -88,6 +89,7 @@ const ProductManagementView: React.FC = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Product | null>(null);
+    const [materialSuggestions, setMaterialSuggestions] = useState<string[]>(MATERIAL_CATEGORY_SUGGESTIONS);
     const [formData, setFormData] = useState({
         name: '',
         category: '',
@@ -98,6 +100,39 @@ const ProductManagementView: React.FC = () => {
 
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        let mounted = true;
+
+        const loadMaterialSuggestions = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('materials')
+                    .select('name, synonyms')
+                    .eq('is_active', true)
+                    .limit(500);
+
+                if (error) throw error;
+
+                const names = (data || [])
+                    .flatMap((m: any) => [m?.name, ...((m?.synonyms as string[]) || [])])
+                    .map((s: any) => String(s || '').trim())
+                    .filter(Boolean);
+
+                const merged = Array.from(new Set([...names, ...MATERIAL_CATEGORY_SUGGESTIONS]))
+                    .sort((a, b) => a.localeCompare(b));
+
+                if (mounted && merged.length > 0) setMaterialSuggestions(merged);
+            } catch {
+                if (mounted) setMaterialSuggestions(MATERIAL_CATEGORY_SUGGESTIONS);
+            }
+        };
+
+        loadMaterialSuggestions();
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     // Filter products to show only current MSME's products
     const msmeProducts = useMemo(() => {
@@ -527,7 +562,7 @@ const ProductManagementView: React.FC = () => {
             </Modal>
 
             <datalist id="texconnect-materials-category">
-                {MATERIAL_CATEGORY_SUGGESTIONS.map((m) => (
+                {materialSuggestions.map((m) => (
                     <option key={m} value={m} />
                 ))}
             </datalist>

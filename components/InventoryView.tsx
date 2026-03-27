@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocalization } from '../hooks/useLocalization';
 import { useAppContext } from '../context/SupabaseContext';
 import Modal from './common/Modal';
 import type { InventoryItem } from '../types';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MATERIAL_CATEGORY_SUGGESTIONS } from '../src/data/textileMaterials';
+import { supabase } from '../src/lib/supabase';
 
 const InventoryView: React.FC = () => {
   const { t } = useLocalization();
@@ -14,9 +15,43 @@ const InventoryView: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
+  const [materialSuggestions, setMaterialSuggestions] = useState<string[]>(MATERIAL_CATEGORY_SUGGESTIONS);
 
   const initialFormData = { name: '', category: '', description: '', stock: 0, bought: 0, price: 0, unitOfMeasure: '', minStockLevel: 0 };
   const [formData, setFormData] = useState(initialFormData);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMaterialSuggestions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('materials')
+          .select('name, synonyms')
+          .eq('is_active', true)
+          .limit(500);
+
+        if (error) throw error;
+
+        const names = (data || [])
+          .flatMap((m: any) => [m?.name, ...((m?.synonyms as string[]) || [])])
+          .map((s: any) => String(s || '').trim())
+          .filter(Boolean);
+
+        const merged = Array.from(new Set([...names, ...MATERIAL_CATEGORY_SUGGESTIONS]))
+          .sort((a, b) => a.localeCompare(b));
+
+        if (mounted && merged.length > 0) setMaterialSuggestions(merged);
+      } catch (e) {
+        if (mounted) setMaterialSuggestions(MATERIAL_CATEGORY_SUGGESTIONS);
+      }
+    };
+
+    loadMaterialSuggestions();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Filter inventory to only show items belonging to the current user
   const userInventory = useMemo(() => {
@@ -234,7 +269,7 @@ const InventoryView: React.FC = () => {
                   placeholder={t('category_placeholder')}
                 />
                 <datalist id="texconnect-materials-category">
-                  {MATERIAL_CATEGORY_SUGGESTIONS.map((m) => (
+                  {materialSuggestions.map((m) => (
                     <option key={m} value={m} />
                   ))}
                 </datalist>
