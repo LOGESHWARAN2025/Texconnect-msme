@@ -250,6 +250,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'market_insights': 'Market Insights',
     'regional_insights': 'Regional Insights',
     'live_market_assistant': 'Live Market Assistant',
+    'analyze_market': 'Analyze Market',
     // Approvals
     'msme_approvals': 'MSME Approvals',
     'buyer_approvals': 'Buyer Approvals',
