@@ -228,7 +228,7 @@ const AdminProfileView: React.FC<AdminProfileViewProps> = ({ onBack }) => {
               </button>
             )}
             <h2 className="text-2xl font-bold">
-              {isCurrentUser ? t('my_profile_title') : `${t('admin_profile_title')}: `}<TranslatedText text={selectedAdmin.username} />
+              {isCurrentUser ? `${t('my_profile_title')} : ` : `${t('admin_profile_title')}: `}<TranslatedText text={selectedAdmin.username} />
             </h2>
           </div>
 
