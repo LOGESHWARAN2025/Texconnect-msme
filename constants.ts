@@ -249,7 +249,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'track_and_manage_your_tickets': 'Track and Manage Your Tickets',
     'market_insights': 'Market Insights',
     'regional_insights': 'Regional Insights',
-    'live_market_assistant': 'Live_Market_Assistant',
+    'live_market_assistant': 'Live Market Assistant',
     // Approvals
     'msme_approvals': 'MSME Approvals',
     'buyer_approvals': 'Buyer Approvals',
