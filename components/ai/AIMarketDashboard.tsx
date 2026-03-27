@@ -20,6 +20,13 @@ export default function AIMarketDashboard({
     userHistory = []
 }: AIMarketDashboardProps) {
     const [currentView, setCurrentView] = useState<AIView>('overview');
+    const [selectedProduct, setSelectedProduct] = useState<string>('Cotton Yarn');
+
+    const availableTextiles = [
+        'Cotton Yarn', 'Polyester Blend', 'Denim', 'Linen', 'Wool',
+        'Banarasi Silk', 'Kanchipuram Silk', 'Pashmina', 'Khadi',
+        'Ikkat', 'Jamdani', 'Kalamkari', 'Bandhani'
+    ];
 
     const aiModules = [
         {
@@ -58,19 +65,41 @@ export default function AIMarketDashboard({
         switch (currentView) {
             case 'insights':
                 return (
-                    <EnhancedMarketAnalysisAI
-                        productName="Cotton Yarn"
-                        userRole={userRole}
-                        historicalData={[]}
-                    />
+                    <div className="space-y-6">
+                        <div className="flex justify-end">
+                            <select
+                                value={selectedProduct}
+                                onChange={(e) => setSelectedProduct(e.target.value)}
+                                className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                                {availableTextiles.map(tex => <option key={tex} value={tex}>{tex}</option>)}
+                            </select>
+                        </div>
+                        <EnhancedMarketAnalysisAI
+                            productName={selectedProduct}
+                            userRole={userRole}
+                            historicalData={[]}
+                        />
+                    </div>
                 );
 
             case 'forecast':
                 return (
-                    <PriceForecastingAI
-                        productName="Cotton Yarn"
-                        forecastDays={30}
-                    />
+                    <div className="space-y-6">
+                        <div className="flex justify-end">
+                            <select
+                                value={selectedProduct}
+                                onChange={(e) => setSelectedProduct(e.target.value)}
+                                className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                {availableTextiles.map(tex => <option key={tex} value={tex}>{tex}</option>)}
+                            </select>
+                        </div>
+                        <PriceForecastingAI
+                            productName={selectedProduct}
+                            forecastDays={30}
+                        />
+                    </div>
                 );
 
             case 'recommendations':

@@ -143,11 +143,11 @@ export default function ProductRecommendationAI({
             if (products.length === 0) {
                 products = [
                     { id: '1', name: 'Premium Cotton Yarn 40s', price: 280, category: 'Yarn', rating: 4.5, stock: 150, supplier: 'TN Mills' },
-                    { id: '2', name: 'Silk Blend Fabric Roll', price: 450, category: 'Fabric', rating: 4.8, stock: 80, supplier: 'Gujarat Silk' },
-                    { id: '3', name: 'Denim Blue Heavy Duty', price: 520, category: 'Denim', rating: 4.3, stock: 200, supplier: 'Surat Denim' },
-                    { id: '4', name: 'Organic Linen Natural', price: 380, category: 'Fabric', rating: 4.7, stock: 60, supplier: 'Eco Textiles' },
-                    { id: '5', name: 'Polyester Blend 65/35', price: 220, category: 'Yarn', rating: 4.2, stock: 300, supplier: 'Modern Mills' },
-                    { id: '6', name: 'Pure Cotton Combed 60s', price: 320, category: 'Yarn', rating: 4.6, stock: 120, supplier: 'Coimbatore Co' },
+                    { id: '2', name: 'Banarasi Silk Bridal Fabric', price: 5400, category: 'Silk', rating: 4.9, stock: 35, supplier: 'Varanasi Weaves' },
+                    { id: '3', name: 'Authentic Pashmina Shawl', price: 12500, category: 'Wool', rating: 4.8, stock: 12, supplier: 'Kashmiri Artisans' },
+                    { id: '4', name: 'Organic Khadi Cotton Roll', price: 210, category: 'Fabric', rating: 4.6, stock: 320, supplier: 'KVIC Cert' },
+                    { id: '5', name: 'Premium Stretch Denim', price: 240, category: 'Denim', rating: 4.4, stock: 450, supplier: 'Ahmedabad Mills' },
+                    { id: '6', name: 'Pochampally Ikkat Silk', price: 850, category: 'Silk', rating: 4.7, stock: 65, supplier: 'Telangana Handlooms' },
                 ];
             }
 

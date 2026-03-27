@@ -153,6 +153,70 @@ const TEXTILE_KNOWLEDGE: Record<string, {
     trend: 'Prices softened 4–6% due to global wool surplus; Indian handloom wool stable',
     risk: 'Over 70% of fine wool is imported; AUD-INR fluctuations directly affect margins',
     hubs: 'Bikaner, Jodhpur (RJ); Amritsar (PB); Ludhiana (PB)'
+  },
+  'khadi': {
+    priceRange: '₹150–₹400', priceUnit: 'per meter',
+    demand: 'Growing steadily; high demand for sustainable, breathable summer wear and eco-friendly fashion exports',
+    supply: 'Widespread decentralized spinning/weaving clusters across rural India (Gujarat, UP, Bihar)',
+    trend: 'Premium organic Khadi commands 20-30% higher prices; strong government push (KVIC)',
+    risk: 'Handspun production capacity constraints during sudden high export demand periods',
+    hubs: 'Ahmedabad (GJ); Varanasi (UP); Murshidabad (WB); Hubli (KA)'
+  },
+  'pashmina': {
+    priceRange: '₹8,000–₹25,000', priceUnit: 'per piece (shawl)',
+    demand: 'High luxury demand globally, peaks during winter (Nov-Feb)',
+    supply: 'Sourced from Changthangi goats in Ladakh, handwoven strictly in Kashmir',
+    trend: 'GI-tagged authentic Pashmina prices rising 8-10% YoY due to limited supply',
+    risk: 'High risk of counterfeits mixing sheep wool/silk; strict GI certification required',
+    hubs: 'Srinagar (JK); Leh (Ladakh)'
+  },
+  'banarasi silk': {
+    priceRange: '₹5,000–₹40,000+', priceUnit: 'per piece / saree',
+    demand: 'Extremely high during wedding seasons; staple for bridal wear',
+    supply: 'Handwoven in Varanasi using pure silk and zari (gold/silver thread)',
+    trend: 'Authentic handloom pieces appreciating in value; powerloom imitations driving volume sales',
+    risk: 'Intense competition from cheaper powerloom duplicates from Surat',
+    hubs: 'Varanasi (UP)'
+  },
+  'kanchipuram silk': {
+    priceRange: '₹8,000–₹50,000+', priceUnit: 'per piece / saree',
+    demand: 'Peak during South Indian wedding and festival seasons (Diwali, Pongal)',
+    supply: 'Exclusive handloom weaver clusters in Kanchipuram, pure mulberry silk with gold/silver zari from Surat',
+    trend: 'GI tagged; prices stable but premium for intricate pure zari work rising 5-7% annually',
+    risk: 'Zari material (silver/gold) price volatility impacts final cost significantly',
+    hubs: 'Kanchipuram (TN)'
+  },
+  'ikkat': {
+    priceRange: '₹400–₹1,200', priceUnit: 'per meter',
+    demand: 'Strong demand in contemporary ethnic wear and home decor',
+    supply: 'Telangana (Pochampally), Odisha (Sambalpuri), and Gujarat (Patola)',
+    trend: 'Pochampally Ikkat highly sought after; growing fusion-wear adoption',
+    risk: 'Intensive manual resist-dyeing limits rapid scaling of authentic production',
+    hubs: 'Pochampally (TG); Sambalpur (OD); Patan (GJ)'
+  },
+  'jamdani': {
+    priceRange: '₹800–₹3,000', priceUnit: 'per meter',
+    demand: 'High demand for premium summer sarees and high-end boutique fashion',
+    supply: 'Woven in West Bengal (Navadvip, Shantipur) and Bangladesh',
+    trend: 'Muslin Jamdani prices increasing due to shortage of highly skilled weavers',
+    risk: 'Extremely labor-intensive supplementary weft technique makes it hard to fulfill bulk rapid orders',
+    hubs: 'Kolkata, Shantipur, Phulia (WB)'
+  },
+  'kalamkari': {
+    priceRange: '₹250–₹800', priceUnit: 'per meter',
+    demand: 'Stable demand in ethnic fashion and export markets seeking natural dyes',
+    supply: 'Srikalahasti (hand-painted) and Machilipatnam (block-printed) styles in Andhra Pradesh',
+    trend: 'Natural dye authenticity is a major selling point but limits scalable production',
+    risk: 'Dependent on flowing river water (Swarnamukhi) for color fixing; vulnerable to monsoons',
+    hubs: 'Srikalahasti, Machilipatnam (AP)'
+  },
+  'bandhani': {
+    priceRange: '₹300–₹1,500', priceUnit: 'per meter',
+    demand: 'Consistent demand for festive wear, dupattas, and sarees',
+    supply: 'Traditional tie-dye craft centered in Kutch/Jamnagar (Gujarat) and Rajasthan',
+    trend: 'Artisan (hand-tied) pieces face price pressure from cheaper printed variants',
+    risk: 'Manual tying process requires skilled artisans; labor shortages pushing up costs',
+    hubs: 'Jamnagar, Bhuj (GJ); Jaipur, Jodhpur (RJ)'
   }
 };
 
@@ -175,11 +239,28 @@ const getStateTip = (state: string): string => {
   return 'India\'s textile industry is the 2nd largest employer; major hubs span TN, GJ, MH, KA, PB, and WB.';
 };
 
-const buildOfflineChatReply = (userMsg: string, product: string, state: string, userRole: string): string => {
+const buildOfflineChatReply = (userMsg: string, defaultProduct: string, state: string, userRole: string): string => {
   const msg = userMsg.toLowerCase();
-  const kb = getKnowledge(product);
+
+  let detectedProduct = defaultProduct;
+  if (/banarasi/i.test(msg)) detectedProduct = 'Banarasi Silk';
+  else if (/kanchipuram|kanjeevaram/i.test(msg)) detectedProduct = 'Kanchipuram Silk';
+  else if (/silk/i.test(msg)) detectedProduct = 'Silk'; // fallback for generic silk
+  else if (/pashmina/i.test(msg)) detectedProduct = 'Pashmina';
+  else if (/khadi/i.test(msg)) detectedProduct = 'Khadi';
+  else if (/ikkat|ikat/i.test(msg)) detectedProduct = 'Ikkat';
+  else if (/jamdani/i.test(msg)) detectedProduct = 'Jamdani';
+  else if (/kalamkari/i.test(msg)) detectedProduct = 'Kalamkari';
+  else if (/bandhani|bandhej/i.test(msg)) detectedProduct = 'Bandhani';
+  else if (/polyester/i.test(msg)) detectedProduct = 'Polyester Blend';
+  else if (/denim/i.test(msg)) detectedProduct = 'Denim';
+  else if (/linen/i.test(msg)) detectedProduct = 'Linen';
+  else if (/wool/i.test(msg)) detectedProduct = 'Wool';
+  else if (/cotton/i.test(msg)) detectedProduct = 'Cotton Yarn';
+
+  const kb = getKnowledge(detectedProduct);
   const stateTip = getStateTip(state);
-  const prod = product || 'textile products';
+  const prod = detectedProduct || 'textile products';
   const roleLabel = userRole === 'msme' ? 'seller' : 'buyer';
 
   // Price-related query
@@ -424,12 +505,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const baseCurrency = (filters?.country || 'India') === 'India' ? 'INR' : 'USD';
 
-  let liveCotton: any = null, alphaVantageCotton: any = null, gdeltNews: any = null;
-  try { liveCotton = await fetchLiveCottonMarketData(baseCurrency); } catch { }
-  try { alphaVantageCotton = await fetchAlphaVantageCottonSignal(); } catch { }
+  let liveCommodity: any = null, alphaVantageCommodity: any = null, recentNews: any = null;
+  const isCotton = productName.toLowerCase().includes('cotton');
+
+  if (isCotton) {
+    try { liveCommodity = await fetchLiveCottonMarketData(baseCurrency); } catch { }
+    try { alphaVantageCommodity = await fetchAlphaVantageCottonSignal(); } catch { }
+  }
+
   try {
-    const q = `(${String(productName)} OR cotton OR yarn OR fabric OR textile) (India OR global)`;
-    gdeltNews = await fetchGdeltTextileNews(q, 8);
+    // Dynamically search live news for the specific fabric requested
+    const q = `"${String(productName)}" (price OR market OR export OR demand OR textile) (India OR global)`;
+    recentNews = await fetchGdeltTextileNews(q, 8);
   } catch { }
 
   const hasGroq = Boolean(process.env.GROQ_API_KEY);
@@ -437,12 +524,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const hasAI = hasGroq || hasGemini;
 
   const meta = {
-    liveDataAvailable: Boolean(liveCotton || alphaVantageCotton || gdeltNews),
+    liveDataAvailable: Boolean(liveCommodity || alphaVantageCommodity || recentNews),
     provider: hasGroq ? 'groq' : hasGemini ? 'gemini' : 'offline-knowledge',
     used: {
-      rapidapiCotton: Boolean(liveCotton),
-      alphaVantageCotton: Boolean(alphaVantageCotton),
-      gdeltNews: Boolean(gdeltNews)
+      rapidapiCommodity: Boolean(liveCommodity),
+      alphaVantageCommodity: Boolean(alphaVantageCommodity),
+      gdeltNews: Boolean(recentNews)
     },
     generatedAt: new Date().toISOString()
   };
@@ -454,9 +541,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `You are TexConnect AI Market Assistant for the Indian textile industry.\n` +
         `User role: ${String(userRole)}\nLocation:\n${locationContext}\n` +
         `Timestamp: ${new Date().toISOString()}\n` +
-        `Live commodity data: ${liveCotton ? JSON.stringify(liveCotton) : 'Not available'}\n` +
-        `Alpha Vantage signal: ${alphaVantageCotton ? JSON.stringify(alphaVantageCotton) : 'Not available'}\n` +
-        `Recent textile news: ${gdeltNews ? JSON.stringify(gdeltNews) : 'Not available'}\n\n` +
+        `Live commodity data: ${liveCommodity ? JSON.stringify(liveCommodity) : 'Not available'}\n` +
+        `Alpha Vantage signal: ${alphaVantageCommodity ? JSON.stringify(alphaVantageCommodity) : 'Not available'}\n` +
+        `Recent market news for ${productName}: ${recentNews ? JSON.stringify(recentNews) : 'Not available'}\n\n` +
         `Question: ${String(userMsg)}\n\n` +
         `Rules:\n- Be concise (3-5 bullet points max)\n- Include units (₹/kg)\n` +
         `- Say "estimate" if no live data available\n- Do NOT invent specific facts unless in live data above`;
@@ -487,8 +574,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `You are an expert textile market analyst for India.\n` +
       `Product: ${productName} | User: ${String(userRole)} | Location: ${locationContext}\n` +
       `Timestamp: ${new Date().toISOString()}\n` +
-      `Live data: ${liveCotton ? JSON.stringify(liveCotton) : 'Not available'}\n` +
-      `News: ${gdeltNews ? JSON.stringify(gdeltNews) : 'Not available'}\n\n` +
+      `Live data: ${liveCommodity ? JSON.stringify(liveCommodity) : 'Not available'}\n` +
+      `Recent news for ${productName}: ${recentNews ? JSON.stringify(recentNews) : 'Not available'}\n\n` +
       `Return ONLY a valid JSON array (no markdown) with 4-5 market insights:\n` +
       `[{"type":"price|demand|supply|trend","title":"...","description":"...","confidence":75,"impact":"high|medium|low"}]\n` +
       `Tailor to ${String(userRole) === 'buyer' ? 'purchasing decisions' : 'selling strategies'}.\n` +

@@ -81,8 +81,18 @@ export default function PriceForecastingAI({
                 prices = historicalPrices.map(p => p.price);
                 dates = historicalPrices.map(p => p.date);
             } else {
-                // Generate synthetic historical data (60 days)
-                const basePrice = 250; // Base price for cotton yarn
+                // Determine base price based on product
+                let basePrice = 250;
+                const p = productName.toLowerCase();
+                if (p.includes('silk') && !p.includes('kanchipuram') && !p.includes('banarasi')) basePrice = 4000;
+                if (p.includes('pashmina')) basePrice = 15000;
+                if (p.includes('kanchipuram') || p.includes('banarasi')) basePrice = 20000;
+                if (p.includes('khadi')) basePrice = 250;
+                if (p.includes('polyester')) basePrice = 120;
+                if (p.includes('denim')) basePrice = 220;
+                if (p.includes('jamdani')) basePrice = 1500;
+                if (p.includes('kalamkari') || p.includes('ikkat') || p.includes('bandhani')) basePrice = 600;
+
                 for (let i = 60; i >= 0; i--) {
                     const date = new Date(today);
                     date.setDate(date.getDate() - i);
