@@ -1,8 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 
-type UserRole = 'msme' | 'buyer';
-
 type MarketInsight = {
   type: 'price' | 'demand' | 'supply' | 'trend';
   title: string;
