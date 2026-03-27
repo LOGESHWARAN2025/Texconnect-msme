@@ -481,6 +481,11 @@ const tryGenerate = async (prompt: string): Promise<string | null> => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    res.status(200).json({ status: 'online', message: 'TexConnect AI API is running! Please use POST to send chat messages.' });
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method Not Allowed' });
     return;

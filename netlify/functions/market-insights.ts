@@ -359,6 +359,10 @@ const tryGenerate = async (prompt: string): Promise<string | null> => {
 // ─── NETLIFY HANDLER ──────────────────────────────────────────────────────────
 
 export const handler: Handler = async (event) => {
+  if (event.httpMethod === 'GET') {
+    return { statusCode: 200, body: JSON.stringify({ status: 'online', message: 'TexConnect AI API is running! Please use POST to send chat messages.' }) };
+  }
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
