@@ -245,6 +245,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'admin_type': 'Admin Type',
     'msme': 'MSME',
     'admin': 'Admin',
+    'add_new_product': 'Add New Product',
+    'track_and_manage_your_tickets': 'Track and Manage Your Tickets',
     // Approvals
     'msme_approvals': 'MSME Approvals',
     'buyer_approvals': 'Buyer Approvals',
@@ -741,6 +743,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'audit_logs': 'தணிக்கை பதிவுகள்',
     'user_feedback': 'பயனர் கருத்து',
     'my_products': 'எனது தயாரிப்புகள்',
+    'add_new_product': 'புதிய தயாரிப்பைச் சேர்',
     'active_products': 'செயலில் உள்ள தயாரிப்புகள்',
     'inactive_products': 'செயலற்ற தயாரிப்புகள்',
     'visible_to_buyers': 'வாங்குபவர்களுக்குத் தெரியும்',

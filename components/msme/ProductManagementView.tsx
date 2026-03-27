@@ -238,12 +238,12 @@ const ProductManagementView: React.FC = () => {
 
     // Separate active and inactive products
     const activeProducts = useMemo(() =>
-        msmeProducts.filter(item => item.stock > 0),
+        msmeProducts.filter(item => (Number(item.stock) || 0) > 0),
         [msmeProducts]
     );
 
     const inactiveProducts = useMemo(() =>
-        msmeProducts.filter(item => item.stock === 0),
+        msmeProducts.filter(item => (Number(item.stock) || 0) <= 0),
         [msmeProducts]
     );
 
@@ -299,7 +299,7 @@ const ProductManagementView: React.FC = () => {
                 ))}
             </div>
 
-            {/* Active Products Section */}
+            {/* All Products Section */}
             {activeProducts.length > 0 && (
                 <div className="space-y-6">
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center">
