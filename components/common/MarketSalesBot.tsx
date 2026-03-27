@@ -86,6 +86,7 @@ export default function MarketSalesBot() {
                 return;
             }
 
+            // Success — works whether AI or offline fallback
             setMessages(prev => [...prev, { role: 'bot', content: result?.text || 'No response' }]);
         } catch (error) {
             console.error("AI Assistant Error:", error);

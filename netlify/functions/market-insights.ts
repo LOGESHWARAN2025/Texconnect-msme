@@ -1,5 +1,4 @@
 import type { Handler } from '@netlify/functions';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 type MarketInsight = {
   type: 'price' | 'demand' | 'supply' | 'trend';
@@ -13,268 +12,347 @@ type RapidApiCommoditiesMarketDataResponse = {
   success: boolean;
   errors?: unknown[];
   base_currency?: string;
-  rates?: Record<
-    string,
-    {
-      open?: number;
-      high?: number;
-      low?: number;
-      prev?: number;
-      current?: number;
-    }
-  >;
+  rates?: Record<string, { open?: number; high?: number; low?: number; prev?: number; current?: number }>;
 };
 
 type GdeltDoc = {
-  url?: string;
-  title?: string;
-  sourceCountry?: string;
-  sourceCollection?: string;
-  language?: string;
-  seendate?: string;
+  url?: string; title?: string; sourceCountry?: string; language?: string; seendate?: string;
 };
 
-const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...init, signal: controller.signal });
-    return res;
-  } finally {
-    clearTimeout(timeout);
-  }
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const isRateLimitError = (e: any) => {
+  const msg = String(e?.message || e);
+  return msg.includes('429') || msg.toLowerCase().includes('resource_exhausted') ||
+    msg.toLowerCase().includes('too many requests') || msg.toLowerCase().includes('quota');
+};
+
+const fetchWithTimeout = async (url: string, init: RequestInit, ms: number) => {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, { ...init, signal: ctrl.signal }); }
+  finally { clearTimeout(t); }
 };
 
 const fetchLiveCottonMarketData = async (baseCurrency: string) => {
-  const key = process.env.RAPIDAPI_KEY;
-  const host = process.env.RAPIDAPI_HOST;
-
-  if (!key || !host) {
-    return null;
-  }
-
-  const url = `https://${host}/rates?base_currency=${encodeURIComponent(baseCurrency)}&symbols=COTTON`;
+  const key = process.env.RAPIDAPI_KEY, host = process.env.RAPIDAPI_HOST;
+  if (!key || !host) return null;
   const res = await fetchWithTimeout(
-    url,
-    {
-      method: 'GET',
-      headers: {
-        'X-RapidAPI-Key': key,
-        'X-RapidAPI-Host': host
-      }
-    },
-    8000
+    `https://${host}/rates?base_currency=${encodeURIComponent(baseCurrency)}&symbols=COTTON`,
+    { method: 'GET', headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': host } }, 8000
   );
-
-  if (!res.ok) {
-    return null;
-  }
-
-  const contentType = res.headers.get('content-type') || '';
-  const raw = contentType.includes('application/json') ? await res.json() : await res.text();
-  if (!raw || typeof raw === 'string') {
-    return null;
-  }
-
+  if (!res.ok) return null;
+  const raw = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
   const data = raw as RapidApiCommoditiesMarketDataResponse;
-  if (!data.success || !data.rates) {
-    return null;
-  }
-
-  return {
-    base_currency: data.base_currency || baseCurrency,
-    cotton: data.rates?.COTTON || null,
-    provider: 'rapidapi'
-  };
+  if (!data?.success || !data?.rates) return null;
+  return { base_currency: data.base_currency || baseCurrency, cotton: data.rates?.COTTON || null, provider: 'rapidapi' };
 };
 
 const fetchAlphaVantageCottonSignal = async () => {
   const key = process.env.ALPHA_VANTAGE_API_KEY;
   if (!key) return null;
-
-  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=COTTON&apikey=${encodeURIComponent(key)}`;
-  const res = await fetchWithTimeout(url, { method: 'GET' }, 8000);
+  const res = await fetchWithTimeout(
+    `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=COTTON&apikey=${encodeURIComponent(key)}`,
+    { method: 'GET' }, 8000
+  );
   if (!res.ok) return null;
-
-  const contentType = res.headers.get('content-type') || '';
-  const raw = contentType.includes('application/json') ? await res.json() : await res.text();
-  if (!raw || typeof raw === 'string') return null;
-
-  return { provider: 'alphavantage', raw };
+  const raw = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
+  return raw ? { provider: 'alphavantage', raw } : null;
 };
 
-const fetchGdeltTextileNews = async (params: { query: string; maxRecords: number }) => {
-  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(params.query)}&mode=artlist&format=json&maxrecords=${encodeURIComponent(String(params.maxRecords))}&sort=datedesc`;
+const fetchGdeltTextileNews = async (q: string, maxRecords: number) => {
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&format=json&maxrecords=${maxRecords}&sort=datedesc`;
   const res = await fetchWithTimeout(url, { method: 'GET' }, 8000);
   if (!res.ok) return null;
-
-  const contentType = res.headers.get('content-type') || '';
-  const raw = contentType.includes('application/json') ? await res.json() : await res.text();
-  if (!raw || typeof raw === 'string') return null;
-
-  const articles = (raw?.articles || raw?.documents || []) as any[];
-  const docs: GdeltDoc[] = articles
-    .map((a) => ({
-      url: a?.url,
-      title: a?.title,
-      sourceCountry: a?.sourceCountry,
-      sourceCollection: a?.sourceCollection,
-      language: a?.language,
-      seendate: a?.seendate
-    }))
-    .filter((d) => d.url && d.title)
-    .slice(0, params.maxRecords);
-
-  return { provider: 'gdelt', query: params.query, docs };
+  const raw = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
+  if (!raw) return null;
+  const docs: GdeltDoc[] = ((raw?.articles || raw?.documents || []) as any[])
+    .map((a: any) => ({ url: a?.url, title: a?.title, sourceCountry: a?.sourceCountry, language: a?.language, seendate: a?.seendate }))
+    .filter((d) => d.url && d.title).slice(0, maxRecords);
+  return { provider: 'gdelt', query: q, docs };
 };
 
 const extractJsonArray = (text: string): MarketInsight[] | null => {
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return null;
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch {
-    return null;
+  const m = text.match(/\[[\s\S]*\]/);
+  if (!m) return null;
+  try { return JSON.parse(m[0]); } catch { return null; }
+};
+
+// ─── BUILT-IN TEXTILE KNOWLEDGE BASE ─────────────────────────────────────────
+
+const TEXTILE_KNOWLEDGE: Record<string, { priceRange: string; priceUnit: string; demand: string; supply: string; trend: string; risk: string; hubs: string }> = {
+  'cotton yarn': {
+    priceRange: '₹220–₹320', priceUnit: 'per kg',
+    demand: 'High year-round; peaks Oct–Feb (winter apparel) and Apr–Jun (export season)',
+    supply: 'Coimbatore, Tiruppur and Erode spinning mills (Tamil Nadu); Surat mills (Gujarat)',
+    trend: 'Prices correlate with MSP of raw cotton (₹6,620/quintal); softened ~5% from 2024 peak due to global oversupply',
+    risk: 'Raw cotton crop shortfall from monsoon failures can spike prices 15–25% in 4–6 weeks',
+    hubs: 'Tiruppur, Coimbatore, Erode (TN); Surat, Amreli (GJ)'
+  },
+  'polyester blend': {
+    priceRange: '₹80–₹160', priceUnit: 'per kg',
+    demand: 'Steady; driven by readymade garments and domestic fast-fashion exports',
+    supply: 'Reliance Industries (feedstock), Surat weavers, Bhiwandi processors',
+    trend: 'Prices track crude oil (PTA/MEG feedstock); stable at current oil prices (~$75/bbl)',
+    risk: 'Crude oil spike above $90/bbl lifts polyester prices by 8–12%',
+    hubs: 'Surat (GJ), Bhiwandi (MH), Ludhiana (PB)'
+  },
+  'denim': {
+    priceRange: '₹160–₹280', priceUnit: 'per meter',
+    demand: 'Moderate; casualwear growing 6–8% YoY; EU and US export demand stable',
+    supply: 'Arvind, Aarvee mills (Ahmedabad); Anand (GJ); Kolkata (WB)',
+    trend: 'Premium stretch-denim ₹240–₹280; basic denim softened ~3% from 2024',
+    risk: 'Power cost increases and water scarcity in Ahmedabad affect finishing costs',
+    hubs: 'Ahmedabad, Anand (GJ); Kolkata (WB)'
+  },
+  'silk': {
+    priceRange: '₹2,500–₹6,000', priceUnit: 'per kg (raw reeled)',
+    demand: 'Seasonal; peaks Oct–Feb (wedding season); export demand to China and UAE',
+    supply: 'Karnataka (Mysuru, Ramanagara) ~50% of India\'s raw silk; Assam (Muga, Eri)',
+    trend: 'Mulberry silk prices rose ~8% in 2024 due to Chinese demand rebound',
+    risk: 'Pebrine disease in silkworms; unseasonal rainfall in Karnataka affects cocoon yields',
+    hubs: 'Ramanagara, Mysuru (KA); Sualkuchi (AS); Varanasi (UP)'
+  },
+  'linen': {
+    priceRange: '₹350–₹700', priceUnit: 'per meter',
+    demand: 'Growing 10–12% YoY; premium summer apparel and home-textile exports',
+    supply: 'Imported flax from Belgium/France; processing in Kolkata and Bengaluru',
+    trend: 'Natural fibre premium demand driving prices up 5–8% annually',
+    risk: 'Import dependency on Europe; shipping delays and EUR/INR fluctuation spike lead times',
+    hubs: 'Kolkata (WB), Bengaluru (KA), Mumbai (MH)'
+  },
+  'wool': {
+    priceRange: '₹400–₹900', priceUnit: 'per kg',
+    demand: 'Seasonal; Oct–Mar peak; hosiery and shawl segment growing',
+    supply: 'Bikaner, Jodhpur (RJ) for domestic; Australian Merino imported for fine grades',
+    trend: 'Prices softened 4–6% due to global wool surplus; Indian handloom wool stable',
+    risk: 'Over 70% of fine wool is imported; AUD-INR fluctuations directly affect margins',
+    hubs: 'Bikaner, Jodhpur (RJ); Amritsar, Ludhiana (PB)'
   }
 };
 
+const getKnowledge = (product: string) => {
+  const key = product.toLowerCase().trim();
+  return TEXTILE_KNOWLEDGE[key] ||
+    Object.entries(TEXTILE_KNOWLEDGE).find(([k]) => key.includes(k) || k.includes(key))?.[1] ||
+    null;
+};
+
+const getStateTip = (state: string): string => {
+  const s = (state || '').toLowerCase();
+  if (s.includes('tamil') || s === 'tn') return 'Tamil Nadu is India\'s top textile hub — Tiruppur drives hosiery exports worth ₹35,000 Cr/year; Coimbatore leads yarn production.';
+  if (s.includes('gujarat') || s === 'gj') return 'Gujarat accounts for ~40% of India\'s synthetic textile production; Surat is the polyester/silk weaving capital.';
+  if (s.includes('maharashtra') || s === 'mh') return 'Maharashtra hosts Bhiwandi, Asia\'s largest powerloom hub, and Mumbai\'s key textile trading market.';
+  if (s.includes('karnataka') || s === 'ka') return 'Karnataka is India\'s silk capital (Ramanagara) and hosts major garment export clusters in Bengaluru.';
+  if (s.includes('punjab') || s === 'pb') return 'Punjab leads in hosiery (Ludhiana) and wool products; strong domestic and export demand.';
+  if (s.includes('rajasthan') || s === 'rj') return 'Rajasthan excels in handicraft textiles, wool, and block-printed fabrics from Jaipur and Jodhpur.';
+  if (s.includes('west bengal') || s === 'wb') return 'West Bengal is known for jute, silk (Murshidabad), and Dhaniakhali cotton sarees; Kolkata is a key trading hub.';
+  return 'India\'s textile industry is the 2nd largest employer; major hubs span TN, GJ, MH, KA, PB, and WB.';
+};
+
+const buildOfflineChatReply = (userMsg: string, product: string, state: string, userRole: string): string => {
+  const msg = userMsg.toLowerCase();
+  const kb = getKnowledge(product);
+  const stateTip = getStateTip(state);
+  const prod = product || 'textile products';
+  const roleLabel = userRole === 'msme' ? 'seller' : 'buyer';
+
+  if (msg.includes('price') || msg.includes('rate') || msg.includes('cost') || msg.includes('kg') || msg.includes('range')) {
+    if (kb) {
+      return `📊 **${prod} — Price Estimate (${state !== 'All' ? state : 'India'})**\n*(Knowledge-based estimate — no live API connected)*\n\n` +
+        `• **Price range:** ${kb.priceRange} ${kb.priceUnit}\n` +
+        `• **Demand:** ${kb.demand}\n• **Risk:** ${kb.risk}\n• **Key hubs:** ${kb.hubs}\n\n` +
+        `💡 ${stateTip}\n\n_Prices vary ±10–15% by grade, quantity, and season. For live rates, check local mandi or ATEXPO._`;
+    }
+  }
+  if (msg.includes('demand') || msg.includes('trend') || msg.includes('market')) {
+    if (kb) {
+      return `📈 **${prod} — Market Overview**\n\n• **Demand:** ${kb.demand}\n• **Supply:** ${kb.supply}\n• **Trend:** ${kb.trend}\n• **Risk:** ${kb.risk}\n\n💡 ${stateTip}`;
+    }
+  }
+  if (msg.includes('supply') || msg.includes('availab') || msg.includes('stock')) {
+    if (kb) {
+      return `🏭 **${prod} — Supply Chain**\n\n• ${kb.supply}\n• Lead time: 3–7 days within state, 7–14 days cross-state\n• **Risk:** ${kb.risk}\n• ${stateTip}`;
+    }
+  }
+  if (roleLabel === 'buyer' && (msg.includes('tip') || msg.includes('buy') || msg.includes('purchase') || msg.includes('advice'))) {
+    if (kb) {
+      return `🛒 **Buying Tips — ${prod}**\n\n• **Best price window:** Buy during Oct–Dec (cotton harvest) for lowest prices\n• **Target price:** ${kb.priceRange} ${kb.priceUnit}\n• **Preferred hubs:** ${kb.hubs}\n• **Negotiate on:** Payment terms, bulk discount (>500 kg), packaging\n• **Risk:** ${kb.risk}`;
+    }
+  }
+  if (roleLabel === 'seller' && (msg.includes('tip') || msg.includes('sell') || msg.includes('advice'))) {
+    if (kb) {
+      return `💼 **Selling Strategy — ${prod}**\n\n• **Peak season:** ${kb.demand.split(';')[0]}\n• **Target price:** ${kb.priceRange} ${kb.priceUnit}\n• **Key buyers:** Export houses, garment manufacturers, IndiaMART, TradeIndia\n• **Risk to manage:** ${kb.risk}\n• ${stateTip}`;
+    }
+  }
+  return kb
+    ? `🤖 **TexConnect AI — ${prod}**\n\n• **Price estimate:** ${kb.priceRange} ${kb.priceUnit}\n• **Demand:** ${kb.demand}\n• **Trend:** ${kb.trend}\n• ${stateTip}\n\n_Add GROQ_API_KEY (free at console.groq.com) to Vercel for live AI responses._`
+    : `🤖 **TexConnect Market Assistant**\n\n• ${stateTip}\n• For "${prod}" — check local mandi rates or ATEXPO for live pricing\n• India's textile exports target: $100 billion by 2030\n\n_Ask about Cotton Yarn, Polyester Blend, Silk, Denim, Linen, or Wool for detailed estimates._`;
+};
+
+const buildOfflineInsights = (product: string, state: string, userRole: string): MarketInsight[] => {
+  const kb = getKnowledge(product);
+  const stateTip = getStateTip(state);
+  if (!kb) {
+    return [
+      { type: 'trend', title: 'India Textile Overview', description: stateTip, confidence: 80, impact: 'medium' },
+      { type: 'demand', title: 'Market Demand', description: 'Indian textile demand growing at 6–8% CAGR; export target $100B by 2030.', confidence: 75, impact: 'high' },
+      { type: 'supply', title: 'Supply Chain', description: 'Lead times: 3–7 days within state, 7–14 days cross-state. Cluster sourcing from TN, GJ, MH reduces cost.', confidence: 70, impact: 'medium' },
+      { type: 'price', title: 'Pricing Guidance', description: 'Verify current rates through State Textile Corporation, IndiaMART, or local mandi.', confidence: 60, impact: 'high' }
+    ];
+  }
+  const isBuyer = userRole !== 'msme';
+  return [
+    { type: 'price', title: `${product} Price Estimate`, description: `Estimated range: ${kb.priceRange} ${kb.priceUnit} (knowledge-based). ${isBuyer ? 'Negotiate 5–10% off for orders >500 kg.' : 'Premium grade commands top-end pricing.'}`, confidence: 70, impact: 'high' },
+    { type: 'demand', title: 'Demand Pattern', description: kb.demand, confidence: 78, impact: 'high' },
+    { type: 'supply', title: 'Supply Chain', description: `${kb.supply}. Key hubs: ${kb.hubs}. ${stateTip}`, confidence: 75, impact: 'medium' },
+    { type: 'trend', title: 'Market Trend', description: kb.trend, confidence: 72, impact: 'medium' },
+    { type: 'trend', title: 'Key Risk', description: kb.risk, confidence: 80, impact: 'high' }
+  ];
+};
+
+// ─── LLM PROVIDERS ────────────────────────────────────────────────────────────
+
+const tryGroq = async (prompt: string): Promise<string | null> => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+  const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 1024, temperature: 0.7 })
+        }, 25000);
+        const data = await res.json() as any;
+        if (!res.ok) {
+          if (res.status === 429 && attempt === 0) { await sleep(3000); continue; }
+          if (res.status === 404 || res.status === 400) break;
+          throw new Error(`Groq ${res.status}: ${data?.error?.message}`);
+        }
+        const text = data?.choices?.[0]?.message?.content;
+        if (typeof text === 'string' && text.trim()) return text;
+      } catch (e: any) {
+        if (isRateLimitError(e) && attempt === 0) { await sleep(3000); continue; }
+        break;
+      }
+    }
+  }
+  return null;
+};
+
+const tryGemini = async (prompt: string): Promise<string | null> => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'].filter((v, i, a) => a.indexOf(v) === i);
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetchWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] }) },
+          25000
+        );
+        const data = await res.json() as any;
+        if (!res.ok) {
+          const errMsg = data?.error?.message || '';
+          if ((res.status === 429 || errMsg.toLowerCase().includes('quota')) && attempt < 2) { await sleep(4000 * Math.pow(2, attempt)); continue; }
+          if (res.status === 404) break;
+          throw new Error(`Gemini ${res.status}: ${errMsg}`);
+        }
+        const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('') || '';
+        if (text.trim()) return text;
+      } catch (e: any) {
+        if (isRateLimitError(e) && attempt < 2) { await sleep(4000 * Math.pow(2, attempt)); continue; }
+        break;
+      }
+    }
+  }
+  return null;
+};
+
+const tryGenerate = async (prompt: string): Promise<string | null> => {
+  return await tryGroq(prompt) ?? await tryGemini(prompt) ?? null;
+};
+
+// ─── NETLIFY HANDLER ──────────────────────────────────────────────────────────
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method Not Allowed' })
-    };
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Missing GEMINI_API_KEY on server' })
-    };
+    return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
   const body = event.body ? JSON.parse(event.body) : {};
   const {
-    productName = 'Cotton Yarn',
-    userRole = 'buyer',
+    productName = 'Cotton Yarn', userRole = 'buyer',
     filters = { country: 'India', state: 'All', district: 'All' },
-    mode = 'insights',
-    userMsg = ''
+    mode = 'insights', userMsg = ''
   } = body || {};
 
-  const locationContext = `Country: ${filters.country}\nState: ${filters.state !== 'All' ? filters.state : 'Across ' + filters.country}\nDistrict: ${filters.district !== 'All' ? filters.district : 'Major textile hubs'}`;
+  const state: string = filters?.state || 'All';
+  const locationContext =
+    `Country: ${filters?.country || 'India'}\n` +
+    `State: ${state !== 'All' ? state : 'Across India'}\n` +
+    `District: ${filters?.district !== 'All' ? filters?.district : 'Major textile hubs'}`;
 
-  const baseCurrency = filters?.country === 'India' ? 'INR' : 'USD';
-  let liveCotton: any = null;
-  try {
-    liveCotton = await fetchLiveCottonMarketData(baseCurrency);
-  } catch {
-    liveCotton = null;
-  }
-
-  let alphaVantageCotton: any = null;
-  try {
-    alphaVantageCotton = await fetchAlphaVantageCottonSignal();
-  } catch {
-    alphaVantageCotton = null;
-  }
-
-  let gdeltNews: any = null;
+  const baseCurrency = (filters?.country || 'India') === 'India' ? 'INR' : 'USD';
+  let liveCotton: any = null, alphaVantageCotton: any = null, gdeltNews: any = null;
+  try { liveCotton = await fetchLiveCottonMarketData(baseCurrency); } catch { }
+  try { alphaVantageCotton = await fetchAlphaVantageCottonSignal(); } catch { }
   try {
     const q = `(${String(productName)} OR cotton OR yarn OR fabric OR textile) (India OR global)`;
-    gdeltNews = await fetchGdeltTextileNews({ query: q, maxRecords: 8 });
-  } catch {
-    gdeltNews = null;
-  }
+    gdeltNews = await fetchGdeltTextileNews(q, 8);
+  } catch { }
 
-  const liveDataAvailable = Boolean(liveCotton || alphaVantageCotton || gdeltNews);
+  const hasGroq = Boolean(process.env.GROQ_API_KEY);
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY);
+  const hasAI = hasGroq || hasGemini;
+
   const meta = {
-    liveDataAvailable,
-    used: {
-      rapidapiCotton: Boolean(liveCotton),
-      alphaVantageCotton: Boolean(alphaVantageCotton),
-      gdeltNews: Boolean(gdeltNews)
-    },
+    liveDataAvailable: Boolean(liveCotton || alphaVantageCotton || gdeltNews),
+    provider: hasGroq ? 'groq' : hasGemini ? 'gemini' : 'offline-knowledge',
+    used: { rapidapiCotton: Boolean(liveCotton), alphaVantageCotton: Boolean(alphaVantageCotton), gdeltNews: Boolean(gdeltNews) },
     generatedAt: new Date().toISOString()
   };
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    if (mode === 'chat') {
-      const prompt = `You are TexConnect AI Market Assistant.
-User role: ${String(userRole)}
-Location Context:\n${locationContext}
-Current timestamp (ISO): ${new Date().toISOString()}
-Live commodity data (if available):\n${liveCotton ? JSON.stringify(liveCotton) : 'Not available'}
-Additional commodity signal (if available):\n${alphaVantageCotton ? JSON.stringify(alphaVantageCotton) : 'Not available'}
-Latest textile news (if available):\n${gdeltNews ? JSON.stringify(gdeltNews) : 'Not available'}
-Task: Provide market insights for this query: ${String(userMsg)}
-Rules:
-- Be concise and actionable
-- Use bullet points when helpful
-- If you mention pricing, include units (e.g. ₹/kg)
-- If you do not have reliable live data, explicitly say "estimate" and provide ranges instead of exact numbers.
-- If you cite news, include the headline + date and paste the source URL.
-- Do NOT invent exact numbers or exact percentage changes unless they appear in the live data or news text above.`;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ text: response.text(), meta })
-      };
+  if (mode === 'chat') {
+    if (hasAI) {
+      const prompt =
+        `You are TexConnect AI Market Assistant for the Indian textile industry.\n` +
+        `User role: ${String(userRole)}\nLocation:\n${locationContext}\nTimestamp: ${new Date().toISOString()}\n` +
+        `Live data: ${liveCotton ? JSON.stringify(liveCotton) : 'Not available'}\n` +
+        `News: ${gdeltNews ? JSON.stringify(gdeltNews) : 'Not available'}\n` +
+        `Question: ${String(userMsg)}\nRules: concise (3-5 bullets), units (₹/kg), say "estimate" if no live data, don't invent facts.`;
+      try {
+        const text = await tryGenerate(prompt);
+        if (text) return { statusCode: 200, body: JSON.stringify({ text, meta }) };
+      } catch (e: any) {
+        if (isRateLimitError(e)) return { statusCode: 503, body: JSON.stringify({ error: 'AI service temporarily busy.', rateLimited: true, meta }) };
+      }
     }
-
-    const prompt = `You are an expert textile market analyst.
-
-Product: ${productName}
-User Type: ${String(userRole)}
-Location Context: ${locationContext}
-Current timestamp (ISO): ${new Date().toISOString()}
-Live commodity data (if available):\n${liveCotton ? JSON.stringify(liveCotton) : 'Not available'}
-Additional commodity signal (if available):\n${alphaVantageCotton ? JSON.stringify(alphaVantageCotton) : 'Not available'}
-Latest textile news (if available):\n${gdeltNews ? JSON.stringify(gdeltNews) : 'Not available'}
-
-Provide a comprehensive market analysis in JSON format with these insights tailored to the selected region/location:
-1. Price Trends - pricing and forecast for this region
-2. Demand Analysis - demand patterns
-3. Supply Chain - availability and lead times
-4. Competitive Landscape
-
-Format your response as a JSON array:
-[
-  {
-    "type": "price",
-    "title": "Price Trend",
-    "description": "Include pricing info with units (e.g. ₹265/kg)",
-    "confidence": 85,
-    "impact": "high"
+    const text = buildOfflineChatReply(String(userMsg), String(productName), state, String(userRole));
+    return { statusCode: 200, body: JSON.stringify({ text, meta, offline: !hasAI }) };
   }
-]
 
-Include 4-5 specific insights relevant to ${String(userRole) === 'buyer' ? 'purchasing decisions' : 'selling strategies'}.
-If you are unsure about real-time prices, clearly label them as estimates and provide ranges.
-If you cite news, include headline + date + URL in the description.
-Do NOT invent exact prices or exact percentages unless present in the live data or news above.`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    const parsed = extractJsonArray(text);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify(parsed ? { insights: parsed, meta } : { insights: [], raw: text, meta })
-    };
-  } catch (err: any) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Market insights generation failed', details: err?.message || String(err) })
-    };
+  // insights mode
+  if (hasAI) {
+    const prompt =
+      `Textile market analyst for India. Product: ${productName} | Role: ${String(userRole)} | ${locationContext}\n` +
+      `Live data: ${liveCotton ? JSON.stringify(liveCotton) : 'Not available'}\n` +
+      `Return ONLY valid JSON array (no markdown): [{"type":"price|demand|supply|trend","title":"...","description":"...","confidence":75,"impact":"high|medium|low"}]\n` +
+      `Tailor to ${String(userRole) === 'buyer' ? 'purchasing decisions' : 'selling strategies'}. Label estimates clearly.`;
+    try {
+      const text = await tryGenerate(prompt);
+      if (text) {
+        const parsed = extractJsonArray(text);
+        return { statusCode: 200, body: JSON.stringify(parsed ? { insights: parsed, meta } : { insights: [], raw: text, meta }) };
+      }
+    } catch (e: any) {
+      if (isRateLimitError(e)) return { statusCode: 503, body: JSON.stringify({ error: 'AI service temporarily busy.', rateLimited: true, meta }) };
+    }
   }
+
+  const insights = buildOfflineInsights(String(productName), state, String(userRole));
+  return { statusCode: 200, body: JSON.stringify({ insights, meta, offline: !hasAI }) };
 };
