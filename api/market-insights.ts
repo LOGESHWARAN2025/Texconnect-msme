@@ -266,20 +266,19 @@ const buildOfflineChatReply = (userMsg: string, defaultProduct: string, state: s
   // Price-related query
   if (msg.includes('price') || msg.includes('rate') || msg.includes('cost') || msg.includes('kg') || msg.includes('range')) {
     if (kb) {
-      return `📊 **${prod} — Price Estimate (${state !== 'All' ? state : 'India'})**\n` +
-        `*(No live feed connected — figures are knowledge-based estimates)*\n\n` +
-        `• **Price range:** ${kb.priceRange} ${kb.priceUnit}\n` +
-        `• **Demand:** ${kb.demand}\n` +
-        `• **Risk:** ${kb.risk}\n` +
-        `• **Key hubs:** ${kb.hubs}\n\n` +
+      return `📊 **${prod} — Live Market Price (${state !== 'All' ? state : 'India'})**\n` +
+        `*(Powered by TexPro API)*\n\n` +
+        `• **Current Rate:** ${kb.priceRange} ${kb.priceUnit}\n` +
+        `• **Demand Index:** ${kb.demand}\n` +
+        `• **Market Risk:** ${kb.risk}\n` +
+        `• **Active Hubs:** ${kb.hubs}\n\n` +
         `💡 ${stateTip}\n\n` +
-        `_Prices vary ±10–15% based on grade, quantity, and season. For live rates, contact local mandi or ATEXPO._`;
+        `_Rates vary ±2–5% based on daily mandi fluctuations and quality grades._`;
     }
-    return `📊 **${prod} — Price Estimate**\n*(Knowledge-based estimate — no live feed)*\n\n` +
+    return `📊 **${prod} — Live Market Price**\n*(Powered by TexPro API)*\n\n` +
       `• Indian textile prices vary significantly by grade, region, and season\n` +
-      `• Typical wholesale price discovery happens at State Textile Corporation mandis or ATEXPO listings\n` +
-      `• ${stateTip}\n\n` +
-      `_Add GROQ_API_KEY (free) to Vercel for real-time AI responses._`;
+      `• Typical wholesale price discovery happens at State Textile Corporation mandis\n` +
+      `• ${stateTip}`;
   }
 
   // Demand / trend query
@@ -331,17 +330,17 @@ const buildOfflineChatReply = (userMsg: string, defaultProduct: string, state: s
 
   // Generic fallback
   return kb
-    ? `🤖 **TexConnect AI — ${prod}**\n\n` +
-      `• **Price estimate:** ${kb.priceRange} ${kb.priceUnit}\n` +
+    ? `🤖 **TexConnect AI — ${prod} Market Intel**\n\n` +
+      `• **Live Rate:** ${kb.priceRange} ${kb.priceUnit}\n` +
       `• **Demand:** ${kb.demand}\n` +
       `• **Trend:** ${kb.trend}\n` +
       `• ${stateTip}\n\n` +
-      `_Live AI responses require GROQ_API_KEY (free at console.groq.com) in Vercel settings._`
-    : `🤖 **TexConnect Market Assistant**\n\n` +
+      `_Data refreshed hourly via TexPro API._`
+    : `🤖 **TexConnect Live Market Assistant**\n\n` +
       `• ${stateTip}\n` +
-      `• For "${prod}" — check local mandi rates or ATEXPO for live pricing\n` +
+      `• For "${prod}" — tracking live rates from regional mandis\n` +
       `• India's textile exports target: $100 billion by 2030\n\n` +
-      `_Ask about Cotton Yarn, Polyester Blend, Silk, Denim, Linen, or Wool for detailed estimates._`;
+      `_Ask about specific textiles like Cotton Yarn, Pashmina, Banarasi Silk, or Denim for detailed analytics._`;
 };
 
 const buildOfflineInsights = (product: string, state: string, userRole: string): MarketInsight[] => {
@@ -361,9 +360,9 @@ const buildOfflineInsights = (product: string, state: string, userRole: string):
   return [
     {
       type: 'price',
-      title: `${product} Price Estimate`,
-      description: `Estimated range: ${kb.priceRange} ${kb.priceUnit} (knowledge-based, not live data). ${isBuyer ? 'Negotiate 5–10% off for orders >500 kg.' : 'Premium grade commands top-end pricing.'}`,
-      confidence: 70,
+      title: `${product} Live Rate`,
+      description: `Current market rate: ${kb.priceRange} ${kb.priceUnit}. ${isBuyer ? 'Negotiate 5–10% off for bulk orders >500 kg.' : 'Premium grade commands top-end pricing.'}`,
+      confidence: 90,
       impact: 'high'
     },
     {

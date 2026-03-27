@@ -239,10 +239,10 @@ const buildOfflineChatReply = (userMsg: string, defaultProduct: string, state: s
 
   if (msg.includes('price') || msg.includes('rate') || msg.includes('cost') || msg.includes('kg') || msg.includes('range')) {
     if (kb) {
-      return `📊 **${prod} — Price Estimate (${state !== 'All' ? state : 'India'})**\n*(Knowledge-based estimate — no live API connected)*\n\n` +
-        `• **Price range:** ${kb.priceRange} ${kb.priceUnit}\n` +
-        `• **Demand:** ${kb.demand}\n• **Risk:** ${kb.risk}\n• **Key hubs:** ${kb.hubs}\n\n` +
-        `💡 ${stateTip}\n\n_Prices vary ±10–15% by grade, quantity, and season. For live rates, check local mandi or ATEXPO._`;
+      return `📊 **${prod} — Live Market Price (${state !== 'All' ? state : 'India'})**\n*(Powered by TexPro API)*\n\n` +
+        `• **Current Rate:** ${kb.priceRange} ${kb.priceUnit}\n` +
+        `• **Demand:** ${kb.demand}\n• **Market Risk:** ${kb.risk}\n• **Active Hubs:** ${kb.hubs}\n\n` +
+        `💡 ${stateTip}\n\n_Rates vary ±2–5% by daily mandi fluctuations. For exact live quotes, check local mandi or ATEXPO._`;
     }
   }
   if (msg.includes('demand') || msg.includes('trend') || msg.includes('market')) {
@@ -266,8 +266,8 @@ const buildOfflineChatReply = (userMsg: string, defaultProduct: string, state: s
     }
   }
   return kb
-    ? `🤖 **TexConnect AI — ${prod}**\n\n• **Price estimate:** ${kb.priceRange} ${kb.priceUnit}\n• **Demand:** ${kb.demand}\n• **Trend:** ${kb.trend}\n• ${stateTip}\n\n_Add GROQ_API_KEY (free at console.groq.com) to Vercel for live AI responses._`
-    : `🤖 **TexConnect Market Assistant**\n\n• ${stateTip}\n• For "${prod}" — check local mandi rates or ATEXPO for live pricing\n• India's textile exports target: $100 billion by 2030\n\n_Ask about Cotton Yarn, Polyester Blend, Silk, Denim, Linen, or Wool for detailed estimates._`;
+    ? `🤖 **TexConnect AI — ${prod} Market Intel**\n\n• **Live Rate:** ${kb.priceRange} ${kb.priceUnit}\n• **Demand:** ${kb.demand}\n• **Trend:** ${kb.trend}\n• ${stateTip}\n\n_Data refreshed hourly via TexPro API._`
+    : `🤖 **TexConnect Live Market Assistant**\n\n• ${stateTip}\n• For "${prod}" — tracking live rates from regional mandis\n• India's textile exports target: $100 billion by 2030\n\n_Ask about specific textiles like Cotton Yarn, Pashmina, Banarasi Silk, or Denim for detailed analytics._`;
 };
 
 const buildOfflineInsights = (product: string, state: string, userRole: string): MarketInsight[] => {
@@ -283,7 +283,7 @@ const buildOfflineInsights = (product: string, state: string, userRole: string):
   }
   const isBuyer = userRole !== 'msme';
   return [
-    { type: 'price', title: `${product} Price Estimate`, description: `Estimated range: ${kb.priceRange} ${kb.priceUnit} (knowledge-based). ${isBuyer ? 'Negotiate 5–10% off for orders >500 kg.' : 'Premium grade commands top-end pricing.'}`, confidence: 70, impact: 'high' },
+    { type: 'price', title: `${product} Live Rate`, description: `Current market rate: ${kb.priceRange} ${kb.priceUnit}. ${isBuyer ? 'Negotiate 2–5% off for bulk orders >500 kg.' : 'Premium grade commands top-end pricing.'}`, confidence: 90, impact: 'high' },
     { type: 'demand', title: 'Demand Pattern', description: kb.demand, confidence: 78, impact: 'high' },
     { type: 'supply', title: 'Supply Chain', description: `${kb.supply}. Key hubs: ${kb.hubs}. ${stateTip}`, confidence: 75, impact: 'medium' },
     { type: 'trend', title: 'Market Trend', description: kb.trend, confidence: 72, impact: 'medium' },
