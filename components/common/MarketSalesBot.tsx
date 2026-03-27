@@ -32,12 +32,62 @@ export default function MarketSalesBot() {
     }, [messages]);
 
     useEffect(() => {
-        // Simulating data fetch from TexPro API
-        setMarketTrends([
-            { state: 'Tamil Nadu', product: 'Cotton Yarn', trend: 'up', change: '+2.4%', volume: 'High' },
-            { state: 'Gujarat', product: 'Polyester Blend', trend: 'stable', change: '0%', volume: 'Medium' },
-            { state: 'Maharashtra', product: 'Denim', trend: 'down', change: '-1.2%', volume: 'Low' }
-        ]);
+        // Fabrics array including new additions
+        const fabrics = [
+            { state: 'Tamil Nadu', product: 'Cotton Yarn', defaultVol: 'High' },
+            { state: 'Varanasi', product: 'Banarasi Silk', defaultVol: 'High' },
+            { state: 'Kashmir', product: 'Pashmina', defaultVol: 'High' },
+            { state: 'Gujarat', product: 'Polyester Blend', defaultVol: 'Medium' },
+            { state: 'Kanchipuram', product: 'Kanchipuram Silk', defaultVol: 'High' },
+            { state: 'Maharashtra', product: 'Denim', defaultVol: 'Medium' },
+            { state: 'Telangana', product: 'Ikkat Silk', defaultVol: 'Low' },
+            { state: 'Ahmedabad', product: 'Organic Khadi', defaultVol: 'Medium' }
+        ];
+
+        const generateLiveTrends = () => {
+            // Pick 3 random fabrics to display
+            const shuffled = [...fabrics].sort(() => 0.5 - Math.random()).slice(0, 3);
+            
+            return shuffled.map(f => {
+                // Generate simulated live fluctuation logic
+                const isPositive = Math.random() > 0.4; // 60% chance to be up
+                let changeStr = '';
+                let trendVal: 'up' | 'down' | 'stable' = 'stable';
+                
+                if (Math.random() < 0.15) {
+                    changeStr = '0%';
+                } else {
+                    const diff = (Math.random() * 3.5 + 0.1).toFixed(1);
+                    changeStr = isPositive ? `+${diff}%` : `-${diff}%`;
+                    trendVal = isPositive ? 'up' : 'down';
+                }
+
+                // Randomly perturb volume
+                const volumes = ['Low', 'Medium', 'High'];
+                let vol = f.defaultVol;
+                if (Math.random() > 0.7) {
+                    vol = volumes[Math.floor(Math.random() * volumes.length)];
+                }
+
+                return { 
+                    state: f.state, 
+                    product: f.product, 
+                    trend: trendVal, 
+                    change: changeStr, 
+                    volume: vol 
+                };
+            });
+        };
+
+        // Initial fetch
+        setMarketTrends(generateLiveTrends());
+
+        // Simulate live API socket updates every 7 seconds
+        const liveFeedInterval = setInterval(() => {
+            setMarketTrends(generateLiveTrends());
+        }, 7000);
+
+        return () => clearInterval(liveFeedInterval);
     }, []);
 
     const startRetryCountdown = useCallback((seconds = 60) => {
