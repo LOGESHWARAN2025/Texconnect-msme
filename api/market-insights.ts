@@ -163,27 +163,27 @@ const TEXTILE_KNOWLEDGE: Record<string, {
     hubs: 'Ahmedabad (GJ); Varanasi (UP); Murshidabad (WB); Hubli (KA)'
   },
   'pashmina': {
-    priceRange: '₹8,000–₹25,000', priceUnit: 'per piece (shawl)',
-    demand: 'High luxury demand globally, peaks during winter (Nov-Feb)',
-    supply: 'Sourced from Changthangi goats in Ladakh, handwoven strictly in Kashmir',
-    trend: 'GI-tagged authentic Pashmina prices rising 8-10% YoY due to limited supply',
+    priceRange: '₹12,000–₹18,000', priceUnit: 'per kg (raw yarn)',
+    demand: 'High luxury raw material demand from premium winter export garment manufacturers',
+    supply: 'Sourced from Changthangi goats in Ladakh, hand-spun in Kashmir clusters',
+    trend: 'GI-tagged authentic Pashmina yarn prices rising 8-10% YoY due to limited supply',
     risk: 'High risk of counterfeits mixing sheep wool/silk; strict GI certification required',
     hubs: 'Srinagar (JK); Leh (Ladakh)'
   },
   'banarasi silk': {
-    priceRange: '₹5,000–₹40,000+', priceUnit: 'per piece / saree',
-    demand: 'Extremely high during wedding seasons; staple for bridal wear',
-    supply: 'Handwoven in Varanasi using pure silk and zari (gold/silver thread)',
-    trend: 'Authentic handloom pieces appreciating in value; powerloom imitations driving volume sales',
-    risk: 'Intense competition from cheaper powerloom duplicates from Surat',
+    priceRange: '₹1,500–₹6,000', priceUnit: 'per meter (handloom raw fabric)',
+    demand: 'High B2B sourcing demand from ethnic wear manufacturers and high-end boutique designers',
+    supply: 'Handwoven in Varanasi using raw mulberry silk and zari (gold/silver thread)',
+    trend: 'Authentic handloom fabric appreciating in value; powerloom imitations driving high-volume wholesale',
+    risk: 'Intense wholesale competition from cheaper powerloom duplicates from Surat',
     hubs: 'Varanasi (UP)'
   },
   'kanchipuram silk': {
-    priceRange: '₹8,000–₹50,000+', priceUnit: 'per piece / saree',
-    demand: 'Peak during South Indian wedding and festival seasons (Diwali, Pongal)',
-    supply: 'Exclusive handloom weaver clusters in Kanchipuram, pure mulberry silk with gold/silver zari from Surat',
-    trend: 'GI tagged; prices stable but premium for intricate pure zari work rising 5-7% annually',
-    risk: 'Zari material (silver/gold) price volatility impacts final cost significantly',
+    priceRange: '₹2,500–₹8,000', priceUnit: 'per meter (pure mulberry raw fabric)',
+    demand: 'Consistent sourcing from premium ethnic wear and bridal garment manufacturers',
+    supply: 'Exclusive handloom weaver clusters in Kanchipuram, pure mulberry silk yarn with gold/silver zari from Surat',
+    trend: 'GI tagged; raw fabric prices stable but premium for intricate pure zari weaving rising 5-7% annually',
+    risk: 'Raw silk yarn and Zari core material (silver/gold) price volatility impacts weaving cost significantly',
     hubs: 'Kanchipuram (TN)'
   },
   'ikkat': {
