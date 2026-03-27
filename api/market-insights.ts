@@ -36,6 +36,13 @@ type GdeltDoc = {
   seendate?: string;
 };
 
+const getGeminiModelName = () => {
+  const envModel = process.env.GEMINI_MODEL;
+  if (envModel && String(envModel).trim()) return String(envModel).trim();
+
+  return 'gemini-1.5-flash';
+};
+
 const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -216,7 +223,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const preferredModelName = getGeminiModelName();
+    const fallbackModelNames = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+    const modelNames = [preferredModelName, ...fallbackModelNames].filter(
+      (v, i, a) => Boolean(v) && a.indexOf(v) === i
+    );
+
+    const tryGenerate = async (prompt: string) => {
+      let lastErr: any;
+      for (const modelName of modelNames) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          return response.text();
+        } catch (e: any) {
+          lastErr = e;
+          const msg = String(e?.message || e);
+          const notFound = msg.includes('404') || msg.toLowerCase().includes('not found');
+          if (!notFound) throw e;
+        }
+      }
+      throw lastErr;
+    };
 
     if (mode === 'chat') {
       const prompt = `You are TexConnect AI Market Assistant.
@@ -236,9 +265,8 @@ Rules:
 - Do NOT invent exact numbers or exact percentage changes unless they appear in the live data or news text above.
 - If live data is NOT available, do NOT claim specific facts about specific cities/regions (e.g. "Tiruppur exports are up 5% this week"). Only provide general guidance and explain that live feed is unavailable.`;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      res.status(200).json({ text: response.text(), meta });
+      const text = await tryGenerate(prompt);
+      res.status(200).json({ text, meta });
       return;
     }
 
@@ -274,9 +302,7 @@ If you are unsure about real-time prices, clearly label them as estimates and pr
 If you cite news, include headline + date + URL in the description.
 Do NOT invent exact prices or exact percentages unless present in the live data or news above.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = await tryGenerate(prompt);
 
     const parsed = extractJsonArray(text);
     if (!parsed) {
