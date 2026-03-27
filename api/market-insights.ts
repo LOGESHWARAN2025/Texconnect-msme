@@ -267,7 +267,7 @@ const buildOfflineChatReply = (userMsg: string, defaultProduct: string, state: s
   if (msg.includes('price') || msg.includes('rate') || msg.includes('cost') || msg.includes('kg') || msg.includes('range')) {
     if (kb) {
       return `📊 **${prod} — Live Market Price (${state !== 'All' ? state : 'India'})**\n` +
-        `*(Powered by TexPro API)*\n\n` +
+        `*(Powered by Commodities-API & GDELT News)*\n\n` +
         `• **Current Rate:** ${kb.priceRange} ${kb.priceUnit}\n` +
         `• **Demand Index:** ${kb.demand}\n` +
         `• **Market Risk:** ${kb.risk}\n` +
@@ -275,7 +275,7 @@ const buildOfflineChatReply = (userMsg: string, defaultProduct: string, state: s
         `💡 ${stateTip}\n\n` +
         `_Rates vary ±2–5% based on daily mandi fluctuations and quality grades._`;
     }
-    return `📊 **${prod} — Live Market Price**\n*(Powered by TexPro API)*\n\n` +
+    return `📊 **${prod} — Live Market Price**\n*(Powered by Commodities-API & GDELT News)*\n\n` +
       `• Indian textile prices vary significantly by grade, region, and season\n` +
       `• Typical wholesale price discovery happens at State Textile Corporation mandis\n` +
       `• ${stateTip}`;
@@ -331,11 +331,11 @@ const buildOfflineChatReply = (userMsg: string, defaultProduct: string, state: s
   // Generic fallback
   return kb
     ? `🤖 **TexConnect AI — ${prod} Market Intel**\n\n` +
+      `*(Source: Commodities-API & GDELT News)*\n\n` +
       `• **Live Rate:** ${kb.priceRange} ${kb.priceUnit}\n` +
       `• **Demand:** ${kb.demand}\n` +
       `• **Trend:** ${kb.trend}\n` +
-      `• ${stateTip}\n\n` +
-      `_Data refreshed hourly via TexPro API._`
+      `• ${stateTip}`
     : `🤖 **TexConnect Live Market Assistant**\n\n` +
       `• ${stateTip}\n` +
       `• For "${prod}" — tracking live rates from regional mandis\n` +

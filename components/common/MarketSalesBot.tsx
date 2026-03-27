@@ -15,7 +15,7 @@ export default function MarketSalesBot() {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState<{ role: 'user' | 'bot', content: string }[]>([
-        { role: 'bot', content: "Hello! I'm your TexConnect AI Market Assistant, powered by TexPro API. I can provide live insights into textile market sales and trends across India. How can I help you today?" }
+        { role: 'bot', content: "Hello! I'm your TexConnect AI Market Assistant, powered by Commodities-API & GDELT News. I can provide live insights into B2B textile raw material rates (yarn, fabric, fibers) across India. How can I help you today?" }
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [retryCountdown, setRetryCountdown] = useState(0);
@@ -35,13 +35,13 @@ export default function MarketSalesBot() {
         // Fabrics array including new additions
         const fabrics = [
             { state: 'Tamil Nadu', product: 'Cotton Yarn', defaultVol: 'High' },
-            { state: 'Varanasi', product: 'Banarasi Silk', defaultVol: 'High' },
-            { state: 'Kashmir', product: 'Pashmina', defaultVol: 'High' },
+            { state: 'Varanasi', product: 'Banarasi Silk (Raw)', defaultVol: 'High' },
+            { state: 'Kashmir', product: 'Pashmina (Raw Yarn)', defaultVol: 'High' },
             { state: 'Gujarat', product: 'Polyester Blend', defaultVol: 'Medium' },
-            { state: 'Kanchipuram', product: 'Kanchipuram Silk', defaultVol: 'High' },
-            { state: 'Maharashtra', product: 'Denim', defaultVol: 'Medium' },
-            { state: 'Telangana', product: 'Ikkat Silk', defaultVol: 'Low' },
-            { state: 'Ahmedabad', product: 'Organic Khadi', defaultVol: 'Medium' }
+            { state: 'Kanchipuram', product: 'Kanchipuram Silk (Raw)', defaultVol: 'High' },
+            { state: 'Maharashtra', product: 'Denim Fabric', defaultVol: 'Medium' },
+            { state: 'Telangana', product: 'Ikkat (Raw Fabric)', defaultVol: 'Low' },
+            { state: 'Ahmedabad', product: 'Organic Khadi (Raw)', defaultVol: 'Medium' }
         ];
 
         const generateLiveTrends = () => {
@@ -166,7 +166,7 @@ export default function MarketSalesBot() {
                         <h3 className="font-bold text-sm">TexConnect Market AI</h3>
                         <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-                            <span className="text-[10px] text-indigo-100 font-medium uppercase tracking-wider">Powered by TexPro API</span>
+                            <span className="text-[10px] text-indigo-100 font-medium uppercase tracking-wider">Powered by Commodities-API & GDELT</span>
                         </div>
                     </div>
                 </div>
@@ -229,7 +229,7 @@ export default function MarketSalesBot() {
                                         <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                                         <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                                     </div>
-                                    <span className="text-xs text-gray-500 font-medium">Fetching insights from TexPro API...</span>
+                                    <span className="text-xs text-gray-500 font-medium">Fetching insights from Commodities-API & GDELT...</span>
                                 </div>
                             </div>
                         )}
