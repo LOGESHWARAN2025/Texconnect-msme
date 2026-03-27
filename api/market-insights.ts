@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI } from '@google/genai';
 
 type MarketInsight = {
   type: 'price' | 'demand' | 'supply' | 'trend';
@@ -34,11 +33,18 @@ type GdeltDoc = {
   seendate?: string;
 };
 
-const getGeminiModelName = () => {
-  const envModel = process.env.GEMINI_MODEL;
-  if (envModel && String(envModel).trim()) return String(envModel).trim();
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
-  return 'gemini-2.0-flash';
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRateLimitError = (e: any): boolean => {
+  const msg = String(e?.message || e);
+  return (
+    msg.includes('429') ||
+    msg.toLowerCase().includes('resource_exhausted') ||
+    msg.toLowerCase().includes('too many requests') ||
+    msg.toLowerCase().includes('quota')
+  );
 };
 
 const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: number) => {
@@ -52,47 +58,28 @@ const fetchWithTimeout = async (url: string, init: RequestInit, timeoutMs: numbe
   }
 };
 
+// ─── live market data fetchers ─────────────────────────────────────────────────
+
 const fetchLiveCottonMarketData = async (baseCurrency: string) => {
   const key = process.env.RAPIDAPI_KEY;
   const host = process.env.RAPIDAPI_HOST;
-
-  if (!key || !host) {
-    return null;
-  }
+  if (!key || !host) return null;
 
   const url = `https://${host}/rates?base_currency=${encodeURIComponent(baseCurrency)}&symbols=COTTON`;
-  const res = await fetchWithTimeout(
-    url,
-    {
-      method: 'GET',
-      headers: {
-        'X-RapidAPI-Key': key,
-        'X-RapidAPI-Host': host
-      }
-    },
-    8000
-  );
-
-  if (!res.ok) {
-    return null;
-  }
+  const res = await fetchWithTimeout(url, {
+    method: 'GET',
+    headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': host }
+  }, 8000);
+  if (!res.ok) return null;
 
   const contentType = res.headers.get('content-type') || '';
   const raw = contentType.includes('application/json') ? await res.json() : await res.text();
-  if (!raw || typeof raw === 'string') {
-    return null;
-  }
+  if (!raw || typeof raw === 'string') return null;
 
   const data = raw as RapidApiCommoditiesMarketDataResponse;
-  if (!data.success || !data.rates) {
-    return null;
-  }
+  if (!data.success || !data.rates) return null;
 
-  return {
-    base_currency: data.base_currency || baseCurrency,
-    cotton: data.rates?.COTTON || null,
-    provider: 'rapidapi'
-  };
+  return { base_currency: data.base_currency || baseCurrency, cotton: data.rates?.COTTON || null, provider: 'rapidapi' };
 };
 
 const fetchAlphaVantageCottonSignal = async () => {
@@ -122,18 +109,16 @@ const fetchGdeltTextileNews = async (params: { query: string; maxRecords: number
   const articles = (raw?.articles || raw?.documents || []) as any[];
   const docs: GdeltDoc[] = articles
     .map((a) => ({
-      url: a?.url,
-      title: a?.title,
-      sourceCountry: a?.sourceCountry,
-      sourceCollection: a?.sourceCollection,
-      language: a?.language,
-      seendate: a?.seendate
+      url: a?.url, title: a?.title, sourceCountry: a?.sourceCountry,
+      sourceCollection: a?.sourceCollection, language: a?.language, seendate: a?.seendate
     }))
     .filter((d) => d.url && d.title)
     .slice(0, params.maxRecords);
 
   return { provider: 'gdelt', query: params.query, docs };
 };
+
+// ─── body reader ──────────────────────────────────────────────────────────────
 
 const readBody = async (req: VercelRequest): Promise<any> => {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -144,22 +129,158 @@ const readBody = async (req: VercelRequest): Promise<any> => {
   }
   const raw = Buffer.concat(chunks).toString('utf8');
   if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(raw); } catch { return {}; }
 };
 
 const extractJsonArray = (text: string): MarketInsight[] | null => {
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return null;
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(jsonMatch[0]); } catch { return null; }
 };
+
+// ─── LLM providers ────────────────────────────────────────────────────────────
+
+/**
+ * Groq – FREE tier, no billing required.
+ * Free limits: 30 req/min, 14,400 req/day on llama-3.3-70b-versatile
+ * Sign up at https://console.groq.com and copy the key to GROQ_API_KEY env var.
+ */
+const tryGroq = async (prompt: string): Promise<string | null> => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  // Model priority list: fast & free models first
+  const models = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'mixtral-8x7b-32768',
+    'gemma2-9b-it'
+  ];
+
+  let lastErr: any;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetchWithTimeout(
+          'https://api.groq.com/openai/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'user', content: prompt }],
+              max_tokens: 1024,
+              temperature: 0.7
+            })
+          },
+          25000
+        );
+
+        const data = await res.json() as any;
+
+        if (!res.ok) {
+          const errMsg = data?.error?.message || res.statusText;
+          if (res.status === 429 && attempt === 0) {
+            await sleep(3000);
+            continue;
+          }
+          if (res.status === 404 || res.status === 400) break; // try next model
+          throw new Error(`Groq ${res.status}: ${errMsg}`);
+        }
+
+        const text = data?.choices?.[0]?.message?.content;
+        if (typeof text === 'string' && text.trim()) return text;
+        throw new Error('Empty Groq response');
+
+      } catch (e: any) {
+        lastErr = e;
+        if (isRateLimitError(e) && attempt === 0) {
+          await sleep(3000);
+          continue;
+        }
+        break;
+      }
+    }
+  }
+
+  console.warn('Groq failed:', lastErr?.message || lastErr);
+  return null;
+};
+
+/**
+ * Gemini – falls back to this only if GEMINI_API_KEY is set.
+ * The FREE tier at ai.google.dev gives 15 RPM on gemini-1.5-flash (no billing needed).
+ */
+const tryGemini = async (prompt: string): Promise<string | null> => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const models = [
+    process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-2.0-flash'
+  ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
+
+  let lastErr: any;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const res = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+        }, 25000);
+
+        const data = await res.json() as any;
+
+        if (!res.ok) {
+          const errMsg = data?.error?.message || res.statusText;
+          if ((res.status === 429 || errMsg.toLowerCase().includes('quota')) && attempt < 2) {
+            await sleep(4000 * Math.pow(2, attempt));
+            continue;
+          }
+          if (res.status === 404) break;
+          throw new Error(`Gemini ${res.status}: ${errMsg}`);
+        }
+
+        const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('') || '';
+        if (text.trim()) return text;
+        throw new Error('Empty Gemini response');
+
+      } catch (e: any) {
+        lastErr = e;
+        if (isRateLimitError(e) && attempt < 2) {
+          await sleep(4000 * Math.pow(2, attempt));
+          continue;
+        }
+        break;
+      }
+    }
+  }
+
+  console.warn('Gemini failed:', lastErr?.message || lastErr);
+  return null;
+};
+
+/** Tries Groq first (free), then Gemini. Throws if both fail. */
+const generate = async (prompt: string): Promise<string> => {
+  const groqResult = await tryGroq(prompt);
+  if (groqResult) return groqResult;
+
+  const geminiResult = await tryGemini(prompt);
+  if (geminiResult) return geminiResult;
+
+  throw new Error(
+    'Both AI providers failed. Please set GROQ_API_KEY (free at console.groq.com) or GEMINI_API_KEY in your Vercel environment variables.'
+  );
+};
+
+// ─── main handler ─────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -167,9 +288,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    res.status(500).json({ error: 'Missing GEMINI_API_KEY on server' });
+  const hasGroq = Boolean(process.env.GROQ_API_KEY);
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY);
+
+  if (!hasGroq && !hasGemini) {
+    res.status(500).json({
+      error: 'No AI provider configured. Add GROQ_API_KEY (free) or GEMINI_API_KEY to your environment variables.',
+      setup: 'Get a free Groq key at https://console.groq.com'
+    });
     return;
   }
 
@@ -187,30 +313,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const baseCurrency = filters?.country === 'India' ? 'INR' : 'USD';
   let liveCotton: any = null;
-  try {
-    liveCotton = await fetchLiveCottonMarketData(baseCurrency);
-  } catch (e) {
-    liveCotton = null;
-  }
-
   let alphaVantageCotton: any = null;
-  try {
-    alphaVantageCotton = await fetchAlphaVantageCottonSignal();
-  } catch {
-    alphaVantageCotton = null;
-  }
-
   let gdeltNews: any = null;
+
+  try { liveCotton = await fetchLiveCottonMarketData(baseCurrency); } catch { liveCotton = null; }
+  try { alphaVantageCotton = await fetchAlphaVantageCottonSignal(); } catch { alphaVantageCotton = null; }
   try {
     const q = `(${String(productName)} OR cotton OR yarn OR fabric OR textile) (India OR global)`;
     gdeltNews = await fetchGdeltTextileNews({ query: q, maxRecords: 8 });
-  } catch {
-    gdeltNews = null;
-  }
+  } catch { gdeltNews = null; }
 
   const liveDataAvailable = Boolean(liveCotton || alphaVantageCotton || gdeltNews);
   const meta = {
     liveDataAvailable,
+    provider: hasGroq ? 'groq' : 'gemini',
     used: {
       rapidapiCotton: Boolean(liveCotton),
       alphaVantageCotton: Boolean(alphaVantageCotton),
@@ -220,65 +336,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const preferredModelName = getGeminiModelName();
-    const fallbackModelNames = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
-    const modelNames = [preferredModelName, ...fallbackModelNames].filter(
-      (v, i, a) => Boolean(v) && a.indexOf(v) === i
-    );
-
-    const tryGenerate = async (prompt: string) => {
-      let lastErr: any;
-      for (const modelName of modelNames) {
-        try {
-          const result = await ai.models.generateContent({
-            model: modelName,
-            contents: [{ role: 'user', parts: [{ text: prompt }] }]
-          });
-
-          const text = (result as any)?.text;
-          if (typeof text === 'string' && text.trim()) return text;
-
-          const candidates = (result as any)?.candidates;
-          const fromCandidates =
-            candidates?.[0]?.content?.parts?.map((p: any) => p?.text).filter(Boolean).join('') || '';
-          if (fromCandidates.trim()) return fromCandidates;
-
-          throw new Error('Empty response from Gemini');
-        } catch (e: any) {
-          lastErr = e;
-          const msg = String(e?.message || e);
-          const notFound = msg.includes('404') || msg.toLowerCase().includes('not found');
-          if (!notFound) throw e;
-        }
-      }
-      throw lastErr;
-    };
-
     if (mode === 'chat') {
-      const prompt = `You are TexConnect AI Market Assistant.
+      const prompt = `You are TexConnect AI Market Assistant for the Indian textile industry.
 User role: ${String(userRole)}
 Location Context:\n${locationContext}
 Current timestamp (ISO): ${new Date().toISOString()}
 Live commodity data (if available):\n${liveCotton ? JSON.stringify(liveCotton) : 'Not available'}
 Additional commodity signal (if available):\n${alphaVantageCotton ? JSON.stringify(alphaVantageCotton) : 'Not available'}
 Latest textile news (if available):\n${gdeltNews ? JSON.stringify(gdeltNews) : 'Not available'}
-Task: Provide market insights for this query: ${String(userMsg)}
+Task: Answer this question: ${String(userMsg)}
 Rules:
-- Be concise and actionable
-- Use bullet points when helpful
+- Be concise and actionable (3-5 bullet points max)
 - If you mention pricing, include units (e.g. ₹/kg)
-- If you do not have reliable live data, explicitly say "estimate" and provide ranges instead of exact numbers.
-- If you cite news, include the headline + date and paste the source URL.
-- Do NOT invent exact numbers or exact percentage changes unless they appear in the live data or news text above.
-- If live data is NOT available, do NOT claim specific facts about specific cities/regions (e.g. "Tiruppur exports are up 5% this week"). Only provide general guidance and explain that live feed is unavailable.`;
+- If live data is unavailable, say "estimate" and give ranges instead of exact numbers
+- Do NOT invent specific facts about cities/regions unless they appear in the live data above
+- If live data IS available, cite it explicitly`;
 
-      const text = await tryGenerate(prompt);
+      const text = await generate(prompt);
       res.status(200).json({ text, meta });
       return;
     }
 
-    const prompt = `You are an expert textile market analyst.
+    const prompt = `You are an expert textile market analyst for India.
 
 Product: ${productName}
 User Type: ${String(userRole)}
@@ -288,38 +367,37 @@ Live commodity data (if available):\n${liveCotton ? JSON.stringify(liveCotton) :
 Additional commodity signal (if available):\n${alphaVantageCotton ? JSON.stringify(alphaVantageCotton) : 'Not available'}
 Latest textile news (if available):\n${gdeltNews ? JSON.stringify(gdeltNews) : 'Not available'}
 
-Provide a comprehensive market analysis in JSON format with these insights tailored to the selected region/location:
-1. Price Trends - pricing and forecast for this region
-2. Demand Analysis - demand patterns
-3. Supply Chain - availability and lead times
-4. Competitive Landscape
-
-Format your response as a JSON array:
+Provide a market analysis as a JSON array with 4-5 insights:
 [
   {
     "type": "price",
     "title": "Price Trend",
-    "description": "Include pricing info with units (e.g. ₹265/kg)",
-    "confidence": 85,
+    "description": "Include pricing info with units (e.g. ₹265/kg). If unsure, label as 'estimate' and give a range.",
+    "confidence": 75,
     "impact": "high"
   }
 ]
 
-Include 4-5 specific insights relevant to ${String(userRole) === 'buyer' ? 'purchasing decisions' : 'selling strategies'}.
-If you are unsure about real-time prices, clearly label them as estimates and provide ranges.
-If you cite news, include headline + date + URL in the description.
-Do NOT invent exact prices or exact percentages unless present in the live data or news above.`;
+Types: "price", "demand", "supply", "trend"
+Impact: "high", "medium", "low"
+Tailor insights to ${String(userRole) === 'buyer' ? 'purchasing decisions' : 'selling strategies'}.
+Respond with ONLY valid JSON array, no markdown fences.`;
 
-    const text = await tryGenerate(prompt);
-
+    const text = await generate(prompt);
     const parsed = extractJsonArray(text);
     if (!parsed) {
       res.status(200).json({ insights: [], raw: text, meta });
       return;
     }
-
     res.status(200).json({ insights: parsed, meta });
+
   } catch (err: any) {
-    res.status(500).json({ error: 'Market insights generation failed', details: err?.message || String(err) });
+    const errMsg = String(err?.message || err);
+    const isQuota = isRateLimitError(err);
+    const statusCode = isQuota ? 503 : 500;
+    const userFriendly = isQuota
+      ? 'The AI service is temporarily busy. Please wait a moment and try again.'
+      : errMsg;
+    res.status(statusCode).json({ error: userFriendly, details: errMsg, rateLimited: isQuota });
   }
 }

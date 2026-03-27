@@ -19,7 +19,7 @@ type InsightsResponse =
   | { insights: []; raw: string; error?: never }
   | { insights: []; raw?: never; error: string; details?: string };
 
-type ChatResponse = { text?: string; error?: string; details?: string };
+type ChatResponse = { text?: string; error?: string; details?: string; rateLimited?: boolean };
 
 const getBaseUrl = () => {
   const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -47,6 +47,10 @@ const postJson = async <T>(url: string, payload: any): Promise<T> => {
   const data = contentType.includes('application/json') ? await res.json() : await res.text();
 
   if (!res.ok) {
+    // For rate-limit / quota errors the server returns a structured JSON body — pass it through.
+    if (res.status === 503 && typeof data === 'object' && data?.rateLimited) {
+      return data as T;
+    }
     const message = typeof data === 'string' ? data : data?.error || res.statusText;
     const details = typeof data === 'string' ? undefined : data?.details;
     throw new Error(details ? `${message}: ${details}` : message);

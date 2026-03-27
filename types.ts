@@ -94,6 +94,7 @@ export interface Product {
   id: string; // Firestore Document ID
   msmeId: string; // User UID
   name: string;
+  category?: string; // Product category / material type
   description: string;
   price: number;
   stock: number; // Current stock

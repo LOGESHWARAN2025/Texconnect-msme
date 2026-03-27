@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageSquare, Send, Bot, Sparkles, MapPin, TrendingUp, Search, Globe, X } from 'lucide-react';
 import { TranslatedText } from '../common/TranslatedText';
 import { fetchMarketChatReply } from '../../src/services/market/marketInsightsService';
@@ -18,8 +18,10 @@ export default function MarketSalesBot() {
         { role: 'bot', content: "Hello! I'm your TexConnect AI Market Assistant, powered by TexPro API. I can provide live insights into textile market sales and trends across India. How can I help you today?" }
     ]);
     const [isLoading, setIsLoading] = useState(false);
+    const [retryCountdown, setRetryCountdown] = useState(0);
     const [marketTrends, setMarketTrends] = useState<MarketData[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,8 +40,25 @@ export default function MarketSalesBot() {
         ]);
     }, []);
 
+    const startRetryCountdown = useCallback((seconds = 60) => {
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        setRetryCountdown(seconds);
+        countdownRef.current = setInterval(() => {
+            setRetryCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(countdownRef.current!);
+                    countdownRef.current = null;
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    }, []);
+
+    useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
+
     const handleSend = async () => {
-        if (!input.trim() || isLoading) return;
+        if (!input.trim() || isLoading || retryCountdown > 0) return;
 
         const userMsg = input;
         setInput('');
@@ -53,15 +72,32 @@ export default function MarketSalesBot() {
                 userMsg
             });
 
+            if ((result as any)?.rateLimited) {
+                startRetryCountdown(60);
+                setMessages(prev => [...prev, { role: 'bot', content: '⏳ The AI service is temporarily busy (quota limit reached). Please wait a moment and try again.' }]);
+                return;
+            }
+
             if (result?.error) {
-                setMessages(prev => [...prev, { role: 'bot', content: `${result.error}${result.details ? ` (${result.details})` : ''}` }]);
+                const isQuota = result.error.toLowerCase().includes('quota') || result.error.toLowerCase().includes('busy');
+                if (isQuota) startRetryCountdown(60);
+                const detail = result.details ? `\n${result.details}` : '';
+                setMessages(prev => [...prev, { role: 'bot', content: `⚠️ ${result.error}${detail}` }]);
                 return;
             }
 
             setMessages(prev => [...prev, { role: 'bot', content: result?.text || 'No response' }]);
         } catch (error) {
             console.error("AI Assistant Error:", error);
-            setMessages(prev => [...prev, { role: 'bot', content: error instanceof Error ? error.message : 'Unexpected error' }]);
+            const msg = error instanceof Error ? error.message : 'Unexpected error';
+            const isQuota = msg.toLowerCase().includes('quota') || msg.includes('429') || msg.includes('503');
+            if (isQuota) startRetryCountdown(60);
+            setMessages(prev => [...prev, {
+                role: 'bot',
+                content: isQuota
+                    ? '⏳ The AI service is temporarily busy due to high demand. Please wait a moment and try again.'
+                    : `⚠️ ${msg}`
+            }]);
         } finally {
             setIsLoading(false);
         }
@@ -158,14 +194,19 @@ export default function MarketSalesBot() {
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                                 placeholder="Ask about product prices, state levels, or trends..."
-                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+                                disabled={isLoading || retryCountdown > 0}
+                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                             />
                             <button
                                 onClick={handleSend}
-                                disabled={isLoading || !input.trim()}
+                                disabled={isLoading || !input.trim() || retryCountdown > 0}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-md shadow-indigo-200"
                             >
-                                <Send className="h-4 w-4" />
+                                {retryCountdown > 0 ? (
+                                    <span className="text-[10px] font-bold px-1">{retryCountdown}s</span>
+                                ) : (
+                                    <Send className="h-4 w-4" />
+                                )}
                             </button>
                         </div>
                         <div className="flex items-center gap-4 mt-3 px-1">
