@@ -64,7 +64,7 @@ const QRCodeStickerPrinter: React.FC<QRCodeStickerPrinterProps> = ({ isOpen, onC
         .update({
           totalunits: stickerCount,
           printedunits: stickerCount,
-          updatedat: new Date().toISOString()
+          updatedAt: new Date().toISOString()
         })
         .eq('id', order.id)
         .select('id, totalunits, printedunits')

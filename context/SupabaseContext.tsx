@@ -1139,7 +1139,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('orders')
       .update({
         status,
-        updatedat: new Date().toISOString() // Explicitly update timestamp
+        scannedunits: [], // Reset scanned units to require re-scan for next stage
+        updatedAt: new Date().toISOString() // Explicitly update timestamp
       })
       .eq('id', orderId)
       .select();
@@ -1154,6 +1155,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       });
       throw error;
     }
+    
+    // Explicitly check for silent RLS failures (0 rows updated but no hard error)
+    if (!error && data && data.length === 0) {
+      const msg = "Database Security Blocked Update! (Row Level Security policy prevents buyers from updating the order). Please add an RLS policy allowing updates by the buyer.";
+      console.error('❌', msg);
+      throw new Error(msg);
+    }
 
     console.log('✅ Order status updated successfully');
     console.log('Updated order:', data);
@@ -1167,7 +1175,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('orders')
       .update({
         scannedunits: scannedUnits,
-        updatedat: new Date().toISOString()
+        updatedAt: new Date().toISOString()
       })
       .eq('id', orderId);
 

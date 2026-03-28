@@ -35,7 +35,7 @@ const getNextStatus = (status: OrderStatus): OrderStatus | null => {
     case 'Shipped':
       return 'Out for Delivery';
     case 'Out for Delivery':
-      return 'Delivered';
+      return null; // MSME cannot mark Delivered; Buyer must scan to mark Delivered
     default:
       return null;
   }
@@ -48,6 +48,7 @@ const OrdersView: React.FC = () => {
   const [printingQROrder, setPrintingQROrder] = useState<Order | null>(null);
   const [scanningOrder, setScanningOrder] = useState<Order | null>(null);
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ orderId: string, status: OrderStatus } | null>(null);
+  const [localScannedCounts, setLocalScannedCounts] = useState<Record<string, number>>({});
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const userProductIds = useMemo(() => {
@@ -268,6 +269,7 @@ const OrdersView: React.FC = () => {
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('order_id')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('buyer_name')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('item_name')}</th>
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Qty</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('date')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('delivery_date')}</th>
                   <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t('total')}</th>
@@ -286,6 +288,9 @@ const OrdersView: React.FC = () => {
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap">
                       <div className="text-xs font-bold text-slate-500">{order.itemName || t('not_applicable')}</div>
+                    </td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="text-sm font-black text-slate-700">{order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || order.totalUnits || 1}</div>
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap">
                       <div className="text-xs font-bold text-slate-600">{formatDate(order.createdAt || order.date || new Date().toISOString())}</div>
@@ -337,11 +342,10 @@ const OrdersView: React.FC = () => {
                         ) : (
                           (() => {
                             const total = order.printedUnits || order.totalUnits || 0;
-                            const scanned = order.scannedUnits?.length || 0;
+                            const scanned = localScannedCounts[order.id] !== undefined ? localScannedCounts[order.id] : (order.scannedUnits?.length || 0);
                             const verified = total === 0 || scanned >= total;
                             const next = getNextStatus(order.status);
-                            const canAdvance = Boolean(next) && verified;
-
+                            
                             if (!next) {
                               return (
                                 <button
@@ -357,11 +361,16 @@ const OrdersView: React.FC = () => {
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => handleStatusChange(order.id, next)}
-                                  disabled={updatingOrderId === order.id || !canAdvance}
-                                  className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${canAdvance ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0' : 'bg-slate-100 text-slate-400 opacity-60 cursor-not-allowed'}`}
-                                  title={!verified ? `Scan ${Math.max(total - scanned, 0)} more boxes to unlock` : ''}
+                                  disabled={updatingOrderId === order.id}
+                                  className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${verified ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0' : 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20 hover:-translate-y-0.5 active:translate-y-0'}`}
+                                  title={!verified ? `Click to scan ${Math.max(total - scanned, 0)} more boxes` : 'Click to update state'}
                                 >
-                                  {t(next.toLowerCase()) || next}
+                                  {!verified && (
+                                    <svg className="w-3.5 h-3.5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    </svg>
+                                  )}
+                                  <span>{t(next.toLowerCase()) || next}</span>
                                 </button>
                               </div>
                             );
@@ -378,30 +387,36 @@ const OrdersView: React.FC = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                             </button>
-                            <button
-                              onClick={() => setPrintingQROrder(order)}
-                              className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all hover:-translate-y-1 shadow-sm border border-slate-100"
-                              title={t('qr_sticker')}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => setScanningOrder(order)}
-                              className="relative p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-green-600 hover:text-white transition-all hover:-translate-y-1 shadow-sm border border-slate-100"
-                              title={t('scan_units')}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              {order.totalUnits && order.totalUnits > 0 && (
-                                <span className={`absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[8px] font-black border ${order.scannedUnits?.length === order.totalUnits ? 'bg-green-500 text-white border-green-600' : 'bg-yellow-400 text-yellow-900 border-yellow-500'}`}>
-                                  {order.scannedUnits?.length || 0}/{order.totalUnits}
-                                </span>
-                              )}
-                            </button>
+                            
+                            {/* Hide QR buttons for MSME when Out for Delivery or Delivered */}
+                            {order.status !== 'Out for Delivery' && order.status !== 'Delivered' && (
+                              <>
+                                <button
+                                  onClick={() => setPrintingQROrder(order)}
+                                  className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all hover:-translate-y-1 shadow-sm border border-slate-100"
+                                  title={t('qr_sticker')}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => setScanningOrder(order)}
+                                  className="relative p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-green-600 hover:text-white transition-all hover:-translate-y-1 shadow-sm border border-slate-100"
+                                  title={t('scan_units')}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  {order.totalUnits && order.totalUnits > 0 ? (
+                                    <span className={`absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[8px] font-black border ${order.scannedUnits?.length === order.totalUnits ? 'bg-green-500 text-white border-green-600' : 'bg-yellow-400 text-yellow-900 border-yellow-500'}`}>
+                                      {order.scannedUnits?.length || 0}/{order.totalUnits}
+                                    </span>
+                                  ) : null}
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -439,15 +454,21 @@ const OrdersView: React.FC = () => {
         onClose={() => setScanningOrder(null)}
         order={scanningOrder}
         onScanComplete={(scannedIds) => {
-          // Scanner already persisted to Supabase internally on each scan.
-          // Nothing extra needed here — just log for debugging.
-          console.log('📊 Scan progress update:', scannedIds.length, 'units scanned');
+          if (scanningOrder) {
+            setLocalScannedCounts(prev => ({ ...prev, [scanningOrder.id]: scannedIds.length }));
+          }
         }}
         onConfirmClose={() => {
-          // User clicked "Confirm" after scanning all units.
-          // If there's a pending status update, let the verification dialog take over.
-          // It will re-check the latest scannedUnits from the refreshed order.
-          console.log('✅ Scanner confirmed — checking pending status update');
+          if (scanningOrder) {
+            // If they manually opened the scanner (pendingStatusUpdate is null),
+            // auto-trigger the status update dialog for the next logical state.
+            if (!pendingStatusUpdate) {
+               const next = getNextStatus(scanningOrder.status);
+               if (next) {
+                  setPendingStatusUpdate({ orderId: scanningOrder.id, status: next });
+               }
+            }
+          }
         }}
       />
 
@@ -457,7 +478,7 @@ const OrdersView: React.FC = () => {
         if (!order) return null;
 
         const total = order.printedUnits || order.totalUnits || 0;
-        const scanned = order.scannedUnits?.length || 0;
+        const scanned = localScannedCounts[order.id] !== undefined ? localScannedCounts[order.id] : (order.scannedUnits?.length || 0);
         const remaining = total - scanned;
         const isVerified = total > 0 && scanned === total;
 
