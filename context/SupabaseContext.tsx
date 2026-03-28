@@ -583,6 +583,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         totalUnits: o.totalunits ?? o.totalUnits ?? o.total_units ?? 0,
         printedUnits: o.printedunits ?? o.printedUnits ?? o.printed_units ?? 0,
         scannedUnits: o.scannedunits ?? o.scannedUnits ?? o.scanned_units ?? [],
+        buyerPhone: o.buyerphone ?? o.buyerPhone ?? '',
         createdAt: o.createdat ?? o.createdAt,
         updatedAt: o.updatedat ?? o.updatedAt,
       }));
@@ -1186,6 +1187,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const orderData = {
       buyerId: currentUser.id,
       buyerName: currentUser.username,
+      buyerPhone: currentUser.phone || '',
       itemName: item.name,
       items: [{
         productId: item.id,

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useLocalization } from '../hooks/useLocalization';
 import { useAppContext } from '../context/SupabaseContext';
@@ -10,20 +10,25 @@ interface OrderQRScannerProps {
     onClose: () => void;
     order: Order | null;
     onScanComplete: (scannedIds: string[]) => void;
+    onConfirmClose?: () => void; // Called when user confirms all units scanned
 }
 
-const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order, onScanComplete }) => {
+const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order, onScanComplete, onConfirmClose }) => {
     const { t } = useLocalization();
+    const { updateOrderScannedUnits } = useAppContext();
     const [scannedIds, setScannedIds] = useState<string[]>([]);
     const [lastScanned, setLastScanned] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [mode, setMode] = useState<'camera' | 'device' | 'file'>('camera');
     const [manualInput, setManualInput] = useState('');
     const [isScanning, setIsScanning] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [cameraPermission, setCameraPermission] = useState<'prompt' | 'granted' | 'denied'>('prompt');
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Use a ref to always have the latest scannedIds in callbacks (avoids stale closure)
+    const scannedIdsRef = useRef<string[]>([]);
 
     // Initialize/Cleanup Scanner
     useEffect(() => {
@@ -78,14 +83,31 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
         }
     }, [isOpen, order, mode]);
 
-    // Sync scanned IDs when opened
+    // Sync scanned IDs when opened — pre-populate from what's already saved
     useEffect(() => {
         if (isOpen && order) {
-            setScannedIds(order.scannedUnits || []);
+            const existing = order.scannedUnits || [];
+            setScannedIds(existing);
+            scannedIdsRef.current = existing;
             setLastScanned(null);
             setError(null);
         }
     }, [isOpen, order]);
+
+    // Persist scanned units to Supabase immediately on each scan
+    const persistScannedUnits = useCallback(async (orderId: string, units: string[]) => {
+        setIsSaving(true);
+        try {
+            await updateOrderScannedUnits(orderId, units);
+            console.log('✅ Scanned units saved to Supabase:', units);
+        } catch (e: any) {
+            const msg = e?.message || e?.code || 'Failed to save scan';
+            console.error('❌ Failed to save scanned units:', e);
+            setError(`Save failed: ${msg}`);
+        } finally {
+            setIsSaving(false);
+        }
+    }, [updateOrderScannedUnits]);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -95,7 +117,6 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
             setError(null);
             setLastScanned("Processing image...");
 
-            // We use a temporary Html5Qrcode instance for file scanning if the main one isn't ready
             const html5QrCode = html5QrCodeRef.current || new Html5Qrcode("qr-reader", false);
             const decodedText = await html5QrCode.scanFile(file, true);
             handleProcessCode(decodedText);
@@ -104,16 +125,14 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
             setError("Could not find a valid QR code in this image");
             setLastScanned(null);
         } finally {
-            if (event.target) event.target.value = ''; // Reset input
+            if (event.target) event.target.value = '';
         }
     };
 
-    const handleProcessCode = (decodedText: string) => {
+    const handleProcessCode = useCallback((decodedText: string) => {
         if (!order) return;
 
         try {
-            // Expected format in QR: ...&orderId=xyz&unit=1&uid=xyz_1
-            // Handle both full URLs and the UID directly (some hardware scanners might just send the content)
             let uid = '';
             let unitIndex = '';
             let scanOrderId = '';
@@ -124,7 +143,6 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                 uid = url.searchParams.get('uid') || '';
                 unitIndex = url.searchParams.get('unit') || '';
             } else {
-                // If it's just the UID (e.g. ord_123_1)
                 uid = decodedText;
                 const parts = uid.split('_');
                 scanOrderId = parts.slice(0, -1).join('_');
@@ -136,11 +154,17 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                 return;
             }
 
-            if (uid && !scannedIds.includes(uid)) {
-                const newScanned = [...scannedIds, uid];
+            // Use the ref to get the latest scannedIds (avoids stale closure in camera callback)
+            const currentScanned = scannedIdsRef.current;
+
+            if (uid && !currentScanned.includes(uid)) {
+                const newScanned = [...currentScanned, uid];
+                scannedIdsRef.current = newScanned;
                 setScannedIds(newScanned);
                 setLastScanned(`Verified: Box Unit ${unitIndex}`);
                 setError(null);
+                // Persist to Supabase immediately
+                persistScannedUnits(order.id, newScanned);
                 onScanComplete(newScanned);
             } else if (uid) {
                 setLastScanned(`Box ${unitIndex} already scanned`);
@@ -149,7 +173,7 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
             console.error("Invalid code scanned:", decodedText);
             setError("Invalid Sticker Data");
         }
-    };
+    }, [order, persistScannedUnits, onScanComplete]);
 
     const onScanSuccess = (decodedText: string) => {
         handleProcessCode(decodedText);
@@ -172,6 +196,14 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
     const balance = totalUnits - scannedIds.length;
     const isComplete = requiredUnits > 0 && scannedIds.length >= requiredUnits;
 
+    // Build the set of scanned unit numbers for the progress grid
+    const scannedUnitNumbers = new Set(
+        scannedIds.map(id => {
+            const parts = id.split('_');
+            return parseInt(parts[parts.length - 1], 10);
+        })
+    );
+
     return (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[100] p-4 sm:p-6">
             <div className="bg-white rounded-[2.5rem] sm:rounded-[3rem] shadow-2xl max-w-lg w-full max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
@@ -189,6 +221,9 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-md">Step 2: Verification</span>
+                                {isSaving && (
+                                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-md animate-pulse">Saving...</span>
+                                )}
                             </div>
                             <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none">Security Check</h2>
                         </div>
@@ -303,11 +338,12 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                             <div className="space-y-1 flex-1">
                                 <h4 className="text-slate-900 font-black text-2xl leading-none tracking-tighter">{scannedIds.length} Scanned</h4>
                                 <p className={`font-black text-[10px] uppercase tracking-widest ${balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>
-                                    {requiredUnits <= 0 ? 'Print stickers to start verification' : (balance > 0 ? `${balance} boxes remaining` : 'System Verified')}
+                                    {requiredUnits <= 0 ? 'Print stickers to start verification' : (balance > 0 ? `${balance} boxes remaining` : 'System Verified ✓')}
                                 </p>
                             </div>
                             <div className="text-right">
                                 <span className="text-3xl font-black text-indigo-600 tracking-tighter">{Math.round((scannedIds.length / totalUnits) * 100)}%</span>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{scannedIds.length}/{requiredUnits} units</p>
                             </div>
                         </div>
                         <div className="h-4 bg-slate-200 rounded-full overflow-hidden p-1 shadow-inner">
@@ -316,6 +352,41 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                                 style={{ width: `${(scannedIds.length / totalUnits) * 100}%` }}
                             ></div>
                         </div>
+
+                        {/* Box-by-Box Progress Grid */}
+                        {requiredUnits > 0 && (
+                            <div className="pt-2">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Box Scan Progress</p>
+                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                    {Array.from({ length: requiredUnits }, (_, i) => i + 1).map(unitNum => {
+                                        const scanned = scannedUnitNumbers.has(unitNum);
+                                        return (
+                                            <div
+                                                key={unitNum}
+                                                title={scanned ? `Box ${unitNum} — Scanned ✓` : `Box ${unitNum} — Pending`}
+                                                className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black border-2 transition-all duration-300 ${
+                                                    scanned
+                                                        ? 'bg-green-500 border-green-600 text-white shadow-md shadow-green-200'
+                                                        : 'bg-slate-100 border-slate-200 text-slate-400'
+                                                }`}
+                                            >
+                                                {scanned ? '✓' : unitNum}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex gap-4 mt-3 text-[9px] font-black uppercase tracking-widest">
+                                    <span className="flex items-center gap-1.5 text-green-600">
+                                        <span className="w-2.5 h-2.5 rounded bg-green-500 inline-block"></span>
+                                        Scanned ({scannedIds.length})
+                                    </span>
+                                    <span className="flex items-center gap-1.5 text-slate-400">
+                                        <span className="w-2.5 h-2.5 rounded bg-slate-200 inline-block"></span>
+                                        Remaining ({Math.max(requiredUnits - scannedIds.length, 0)})
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Messages */}
@@ -331,21 +402,6 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                         </div>
                     )}
 
-                    {/* Scanned History */}
-                    {scannedIds.length > 0 && (
-                        <div className="space-y-3">
-                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Scanned Units</h5>
-                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 custom-scrollbar">
-                                {scannedIds.map((id, i) => (
-                                    <span key={i} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg border border-indigo-100 flex items-center gap-2">
-                                        <div className="w-1 h-1 bg-indigo-600 rounded-full animate-pulse"></div>
-                                        {id.split('_').pop()}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
                     {/* Action */}
                     <div className="grid grid-cols-2 gap-4">
                         <button
@@ -355,13 +411,21 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
                             Back
                         </button>
                         <button
-                            onClick={onClose}
+                            onClick={() => {
+                                if (isComplete) {
+                                    // Signal to parent that all units are scanned and user confirmed
+                                    onClose();
+                                    if (onConfirmClose) onConfirmClose();
+                                } else {
+                                    onClose();
+                                }
+                            }}
                             className={`w-full py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] transition-all transform active:scale-95 ${isComplete
                                 ? 'bg-slate-900 text-white shadow-2xl hover:-translate-y-1'
                                 : 'bg-slate-100 text-slate-400'
                                 }`}
                         >
-                            {isComplete ? 'Confirm' : 'Cancel'}
+                            {isComplete ? 'Confirm ✓' : 'Cancel'}
                         </button>
                     </div>
                 </div>

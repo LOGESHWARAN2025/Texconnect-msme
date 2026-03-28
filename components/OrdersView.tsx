@@ -6,6 +6,7 @@ import type { OrderStatus, Order } from '../types';
 import InvoiceModal from './invoice/InvoiceModal';
 import QRCodeStickerPrinter from './QRCodeStickerPrinter';
 import OrderQRScanner from './OrderQRScanner';
+import { sendOrderStatusUpdateBothChannels } from '../src/services/notificationService';
 
 const getStatusColor = (status: OrderStatus) => {
   switch (status) {
@@ -42,7 +43,7 @@ const getNextStatus = (status: OrderStatus): OrderStatus | null => {
 
 const OrdersView: React.FC = () => {
   const { t, formatDate } = useLocalization();
-  const { orders, updateOrderStatus, updateOrderScannedUnits, currentUser, products } = useAppContext();
+  const { orders, updateOrderStatus, updateOrderScannedUnits, currentUser, products, users } = useAppContext();
   const [viewingInvoiceOrder, setViewingInvoiceOrder] = useState<Order | null>(null);
   const [printingQROrder, setPrintingQROrder] = useState<Order | null>(null);
   const [scanningOrder, setScanningOrder] = useState<Order | null>(null);
@@ -173,6 +174,32 @@ const OrdersView: React.FC = () => {
       console.log('📝 Changing status to:', newStatus);
       await updateOrderStatus(orderId, newStatus);
       console.log('✅ Status changed successfully');
+
+      // 📱 Send SMS + WhatsApp notification to buyer
+      if (order) {
+        // Try buyerPhone from order, fallback to users list
+        const buyerPhone = order.buyerPhone
+          || users.find(u => u.id === order.buyerId)?.phone
+          || '';
+        if (buyerPhone) {
+          // Fire-and-forget (non-blocking)
+          sendOrderStatusUpdateBothChannels(
+            order.buyerName,
+            buyerPhone,
+            order.id,
+            newStatus,
+            order.itemName || 'Textile Order',
+            order.items?.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0) || 1,
+            order.totalAmount || 0
+          ).then(result => {
+            console.log('📨 Notification result:', result);
+          }).catch(err => {
+            console.warn('⚠️ Notification failed (non-fatal):', err);
+          });
+        } else {
+          console.log('ℹ️ Buyer phone not found — skipping notification (orderId:', orderId, ')');
+        }
+      }
     } catch (error: any) {
       const errorMessage = error?.message || error?.code || 'Unknown error occurred';
       console.error('❌ Failed to update order status:', errorMessage);
@@ -411,23 +438,16 @@ const OrdersView: React.FC = () => {
         isOpen={!!scanningOrder}
         onClose={() => setScanningOrder(null)}
         order={scanningOrder}
-        onScanComplete={async (scannedIds) => {
-          if (scanningOrder) {
-            try {
-              await updateOrderScannedUnits(scanningOrder.id, scannedIds);
-            } catch (e: any) {
-              const message = e?.message || e?.code || 'Failed to store scanned units';
-              console.error('❌ Failed to persist scanned units:', e);
-              alert(`Failed to store scanned units in Supabase: ${message}`);
-            }
-
-            // Check if complete and auto-update status?
-            const required = scanningOrder.printedUnits || scanningOrder.totalUnits || 0;
-            if (required > 0 && scannedIds.length === required) {
-              // The scan is complete! The scanner will close via internal onClose,
-              // and the pendingStatusUpdate logic below will handle showing the next dialog.
-            }
-          }
+        onScanComplete={(scannedIds) => {
+          // Scanner already persisted to Supabase internally on each scan.
+          // Nothing extra needed here — just log for debugging.
+          console.log('📊 Scan progress update:', scannedIds.length, 'units scanned');
+        }}
+        onConfirmClose={() => {
+          // User clicked "Confirm" after scanning all units.
+          // If there's a pending status update, let the verification dialog take over.
+          // It will re-check the latest scannedUnits from the refreshed order.
+          console.log('✅ Scanner confirmed — checking pending status update');
         }}
       />
 
