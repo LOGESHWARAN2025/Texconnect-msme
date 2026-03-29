@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LucideChevronLeft, LucidePackage, LucideTruck, LucideCheckCircle, LucideClock } from 'lucide-react-native';
+import { LucideChevronLeft, LucidePackage, LucideTruck, LucideCheckCircle, LucideClock, LucideFileText } from 'lucide-react-native';
+import { RoleContext } from '../../App';
 
 const STATUS_STEPS = ['Pending', 'Accepted', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
@@ -22,6 +23,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     const [loading, setLoading] = useState(true);
     const [statusModalOpen, setStatusModalOpen] = useState(false);
     const [updating, setUpdating] = useState(false);
+    const { role: userRole } = React.useContext(RoleContext);
 
     useEffect(() => {
         if (orderId) {
@@ -60,19 +62,30 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         setLoading(false);
     }
 
-    const getAllowedNextStatuses = (status: string): string[] => {
+    const getAllowedNextStatuses = (status: string, role: string | null): string[] => {
+        let possibleNext: string[] = [];
         switch ((status || '').toLowerCase()) {
             case 'pending':
-                return ['Accepted'];
+                possibleNext = ['Accepted']; break;
             case 'accepted':
-                return ['Shipped', 'Delivered'];
+                possibleNext = ['Shipped']; break;
             case 'shipped':
-                return ['Out for Delivery', 'Delivered'];
+                possibleNext = ['Out for Delivery']; break;
             case 'out for delivery':
-                return ['Delivered'];
+                possibleNext = ['Delivered']; break;
             default:
-                return [];
+                possibleNext = [];
         }
+
+        if (role === 'buyer') {
+            // Buyer can strictly ONLY do Out for Delivery -> Delivered
+            return possibleNext.filter(s => s === 'Delivered');
+        } else if (role === 'msme') {
+            // MSME can do everything EXCEPT Delivered
+            return possibleNext.filter(s => s !== 'Delivered');
+        }
+        
+        return [];
     };
 
     async function handleUpdateStatus(targetStatus: string) {
@@ -81,7 +94,11 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             setUpdating(true);
             const { error } = await supabase
                 .from('orders')
-                .update({ status: targetStatus, updatedAt: new Date().toISOString() })
+                .update({ 
+                    status: targetStatus, 
+                    scannedunits: [], // Clear scans on transition, enforcing re-scan for next stage
+                    updatedat: new Date().toISOString() 
+                })
                 .eq('id', order.id);
 
             if (error) {
@@ -111,11 +128,12 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     if (!order) return null;
 
     const currentStatusIndex = getStatusIndex(order.status);
-    const totalUnits = Number(order.printedUnits ?? order.totalUnits ?? 0);
-    const scannedUnitsCount = Array.isArray(order.scannedUnits) ? order.scannedUnits.length : 0;
+    const totalUnits = Number(order.printedUnits ?? order.printedunits ?? order.totalUnits ?? order.totalunits ?? 0);
+    const scannedUnitsArray = order.scannedUnits ?? order.scannedunits ?? [];
+    const scannedUnitsCount = Array.isArray(scannedUnitsArray) ? scannedUnitsArray.length : 0;
     const verificationRequired = totalUnits > 0;
     const isVerified = !verificationRequired || scannedUnitsCount >= totalUnits;
-    const allowedStatuses = getAllowedNextStatuses(order.status);
+    const allowedStatuses = getAllowedNextStatuses(order.status, userRole);
     const itemName = order.itemName || order.items?.[0]?.productName || '';
     const quantity = order.quantity ?? order.totalUnits ?? order.items?.[0]?.quantity ?? 0;
     const totalAmount = order.totalAmount ?? order.totalPrice ?? 0;
@@ -165,32 +183,69 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 </View>
 
                 {/* Scan Progress Card */}
-                {(order.printedUnits > 0 || order.totalUnits > 0) && (
-                    <View style={styles.scanProgressCard}>
-                        <View style={styles.progressHeader}>
-                            <LucidePackage color="#38bdf8" size={20} />
-                            <Text style={styles.progressTitle}>Package Verification</Text>
+                {(order.printedUnits > 0 || order.totalUnits > 0) && (() => {
+                    const reqUnits = order.printedUnits || order.totalUnits || 1;
+                    const scannedIdsList = order.scannedUnits || order.scannedunits || [];
+                    const scannedUnitNumbers = new Set(
+                        scannedIdsList.map((id: string) => {
+                            const parts = id.split('_');
+                            return parseInt(parts[parts.length - 1], 10);
+                        })
+                    );
+
+                    return (
+                        <View style={styles.scanProgressCard}>
+                            <View style={styles.progressHeader}>
+                                <LucidePackage color="#38bdf8" size={20} />
+                                <Text style={styles.progressTitle}>Package Verification</Text>
+                            </View>
+                            <View style={styles.progressBarContainer}>
+                                <View
+                                    style={[
+                                        styles.progressBar,
+                                        { width: `${Math.min(100, (scannedUnitsCount / reqUnits) * 100)}%` }
+                                    ]}
+                                />
+                            </View>
+                            <View style={styles.progressFooter}>
+                                <Text style={styles.progressText}>
+                                    {scannedUnitsCount} of {reqUnits} Units Scanned
+                                </Text>
+                                {isVerified ? (
+                                    <Text style={styles.verifiedText}>Fully Verified</Text>
+                                ) : (
+                                    <Text style={styles.pendingText}>Verification Pending</Text>
+                                )}
+                            </View>
+
+                            {/* Box Grid */}
+                            <View style={styles.boxGridContainer}>
+                                <Text style={styles.boxGridTitle}>Box Scan Progress</Text>
+                                <View style={styles.boxGrid}>
+                                    {Array.from({ length: reqUnits }, (_, i) => i + 1).map(unitNum => {
+                                        const isScanned = scannedUnitNumbers.has(unitNum);
+                                        return (
+                                            <View 
+                                                key={unitNum} 
+                                                style={[
+                                                    styles.boxItem, 
+                                                    isScanned ? styles.boxItemScanned : styles.boxItemPending
+                                                ]}
+                                            >
+                                                <Text style={[
+                                                    styles.boxItemText,
+                                                    isScanned ? styles.boxItemTextScanned : styles.boxItemTextPending
+                                                ]}>
+                                                    {isScanned ? '✓' : unitNum}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            </View>
                         </View>
-                        <View style={styles.progressBarContainer}>
-                            <View
-                                style={[
-                                    styles.progressBar,
-                                    { width: `${Math.min(100, ((order.scannedUnits?.length || 0) / (order.printedUnits || order.totalUnits || 1)) * 100)}%` }
-                                ]}
-                            />
-                        </View>
-                        <View style={styles.progressFooter}>
-                            <Text style={styles.progressText}>
-                                {scannedUnitsCount} of {totalUnits} Units Scanned
-                            </Text>
-                            {isVerified ? (
-                                <Text style={styles.verifiedText}>Fully Verified</Text>
-                            ) : (
-                                <Text style={styles.pendingText}>Verification Pending</Text>
-                            )}
-                        </View>
-                    </View>
-                )}
+                    );
+                })()}
 
                 {/* Progress Tracker */}
                 <Text style={styles.sectionTitle}>Tracking Progress</Text>
@@ -247,8 +302,6 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
                 {/* Conditional Update Button */}
                 {(() => {
-                    const currentIndex = getStatusIndex(order.status);
-
                     if (allowedStatuses.length > 0) {
                         if (isVerified) {
                             return (
@@ -263,7 +316,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                             );
                         }
 
-                        if (verificationRequired && currentIndex >= 1) {
+                        if (verificationRequired && currentStatusIndex >= 1) {
                             return (
                                 <View style={styles.warningContainer}>
                                     <Text style={styles.warningText}>
@@ -275,6 +328,17 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     }
                     return null;
                 })()}
+
+                {/* Buyer Invoice Download */}
+                {userRole === 'buyer' && order.status === 'Delivered' && (
+                    <TouchableOpacity
+                        style={styles.invoiceButton}
+                        onPress={() => Alert.alert("Success", "Connecting to Web Portal to download your PDF Invoice.")}
+                    >
+                        <LucideFileText color="#fff" size={20} />
+                        <Text style={styles.invoiceButtonText}>Download Invoice</Text>
+                    </TouchableOpacity>
+                )}
 
                 <Modal
                     visible={statusModalOpen}
@@ -626,5 +690,69 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: 'bold',
         textTransform: 'uppercase',
+    },
+    boxGridContainer: {
+        marginTop: 20,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    boxGridTitle: {
+        color: '#94a3b8',
+        fontSize: 10,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+        marginBottom: 12,
+    },
+    boxGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    boxItem: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+    },
+    boxItemPending: {
+        backgroundColor: 'rgba(241, 245, 249, 0.05)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    boxItemScanned: {
+        backgroundColor: '#22c55e',
+        borderColor: '#16a34a',
+    },
+    boxItemText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    boxItemTextPending: {
+        color: '#94a3b8',
+    },
+    boxItemTextScanned: {
+        color: '#ffffff',
+    },
+    invoiceButton: {
+        marginTop: 16,
+        flexDirection: 'row',
+        backgroundColor: '#4f46e5',
+        borderRadius: 16,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#4f46e5',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    invoiceButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginLeft: 10,
     },
 });
