@@ -11,6 +11,7 @@ import { Session } from '@supabase/supabase-js';
 import LoginScreen from './src/screens/LoginScreen';
 import ScanningScreen from './src/screens/ScanningScreen';
 import OrderStatusScreen from './src/screens/OrderStatusScreen';
+import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,11 +33,11 @@ function AccessDeniedScreen() {
   );
 }
 
-export const RoleContext = React.createContext<{ role: 'msme' | 'buyer' | null }>({ role: null });
+export const RoleContext = React.createContext<{ role: 'msme' | 'buyer' | 'admin' | 'subadmin' | null }>({ role: null });
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [roleState, setRoleState] = useState<'loading' | 'msme' | 'buyer' | 'denied'>('loading');
+  const [roleState, setRoleState] = useState<'loading' | 'msme' | 'buyer' | 'admin' | 'subadmin' | 'denied'>('loading');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -59,7 +60,7 @@ export default function App() {
 
       try {
         const metaRole = (session.user.user_metadata as any)?.role;
-        if (typeof metaRole === 'string' && (metaRole.toLowerCase() === 'msme' || metaRole.toLowerCase() === 'buyer')) {
+        if (typeof metaRole === 'string' && ['msme', 'buyer', 'admin', 'subadmin'].includes(metaRole.toLowerCase())) {
           if (!cancelled) setRoleState(metaRole.toLowerCase() as any);
           return;
         }
@@ -72,7 +73,7 @@ export default function App() {
 
         if (!error && profile?.role) {
           const r = String(profile.role).toLowerCase();
-          if (r === 'msme' || r === 'buyer') {
+          if (['msme', 'buyer', 'admin', 'subadmin'].includes(r)) {
             if (!cancelled) setRoleState(r as any);
             return;
           }
@@ -91,7 +92,7 @@ export default function App() {
   }, [session?.user?.id]);
 
   return (
-    <RoleContext.Provider value={{ role: (roleState === 'msme' || roleState === 'buyer') ? roleState : null }}>
+    <RoleContext.Provider value={{ role: ['msme', 'buyer', 'admin', 'subadmin'].includes(roleState) ? (roleState as any) : null }}>
       <NavigationContainer>
         <StatusBar style="light" />
         <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -101,8 +102,14 @@ export default function App() {
             <Stack.Screen name="AccessDenied" component={AccessDeniedScreen} />
           ) : (
             <>
-              <Stack.Screen name="Scanning" component={ScanningScreen} />
-              <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
+              {(roleState === 'admin' || roleState === 'subadmin') ? (
+                <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+              ) : (
+                <>
+                  <Stack.Screen name="Scanning" component={ScanningScreen} />
+                  <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
+                </>
+              )}
             </>
           )}
         </Stack.Navigator>

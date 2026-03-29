@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LucideChevronLeft, LucidePackage, LucideTruck, LucideCheckCircle, LucideClock, LucideFileText } from 'lucide-react-native';
+import { LucideChevronLeft, LucidePackage, LucideTruck, LucideCheckCircle, LucideClock, LucideFileText, LucideCamera } from 'lucide-react-native';
 import { RoleContext } from '../../App';
 
 const STATUS_STEPS = ['Pending', 'Accepted', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
@@ -97,7 +97,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 .update({ 
                     status: targetStatus, 
                     scannedunits: [], // Clear scans on transition, enforcing re-scan for next stage
-                    updatedat: new Date().toISOString() 
+                    updated_at: new Date().toISOString() 
                 })
                 .eq('id', order.id);
 
@@ -322,6 +322,13 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                                     <Text style={styles.warningText}>
                                         Scan {Math.max(totalUnits - scannedUnitsCount, 0)} more boxes to unlock status update
                                     </Text>
+                                    <TouchableOpacity
+                                        style={styles.scanMoreButton}
+                                        onPress={() => navigation.navigate('Scanning')}
+                                    >
+                                        <LucideCamera color="#fff" size={20} />
+                                        <Text style={styles.scanMoreButtonText}>Scan Next QR Code</Text>
+                                    </TouchableOpacity>
                                 </View>
                             );
                         }
@@ -587,6 +594,23 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         textAlign: 'center',
+        marginBottom: 12,
+    },
+    scanMoreButton: {
+        flexDirection: 'row',
+        backgroundColor: '#38bdf8',
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+    },
+    scanMoreButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 8,
     },
     modalBackdrop: {
         flex: 1,
