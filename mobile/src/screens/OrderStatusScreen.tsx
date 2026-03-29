@@ -14,6 +14,8 @@ import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LucideChevronLeft, LucidePackage, LucideTruck, LucideCheckCircle, LucideClock, LucideFileText, LucideCamera } from 'lucide-react-native';
 import { RoleContext } from '../../App';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 const STATUS_STEPS = ['Pending', 'Accepted', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
@@ -138,6 +140,56 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     const quantity = order.quantity ?? order.totalUnits ?? order.items?.[0]?.quantity ?? 0;
     const totalAmount = order.totalAmount ?? order.totalPrice ?? 0;
     const buyerName = order.buyerName || order.buyer?.displayName || 'N/A';
+
+    const handleDownloadInvoice = async () => {
+        try {
+            const htmlContent = `
+                <html>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #38bdf8;">TexConnect Invoice</h1>
+                        <p style="color: #64748b;">Order ID: ${order.id}</p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #1e293b; margin-bottom: 5px;">Billed To:</h3>
+                        <p style="margin: 0; color: #475569;">${buyerName}</p>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background-color: #f8fafc; color: #1e293b;">
+                                <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: left;">Item</th>
+                                <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: right;">Quantity</th>
+                                <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: right;">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 12px; border: 1px solid #e2e8f0; color: #475569;">${itemName}</td>
+                                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: right; color: #475569;">${quantity}</td>
+                                <td style="padding: 12px; border: 1px solid #e2e8f0; text-align: right; color: #475569;">₹${totalAmount}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 30px; text-align: right;">
+                        <h2 style="color: #0f172a;">Total Paid: ₹${totalAmount}</h2>
+                    </div>
+                    <div style="margin-top: 60px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                        <p>Thank you for choosing TexConnect!</p>
+                        <p>This is a system-generated electronic invoice. No signature required.</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            const { uri } = await Print.printToFileAsync({ html: htmlContent });
+            if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(uri);
+            } else {
+                Alert.alert("Error", "Sharing is not available on this device.");
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to generate invoice.");
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -340,7 +392,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 {userRole === 'buyer' && order.status === 'Delivered' && (
                     <TouchableOpacity
                         style={styles.invoiceButton}
-                        onPress={() => Alert.alert("Success", "Connecting to Web Portal to download your PDF Invoice.")}
+                        onPress={handleDownloadInvoice}
                     >
                         <LucideFileText color="#fff" size={20} />
                         <Text style={styles.invoiceButtonText}>Download Invoice</Text>

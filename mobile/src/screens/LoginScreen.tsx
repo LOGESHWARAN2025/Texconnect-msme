@@ -21,8 +21,11 @@ export default function LoginScreen({ navigation }: any) {
 
     async function signInWithEmail() {
         setLoading(true);
+        const loginStr = email.trim();
+        const authEmail = loginStr.includes('@') ? loginStr : `${loginStr}@texconnect.com`;
+
         const { error } = await supabase.auth.signInWithPassword({
-            email: email,
+            email: authEmail,
             password: password,
         });
 
@@ -53,10 +56,10 @@ export default function LoginScreen({ navigation }: any) {
                     <Text style={styles.title}>Login</Text>
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Email Address</Text>
+                        <Text style={styles.label}>User ID or Email</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Enter your email"
+                            placeholder="Enter User ID or Email"
                             placeholderTextColor="#94a3b8"
                             value={email}
                             onChangeText={setEmail}
