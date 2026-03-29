@@ -1,5 +1,5 @@
-
 import { PerformanceMetric } from '../types';
+import { supabase } from '../src/lib/supabase';
 
 export class PerformanceMonitor {
     private static STORAGE_KEY = 'texconnect_perf_metrics';
@@ -50,7 +50,16 @@ export class PerformanceMonitor {
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
 
             // In a real app, this would also push to Supabase/Backend
-            // supabase.from('performance_metrics').insert(metric)
+            supabase.from('performance_metrics').insert({
+                metric_type: metric.metricType,
+                value: metric.value,
+                unit: metric.unit,
+                context: metric.context,
+                status: metric.status,
+                timestamp: metric.timestamp
+            }).then(({error}) => {
+                if(error) console.error("Performance metric logged error", error.message);
+            });
         } catch (e) {
             console.error('Failed to save metric', e);
         }

@@ -31,8 +31,26 @@ export default function AdminDashboardScreen({ navigation }: any) {
     useEffect(() => {
         fetchData();
         
+        // Log mobile app ping
+        const logMobilePing = async () => {
+            const start = Date.now();
+            await supabase.from('issues').select('id').limit(1); // dummy query
+            const latency = Date.now() - start;
+            await supabase.from('performance_metrics').insert({
+                metric_type: 'mobile_app',
+                value: latency,
+                unit: 'ms',
+                status: latency < 1000 ? 'good' : 'warning',
+                timestamp: new Date().toISOString()
+            });
+        };
+        logMobilePing();
+
         // Polling for real-time fell into polling for simplicity
-        const interval = setInterval(fetchData, 15000);
+        const interval = setInterval(() => {
+            fetchData();
+            logMobilePing();
+        }, 15000);
         return () => clearInterval(interval);
     }, [activeTab]);
 
@@ -59,7 +77,8 @@ export default function AdminDashboardScreen({ navigation }: any) {
                 const { data: aData } = await supabase
                     .from('users')
                     .select('*')
-                    .eq('role', 'subadmin');
+                    .eq('role', 'admin')
+                    .eq('ismainadmin', false);
                 if (aData) setSubAdmins(aData);
             }
         } catch (e) {
@@ -80,7 +99,8 @@ export default function AdminDashboardScreen({ navigation }: any) {
         const { error } = await supabase.from('users').insert([{
             id: mockAuthId,
             firstname: newAdmin.firstname,
-            role: 'subadmin',
+            role: 'admin',
+            ismainadmin: false,
             isapproved: true
         }]);
         

@@ -99,7 +99,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 .update({ 
                     status: targetStatus, 
                     scannedunits: [], // Clear scans on transition, enforcing re-scan for next stage
-                    updated_at: new Date().toISOString() 
+                    updatedat: new Date().toISOString() 
                 })
                 .eq('id', order.id);
 
