@@ -17,7 +17,7 @@ import { RoleContext } from '../../App';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-const STATUS_STEPS = ['Pending', 'Accepted', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
+const STATUS_STEPS = ['Pending', 'Accepted', 'Prepared', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
 export default function OrderStatusScreen({ route, navigation }: any) {
     const { orderId } = route.params || {};
@@ -70,6 +70,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             case 'pending':
                 possibleNext = ['Accepted']; break;
             case 'accepted':
+                possibleNext = ['Prepared']; break;
+            case 'prepared':
                 possibleNext = ['Shipped']; break;
             case 'shipped':
                 possibleNext = ['Out for Delivery']; break;
@@ -83,8 +85,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             // Buyer can strictly ONLY do Out for Delivery -> Delivered
             return possibleNext.filter(s => s === 'Delivered');
         } else if (role === 'msme') {
-            // MSME can do everything EXCEPT Delivered
-            return possibleNext.filter(s => s !== 'Delivered');
+            // MSME can do Accepted -> Prepared -> Shipped -> Out for Delivery only
+            return possibleNext.filter(s => s !== 'Delivered' && s !== 'Accepted');
         }
         
         return [];
@@ -98,8 +100,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 .from('orders')
                 .update({ 
                     status: targetStatus, 
-                    scannedunits: [], // Clear scans on transition, enforcing re-scan for next stage
-                    updatedat: new Date().toISOString() 
+                    scannedunits: [] // Clear scans on transition, enforcing re-scan for next stage
                 })
                 .eq('id', order.id);
 

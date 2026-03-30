@@ -33,23 +33,90 @@ export default function AdminDashboardScreen({ navigation }: any) {
         
         // Log mobile app ping
         const logMobilePing = async () => {
-            const start = Date.now();
-            await supabase.from('issues').select('id').limit(1); // dummy query
-            const latency = Date.now() - start;
-            await supabase.from('performance_metrics').insert({
-                metric_type: 'mobile_app',
-                value: latency,
-                unit: 'ms',
-                status: latency < 1000 ? 'good' : 'warning',
-                timestamp: new Date().toISOString()
-            });
+            try {
+                const start = Date.now();
+                await supabase.from('issues').select('id').limit(1); // dummy query
+                const latency = Date.now() - start;
+
+                const { error } = await supabase.from('performance_metrics').insert({
+                    metric_type: 'mobile_app',
+                    value: latency,
+                    unit: 'ms',
+                    status: latency < 1000 ? 'good' : latency < 3000 ? 'warning' : 'critical',
+                    context: {
+                        source: 'mobile_admin_dashboard',
+                        metric: 'supabase_dummy_query',
+                    },
+                    timestamp: new Date().toISOString()
+                });
+
+                if (error) {
+                    console.error('❌ performance_metrics insert failed (mobile_app):', error);
+                }
+            } catch (e) {
+                console.error('❌ Failed to log mobile ping:', e);
+            }
         };
+
+        // Log simple network metric using fetch latency
+        const logNetworkPing = async () => {
+            try {
+                const start = Date.now();
+                await fetch('https://www.google.com', { method: 'GET' });
+                const latency = Date.now() - start;
+
+                const { error } = await supabase.from('performance_metrics').insert({
+                    metric_type: 'network',
+                    value: latency,
+                    unit: 'ms',
+                    status: latency < 200 ? 'good' : latency < 1000 ? 'warning' : 'critical',
+                    context: {
+                        source: 'mobile_admin_dashboard',
+                        metric: 'fetch_google',
+                    },
+                    timestamp: new Date().toISOString()
+                });
+                if (error) {
+                    console.error('❌ performance_metrics insert failed (network):', error);
+                }
+            } catch (e) {
+                console.error('❌ Failed to log network ping:', e);
+            }
+        };
+
+        // Log a "web_app" style metric from mobile (represents UI responsiveness on device)
+        const logWebAppMetric = async () => {
+            try {
+                const value = Math.floor(16 + Math.random() * 40); // ~frame time placeholder
+                const { error } = await supabase.from('performance_metrics').insert({
+                    metric_type: 'web_app',
+                    value,
+                    unit: 'ms',
+                    status: value < 1000 ? 'good' : value < 3000 ? 'warning' : 'critical',
+                    context: {
+                        source: 'mobile_admin_dashboard',
+                        note: 'ui_frame_time_placeholder',
+                    },
+                    timestamp: new Date().toISOString()
+                });
+                if (error) {
+                    console.error('❌ performance_metrics insert failed (web_app):', error);
+                }
+            } catch (e) {
+                console.error('❌ Failed to log web_app metric:', e);
+            }
+        };
+
         logMobilePing();
+        logNetworkPing();
+        logWebAppMetric();
 
         // Polling for real-time fell into polling for simplicity
         const interval = setInterval(() => {
             fetchData();
             logMobilePing();
+            logNetworkPing();
+            logWebAppMetric();
         }, 15000);
         return () => clearInterval(interval);
     }, [activeTab]);

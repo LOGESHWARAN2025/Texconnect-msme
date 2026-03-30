@@ -85,12 +85,12 @@ export default function ScanningScreen({ navigation }: any) {
 
         // 2. If it was a unit scan (sticker), update the scannedUnits array
         if (uid) {
-            const currentScanned = order.scannedUnits || [];
+            const currentScanned = order.scannedunits || order.scannedUnits || [];
             if (!currentScanned.includes(uid)) {
                 const newScanned = [...currentScanned, uid];
                 const { error: updateError } = await supabase
                     .from('orders')
-                    .update({ scannedUnits: newScanned })
+                    .update({ scannedunits: newScanned })
                     .eq('id', orderId);
 
                 if (updateError) {

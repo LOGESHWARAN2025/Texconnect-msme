@@ -6,6 +6,20 @@ export class PerformanceMonitor {
     private static ALERT_THRESHOLD_LOAD_TIME = 3000; // 3 seconds
     private static ALERT_THRESHOLD_NETWORK_LATENCY = 1000; // 1 second
 
+    private static canUseLocalStorage(): boolean {
+        try {
+            return typeof localStorage !== 'undefined';
+        } catch {
+            return false;
+        }
+    }
+
+    private static safeUUID(): string {
+        const maybeCrypto: any = (globalThis as any)?.crypto;
+        if (maybeCrypto?.randomUUID) return maybeCrypto.randomUUID();
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
     static logMetric(
         metricType: 'network' | 'web_app' | 'mobile_app',
         value: number,
@@ -15,7 +29,7 @@ export class PerformanceMonitor {
         const status = this.determineStatus(metricType, value);
 
         const metric: PerformanceMetric = {
-            id: crypto.randomUUID(),
+            id: this.safeUUID(),
             timestamp: new Date().toISOString(),
             metricType,
             value,
@@ -44,10 +58,12 @@ export class PerformanceMonitor {
 
     private static saveMetric(metric: PerformanceMetric) {
         try {
-            const existing = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
-            // Keep last 100 metrics
-            const updated = [metric, ...existing].slice(0, 100);
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+            if (this.canUseLocalStorage()) {
+                const existing = JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
+                // Keep last 100 metrics
+                const updated = [metric, ...existing].slice(0, 100);
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+            }
 
             // In a real app, this would also push to Supabase/Backend
             supabase.from('performance_metrics').insert({
@@ -67,6 +83,7 @@ export class PerformanceMonitor {
 
     static getMetrics(): PerformanceMetric[] {
         try {
+            if (!this.canUseLocalStorage()) return [];
             return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
         } catch {
             return [];
