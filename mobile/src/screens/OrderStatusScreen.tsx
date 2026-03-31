@@ -285,7 +285,21 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
                             {/* Box Grid */}
                             <View style={styles.boxGridContainer}>
-                                <Text style={styles.boxGridTitle}>Box Scan Progress</Text>
+                                <View style={styles.boxGridHeader}>
+                                    <Text style={styles.boxGridTitle}>Box Scan Progress</Text>
+                                    {!isVerified && allowedStatuses.length > 0 && (
+                                        <TouchableOpacity 
+                                            style={styles.inlineScanButton}
+                                            onPress={() => navigation.navigate('Scanning', { 
+                                                orderId: order.id, 
+                                                targetStatus: allowedStatuses[0] 
+                                            })}
+                                        >
+                                            <LucideCamera color="#38bdf8" size={16} />
+                                            <Text style={styles.inlineScanButtonText}>Scan</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                                 <View style={styles.boxGrid}>
                                     {Array.from({ length: reqUnits }, (_, i) => i + 1).map(unitNum => {
                                         const isScanned = scannedUnitNumbers.has(unitNum);
@@ -314,7 +328,10 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                                 <View style={{ marginTop: 20 }}>
                                     <TouchableOpacity
                                         style={styles.scanMoreButton}
-                                        onPress={() => navigation.navigate('Scanning')}
+                                        onPress={() => navigation.navigate('Scanning', { 
+                                            orderId: order.id, 
+                                            targetStatus: allowedStatuses[0] 
+                                        })}
                                     >
                                         <LucideCamera color="#fff" size={20} />
                                         <Text style={styles.scanMoreButtonText}>
@@ -782,13 +799,34 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: 'rgba(255, 255, 255, 0.1)',
     },
+    boxGridHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
     boxGridTitle: {
         color: '#94a3b8',
         fontSize: 10,
         fontWeight: 'bold',
         textTransform: 'uppercase',
         letterSpacing: 2,
-        marginBottom: 12,
+    },
+    inlineScanButton: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(56, 189, 248, 0.2)',
+    },
+    inlineScanButtonText: {
+        color: '#38bdf8',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginLeft: 6,
     },
     boxGrid: {
         flexDirection: 'row',

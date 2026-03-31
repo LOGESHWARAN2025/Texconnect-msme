@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LucideCamera } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 
-export default function ScanningScreen({ navigation }: any) {
+export default function ScanningScreen({ navigation, route }: any) {
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
 
@@ -53,18 +53,20 @@ export default function ScanningScreen({ navigation }: any) {
         if (scanned) return;
         setScanned(true);
 
-        let orderId = '';
+        let orderIdFromScan = '';
         let uid = '';
 
         if (typeof data === 'string' && data.includes('orderId=')) {
             const params = parseQueryParams(data);
-            orderId = params.orderId || '';
+            orderIdFromScan = params.orderId || '';
             uid = params.uid || '';
         } else {
-            orderId = typeof data === 'string' ? data.trim() : '';
+            orderIdFromScan = typeof data === 'string' ? data.trim() : '';
         }
 
-        if (!orderId) {
+        const effectiveOrderId = orderIdFromScan || route?.params?.orderId;
+
+        if (!effectiveOrderId) {
             Alert.alert('Invalid Scan', 'Could not extract Order ID.');
             setScanned(false);
             return;
@@ -74,7 +76,7 @@ export default function ScanningScreen({ navigation }: any) {
         const { data: order, error: fetchError } = await supabase
             .from('orders')
             .select('*')
-            .eq('id', orderId)
+            .eq('id', effectiveOrderId)
             .single();
 
         if (fetchError || !order) {
@@ -88,18 +90,40 @@ export default function ScanningScreen({ navigation }: any) {
             const currentScanned = order.scannedunits || order.scannedUnits || [];
             if (!currentScanned.includes(uid)) {
                 const newScanned = [...currentScanned, uid];
-                const { error: updateError } = await supabase
-                    .from('orders')
-                    .update({ scannedunits: newScanned })
-                    .eq('id', orderId);
+                const totalUnits = Number(order.printedunits ?? order.printedUnits ?? order.totalunits ?? order.totalUnits ?? 0);
+                const targetStatus = route?.params?.targetStatus;
 
-                if (updateError) {
-                    Alert.alert('Update Failed', updateError.message || 'Could not record the unit scan.');
+                // Check if this was the last unit
+                if (targetStatus && newScanned.length >= totalUnits) {
+                    const { error: updateError } = await supabase
+                        .from('orders')
+                        .update({ 
+                            status: targetStatus,
+                            scannedunits: [] // ✅ Reset for next stage
+                        })
+                        .eq('id', effectiveOrderId);
+
+                    if (!updateError) {
+                        Alert.alert('Success', `Task Completed! Order updated to ${targetStatus}.`);
+                    } else {
+                        Alert.alert('Update Failed', updateError.message);
+                    }
+                } else {
+                    const { error: updateError } = await supabase
+                        .from('orders')
+                        .update({ scannedunits: newScanned })
+                        .eq('id', effectiveOrderId);
+
+                    if (updateError) {
+                        Alert.alert('Update Failed', updateError.message || 'Could not record the unit scan.');
+                    }
                 }
+            } else {
+                Alert.alert('Duplicate Scan', 'This unit has already been scanned.');
             }
         }
 
-        // 3. Navigate to Status screen
+        // 3. Navigate back to Status screen
         navigation.navigate('OrderStatus', { orderId: order.id });
         setTimeout(() => setScanned(false), 2000);
     };
