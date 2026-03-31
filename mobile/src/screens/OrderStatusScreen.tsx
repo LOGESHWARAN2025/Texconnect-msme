@@ -114,7 +114,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 .from('orders')
                 .update({ 
                     status: targetStatus, 
-                    scannedunits: [] // ✅ Re-clear scans so NEXT status update also requires a full scan
+                    scannedunits: [], // ✅ Reset check-in for the next stage
+                    updatedAt: new Date().toISOString()
                 })
                 .eq('id', order.id);
 
@@ -355,14 +356,13 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                                     <Text style={styles.boxGridTitle}>Box Scan Progress</Text>
                                     {!isVerified && allowedStatuses.length > 0 && (
                                         <TouchableOpacity 
-                                            style={styles.inlineScanButton}
+                                            style={styles.cameraIconButton}
                                             onPress={() => navigation.navigate('Scanning', { 
                                                 orderId: order.id, 
                                                 targetStatus: allowedStatuses[0] 
                                             })}
                                         >
-                                            <LucideCamera color="#38bdf8" size={16} />
-                                            <Text style={styles.inlineScanButtonText}>Scan</Text>
+                                            <LucideCamera color="#38bdf8" size={24} />
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -386,6 +386,16 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                                             </View>
                                         );
                                     })}
+                                </View>
+                                
+                                {/* Check-in Status below grid */}
+                                <View style={styles.checkInStatusWrapper}>
+                                    <Text style={styles.checkInStatusLabel}>Check-in Status:</Text>
+                                    <View style={[styles.checkInBadge, isVerified ? styles.checkInComplete : styles.checkInIncomplete]}>
+                                        <Text style={styles.checkInBadgeText}>
+                                            {isVerified ? 'COMPLETE' : 'INCOMPLETE'}
+                                        </Text>
+                                    </View>
                                 </View>
                             </View>
 
@@ -878,21 +888,43 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
         letterSpacing: 2,
     },
-    inlineScanButton: {
-        flexDirection: 'row',
+    cameraIconButton: {
+        padding: 8,
         backgroundColor: 'rgba(56, 189, 248, 0.1)',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 10,
-        alignItems: 'center',
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: 'rgba(56, 189, 248, 0.2)',
+        borderColor: 'rgba(56, 189, 248, 0.3)',
     },
-    inlineScanButtonText: {
-        color: '#38bdf8',
-        fontSize: 12,
-        fontWeight: 'bold',
-        marginLeft: 6,
+    checkInStatusWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 16,
+        gap: 10,
+    },
+    checkInStatusLabel: {
+        color: '#94a3b8',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    checkInBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    checkInComplete: {
+        backgroundColor: 'rgba(34, 197, 94, 0.15)',
+        borderColor: 'rgba(34, 197, 94, 0.3)',
+    },
+    checkInIncomplete: {
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    checkInBadgeText: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: '#f8fafc',
+        letterSpacing: 0.5,
     },
     boxGrid: {
         flexDirection: 'row',
