@@ -117,15 +117,28 @@ export default function AdminDashboardScreen({ navigation }: any) {
         logNetworkPing();
         logWebAppMetric();
 
-        // Polling every 15 seconds
+        // Polling every 15 seconds to log metrics
         const interval = setInterval(() => {
-            fetchData();
             logMobilePing();
             logNetworkPing();
             logWebAppMetric();
         }, 15000);
         
-        return () => clearInterval(interval);
+        // Subscribe to real-time performance metric updates
+        const channel = supabase.channel('live-performance-metrics')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'performance_metrics' }, (payload) => {
+                setMetrics(prev => {
+                    const newMetrics = [payload.new, ...prev].slice(0, 50);
+                    setAlerts(newMetrics.filter(m => m.status === 'critical' || m.status === 'warning'));
+                    return newMetrics;
+                });
+            })
+            .subscribe();
+
+        return () => {
+            clearInterval(interval);
+            supabase.removeChannel(channel);
+        };
     }, [activeTab, role]);
 
     const fetchData = async () => {

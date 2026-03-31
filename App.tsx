@@ -16,8 +16,23 @@ import ScanStatusModal from './components/ScanStatusModal';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isLoading } = useAppContext();
-  const [authView, setAuthView] = useState<'login' | 'register' | 'adminLogin' | 'verifyEmail' | 'landing'>('landing');
+  const [authView, setAuthView] = useState<'login' | 'register' | 'adminLogin' | 'verifyEmail' | 'landing'>(() => {
+    try {
+      const stored = window.localStorage.getItem('tex_authView');
+      if (stored && ['login', 'register', 'adminLogin', 'verifyEmail', 'landing'].includes(stored)) {
+        return stored as any;
+      }
+    } catch (e) {}
+    return 'landing';
+  });
   const [userToVerify, setUserToVerify] = useState<string | null>(null);
+
+  const handleSetAuthView = (view: 'login' | 'register' | 'adminLogin' | 'verifyEmail' | 'landing') => {
+    try {
+      window.localStorage.setItem('tex_authView', view);
+    } catch (e) {}
+    setAuthView(view);
+  };
 
   console.log('AppRouter: isLoading=', isLoading, 'currentUser=', currentUser);
   console.log('AppRouter: currentUser details:', currentUser ? {
@@ -30,12 +45,12 @@ const AppRouter: React.FC = () => {
 
   const handleRegistrationSuccess = (email: string) => {
     setUserToVerify(email);
-    setAuthView('verifyEmail');
+    handleSetAuthView('verifyEmail');
   };
 
   const handleNeedsVerification = (email: string) => {
     setUserToVerify(email);
-    setAuthView('verifyEmail');
+    handleSetAuthView('verifyEmail');
   }
   
   if (isLoading) {
@@ -45,20 +60,20 @@ const AppRouter: React.FC = () => {
 
   if (!currentUser) {
     if (authView === 'verifyEmail' && userToVerify) {
-      return <VerifyEmailPage email={userToVerify} onVerificationComplete={() => { setAuthView('login'); setUserToVerify(null); }} />;
+      return <VerifyEmailPage email={userToVerify} onVerificationComplete={() => { handleSetAuthView('login'); setUserToVerify(null); }} />;
     }
 
     switch(authView) {
       case 'landing':
-        return <TexConnectWelcomeEnhanced onSignup={() => setAuthView('register')} onGetStarted={() => setAuthView('login')} onBookDemo={() => setAuthView('login')} />;
+        return <TexConnectWelcomeEnhanced onSignup={() => handleSetAuthView('register')} onGetStarted={() => handleSetAuthView('login')} onBookDemo={() => handleSetAuthView('login')} />;
       case 'login':
-        return <LoginPage onSwitchToRegister={() => setAuthView('register')} onSwitchToAdminLogin={() => setAuthView('adminLogin')} onNeedsVerification={handleNeedsVerification} onBackToLanding={() => setAuthView('landing')} />;
+        return <LoginPage onSwitchToRegister={() => handleSetAuthView('register')} onSwitchToAdminLogin={() => handleSetAuthView('adminLogin')} onNeedsVerification={handleNeedsVerification} onBackToLanding={() => handleSetAuthView('landing')} />;
       case 'register':
-        return <RegistrationPage onSwitchToLogin={() => setAuthView('login')} onRegistrationSuccess={handleRegistrationSuccess} onBackToLanding={() => setAuthView('landing')} />;
+        return <RegistrationPage onSwitchToLogin={() => handleSetAuthView('login')} onRegistrationSuccess={handleRegistrationSuccess} onBackToLanding={() => handleSetAuthView('landing')} />;
       case 'adminLogin':
-        return <AdminLoginPage onSwitchToUserLogin={() => setAuthView('login')} />;
+        return <AdminLoginPage onSwitchToUserLogin={() => handleSetAuthView('login')} />;
       default:
-        return <TexConnectWelcomeEnhanced onSignup={() => setAuthView('register')} onGetStarted={() => setAuthView('login')} onBookDemo={() => setAuthView('login')} />;
+        return <TexConnectWelcomeEnhanced onSignup={() => handleSetAuthView('register')} onGetStarted={() => handleSetAuthView('login')} onBookDemo={() => handleSetAuthView('login')} />;
     }
   }
   
