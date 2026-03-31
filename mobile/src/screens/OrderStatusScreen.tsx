@@ -96,11 +96,23 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         if (!order) return;
         try {
             setUpdating(true);
+
+            // 1. Role and scan validation before update
+            const reqUnits = Number(order.printedunits ?? order.printedUnits ?? order.totalunits ?? order.totalUnits ?? 0);
+            const scanned = order.scannedunits ?? order.scannedUnits ?? [];
+            const isFullyScanned = scanned.length >= reqUnits;
+
+            if (reqUnits > 0 && !isFullyScanned) {
+                Alert.alert('Verification Required', `Please scan all ${reqUnits} units before updating to ${targetStatus}.`);
+                return;
+            }
+
+            // 2. Perform Update (clearing scans to force re-scan for next stage)
             const { error } = await supabase
                 .from('orders')
                 .update({ 
                     status: targetStatus, 
-                    scannedunits: [] // Clear scans on transition, enforcing re-scan for next stage
+                    scannedunits: [] // ✅ Re-clear scans so NEXT status update also requires a full scan
                 })
                 .eq('id', order.id);
 
@@ -353,41 +365,34 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     <Text style={styles.refreshButtonText}>Refresh Status</Text>
                 </TouchableOpacity>
 
-                {/* Conditional Update Button */}
-                {(() => {
-                    if (allowedStatuses.length > 0) {
-                        if (isVerified) {
-                            return (
+                {/* Status Update Button / Scan Gating */}
+                {allowedStatuses.length > 0 && (
+                    <View style={{ marginTop: 16 }}>
+                        {isVerified ? (
+                            <TouchableOpacity
+                                style={[styles.updateButton, updating ? { opacity: 0.7 } : null]}
+                                onPress={() => setStatusModalOpen(true)}
+                                disabled={updating}
+                            >
+                                <LucideCheckCircle color="#fff" size={20} />
+                                <Text style={styles.updateButtonText}>Update to {allowedStatuses[0]}</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <View style={styles.warningContainer}>
+                                <Text style={styles.warningText}>
+                                    Scan {Math.max(totalUnits - scannedUnitsCount, 0)} more units to unlock {allowedStatuses[0]} update
+                                </Text>
                                 <TouchableOpacity
-                                    style={[styles.updateButton, updating ? { opacity: 0.7 } : null]}
-                                    onPress={() => setStatusModalOpen(true)}
-                                    disabled={updating}
+                                    style={styles.scanMoreButton}
+                                    onPress={() => navigation.navigate('Scanning')}
                                 >
-                                    <LucideCheckCircle color="#fff" size={20} />
-                                    <Text style={styles.updateButtonText}>Update Status</Text>
+                                    <LucideCamera color="#fff" size={20} />
+                                    <Text style={styles.scanMoreButtonText}>Open QR Scanner</Text>
                                 </TouchableOpacity>
-                            );
-                        }
-
-                        if (verificationRequired && currentStatusIndex >= 1) {
-                            return (
-                                <View style={styles.warningContainer}>
-                                    <Text style={styles.warningText}>
-                                        Scan {Math.max(totalUnits - scannedUnitsCount, 0)} more boxes to unlock status update
-                                    </Text>
-                                    <TouchableOpacity
-                                        style={styles.scanMoreButton}
-                                        onPress={() => navigation.navigate('Scanning')}
-                                    >
-                                        <LucideCamera color="#fff" size={20} />
-                                        <Text style={styles.scanMoreButtonText}>Scan Next QR Code</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            );
-                        }
-                    }
-                    return null;
-                })()}
+                            </View>
+                        )}
+                    </View>
+                )}
 
                 {/* Buyer Invoice Download */}
                 {userRole === 'buyer' && order.status === 'Delivered' && (
