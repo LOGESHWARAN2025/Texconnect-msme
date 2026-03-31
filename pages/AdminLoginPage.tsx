@@ -4,6 +4,7 @@ import { useLocalization } from '../hooks/useLocalization';
 import { useLoading } from '../src/contexts/LoadingContext';
 import { supabase } from '../src/lib/supabase';
 import { MOCK_USERS } from '../constants';
+import Modal from '../components/common/Modal';
 
 interface AdminLoginPageProps {
   onSwitchToUserLogin: () => void;
@@ -18,6 +19,8 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showRestrictionModal, setShowRestrictionModal] = useState(false);
+  const [restrictionMessage, setRestrictionMessage] = useState('');
 
   const adminUser = MOCK_USERS.find(user => user.role === 'admin');
 
@@ -36,7 +39,8 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
         .single();
 
       if (!preFetchError && preUserData && (preUserData.role === 'buyer' || preUserData.role === 'msme')) {
-        setError('Buyer and MSME users are restricted from this page. Please use the User Login page');
+        setRestrictionMessage(`Your account role (${preUserData.role.toUpperCase()}) is not authorized to access the Admin Panel. Please use the standard User Login page.`);
+        setShowRestrictionModal(true);
         setIsLoading(false);
         hideLoading();
         return;
@@ -75,7 +79,8 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
         console.error('Unauthorized access attempt to Admin Panel:', userData.role);
         // Force logout to prevent any session persistence
         await supabase.auth.signOut();
-        setError('Buyer and MSME users are restricted from this page. Please use the User Login page');
+        setRestrictionMessage(`Access Denied! The account role "${userData.role.toUpperCase()}" does not have administrative permissions. Please use the User Login portal.`);
+        setShowRestrictionModal(true);
         setIsLoading(false);
         hideLoading();
         return;
@@ -585,6 +590,62 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
           </form>
         </div>
       </div>
+
+      {/* Access Restricted Modal */}
+      <Modal 
+        isOpen={showRestrictionModal} 
+        onClose={() => setShowRestrictionModal(false)} 
+        title="ACCESS RESTRICTED"
+      >
+        <div style={{ textAlign: 'center', padding: '20px 10px' }}>
+          <div style={{ 
+            width: '64px', 
+            height: '64px', 
+            background: '#fee2e2', 
+            borderRadius: '50%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            margin: '0 auto 20px',
+            color: '#ef4444'
+          }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <p style={{ 
+            fontSize: '16px', 
+            color: '#1e293b', 
+            fontWeight: 600, 
+            lineHeight: 1.6,
+            marginBottom: '24px'
+          }}>
+            {restrictionMessage}
+          </p>
+          <button
+            onClick={() => {
+              setShowRestrictionModal(false);
+              onSwitchToUserLogin();
+            }}
+            style={{
+              padding: '12px 30px',
+              background: 'rgb(79, 70, 229)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(79, 70, 229, 0.3)',
+              width: '100%'
+            }}
+          >
+            GO TO USER LOGIN
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };
