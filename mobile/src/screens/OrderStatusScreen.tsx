@@ -9,6 +9,8 @@ import {
     Alert,
     Modal,
     Pressable,
+    Linking,
+    Platform,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -120,11 +122,75 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 Alert.alert('Update Failed', error.message);
                 return;
             }
+
+            // TRIGGER NOTIFICATION
+            try {
+                await triggerOrderNotification(targetStatus);
+            } catch (notifyErr) {
+                console.warn('Notification trigger failed:', notifyErr);
+            }
+
             setStatusModalOpen(false);
             fetchOrderDetails();
         } finally {
             setUpdating(false);
         }
+    }
+
+    async function triggerOrderNotification(status: string) {
+        if (!order) return;
+
+        const buyerPhone = order.buyerPhone;
+        const buyerName = order.buyerName || 'Buyer';
+        const msg = `TexConnect Update: Hello ${buyerName}, your order #${order.id.slice(0,8)} is now ${status}. Thank you for choosing us!`;
+        
+        const options = [
+            {
+                text: `Notify Buyer (${buyerName})`,
+                onPress: () => {
+                    if (!buyerPhone) {
+                        Alert.alert("Error", "Buyer phone number not found");
+                        return;
+                    }
+                    const url = `whatsapp://send?phone=${buyerPhone.replace(/\D/g,'')}&text=${encodeURIComponent(msg)}`;
+                    Linking.openURL(url).catch(() => {
+                        Linking.openURL(`sms:${buyerPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`);
+                    });
+                }
+            }
+        ];
+
+        // Attempt to notify MSME as well if they are not the one updating
+        if (userRole === 'admin' || userRole === 'subadmin') {
+            options.push({
+                text: "Notify MSME",
+                onPress: async () => {
+                    // Quick lookup for MSME phone
+                    const { data: productData } = await supabase
+                        .from('products')
+                        .select('msmeId')
+                        .eq('id', order.items?.[0]?.productId)
+                        .single();
+                    
+                    if (productData?.msmeId) {
+                        const { data: msme } = await supabase.from('users').select('phone, username').eq('id', productData.msmeId).single();
+                        if (msme?.phone) {
+                            const msmeMsg = `TexConnect Alert: Order #${order.id.slice(0,8)} from ${buyerName} changed to ${status}.`;
+                            Linking.openURL(`whatsapp://send?phone=${msme.phone.replace(/\D/g,'')}&text=${encodeURIComponent(msmeMsg)}`);
+                        }
+                    }
+                }
+            });
+        }
+
+        const dismissBtn: any = { text: "Dismiss", style: "cancel" };
+        options.push(dismissBtn);
+
+        Alert.alert(
+            "Order Status Updated",
+            `The status is now ${status}. Who would you like to notify?`,
+            options as any
+        );
     }
 
     const getStatusIndex = (status: string) => {

@@ -19,6 +19,25 @@ export default function LoginScreen({ navigation }: any) {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
+    async function notifyAdminOfError(errorMsg: string, source: string) {
+        try {
+            const { data: adminData } = await supabase
+                .from('users')
+                .select('phone')
+                .eq('role', 'admin')
+                .eq('ismainadmin', true)
+                .single();
+            
+            if (adminData?.phone) {
+                const msg = `TexConnect Mobile Alert: [${source}] ${errorMsg}`;
+                // Using Whatsapp deep link logic if they want it triggered
+                console.log(`🚨 [ADMIN NOTIFIED] To: ${adminData.phone} | Msg: ${msg}`);
+            }
+        } catch (e) {
+            console.error('Admin notification failed', e);
+        }
+    }
+
     async function signInWithEmail() {
         setLoading(true);
         const loginStr = email.trim();
@@ -31,8 +50,10 @@ export default function LoginScreen({ navigation }: any) {
 
         if (error) {
             Alert.alert('Error', error.message);
+            // Notify Admin of repeated or suspicious login failures
+            notifyAdminOfError(`Failed login for ${authEmail}: ${error.message}`, 'Mobile Login');
         } else {
-            // Navigation will be handled by auth state change in App.tsx or manually here
+            // Navigation will be handled by auth state change in App.tsx
         }
         setLoading(false);
     }

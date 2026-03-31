@@ -3,6 +3,7 @@ import { useAppContext } from '../context/SupabaseContext';
 import { useLocalization } from '../hooks/useLocalization';
 import { useLoading } from '../src/contexts/LoadingContext';
 import { supabase } from '../src/lib/supabase';
+import Modal from '../components/common/Modal';
 
 interface LoginPageProps {
   onSwitchToRegister: () => void;
@@ -25,10 +26,25 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
   const [showPassword, setShowPassword] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalTitle, setModalTitle] = useState('ERROR');
+
   const [isForgotPasswordModalOpen, setIsForgotPasswordModalOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+
+  // Handle errors from the global AppRouter guard
+  React.useEffect(() => {
+    const storedError = window.localStorage.getItem('tex_auth_error');
+    if (storedError) {
+      setModalTitle('ACCESS RESTRICTED');
+      setModalMessage(storedError);
+      setShowErrorModal(true);
+      window.localStorage.removeItem('tex_auth_error');
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +62,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
 
       // If user found and is admin or sub-admin, block immediately without attempting login
       if (!fetchError && userData && (userData.role === 'admin' || userData.role === 'sub-admin')) {
-        setError('Admin and Sub-Admin users are restricted from this page. Please use the Admin Login page');
+        setModalTitle('ADMIN ACCESS DETECTED');
+        setModalMessage(`The account "${email}" is an Admin role. Please use the Admin Login portal for full control.`);
+        setShowErrorModal(true);
         setIsLoading(false);
         hideLoading();
         return;
@@ -66,7 +84,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
         if (!finalFetchError && finalUserData && (finalUserData.role === 'admin' || finalUserData.role === 'sub-admin')) {
           // If unintended role logs in here, force sign out and show error
           await supabase.auth.signOut();
-          setError('Admin and Sub-Admin users are restricted from this page. Please use the Admin Login page');
+          setModalTitle('ACCESS RESTRICTED');
+          setModalMessage('Administrative roles are not allowed to access the User Portal. Redirecting to Admin Login...');
+          setShowErrorModal(true);
           setIsLoading(false);
           hideLoading();
           return;
@@ -76,26 +96,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
         if (result.reason === 'NOT_VERIFIED') {
           setError(t('email_not_verified'));
           setUnverifiedEmail(result.userEmail || null);
-        } else if (result.reason === 'UNKNOWN_ERROR' || result.reason === 'WRONG_PASSWORD') {
-          // If login fails, still try to see if it was an admin user to provide helpful guidance
-          const { data: userData } = await supabase
-            .from('users')
-            .select('role')
-            .eq('email', email)
-            .single();
-
-          if (userData && (userData.role === 'admin' || userData.role === 'sub-admin')) {
-            setError('Admin and Sub-Admin users are restricted from this page. Please use the Admin Login page');
-          } else {
-            setError(t('login_failed'));
-          }
         } else {
-          setError(t('login_failed'));
+          setModalTitle('INVALID USER');
+          setModalMessage('The credentials entered do not match our records. Please verify your email and password and try again.');
+          setShowErrorModal(true);
         }
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError(t('login_failed'));
+      setModalTitle('LOGIN FAILED');
+      setModalMessage('An unexpected error occurred during login. Please contact support if the issue persists.');
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
       hideLoading();
@@ -638,6 +649,72 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
           }
         }
       `}</style>
+
+      {/* Error Modal */}
+      <Modal 
+        isOpen={showErrorModal} 
+        onClose={() => setShowErrorModal(false)} 
+        title={modalTitle}
+      >
+        <div style={{ textAlign: 'center', padding: '20px 10px' }}>
+          <div style={{ 
+            width: '64px', 
+            height: '64px', 
+            background: modalTitle.includes('ACCESS') || modalTitle.includes('ADMIN') ? '#fee2e2' : '#fff7ed', 
+            borderRadius: '50%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            margin: '0 auto 20px',
+            color: modalTitle.includes('ACCESS') || modalTitle.includes('ADMIN') ? '#ef4444' : '#f97316'
+          }}>
+            {modalTitle.includes('ACCESS') || modalTitle.includes('ADMIN') ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            )}
+          </div>
+          <p style={{ 
+            fontSize: '16px', 
+            color: '#1e293b', 
+            fontWeight: 600, 
+            lineHeight: 1.6,
+            marginBottom: '24px'
+          }}>
+            {modalMessage}
+          </p>
+          <button
+            onClick={() => {
+              setShowErrorModal(false);
+              if (modalTitle.includes('ADMIN')) {
+                onSwitchToAdminLogin();
+              }
+            }}
+            style={{
+              padding: '12px 30px',
+              background: 'rgb(79, 70, 229)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(79, 70, 229, 0.3)',
+              width: '100%'
+            }}
+          >
+            {modalTitle.includes('ADMIN') ? 'GO TO ADMIN LOGIN' : 'TRY AGAIN'}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -15,7 +15,7 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 import ScanStatusModal from './components/ScanStatusModal';
 
 const AppRouter: React.FC = () => {
-  const { currentUser, isLoading, logout } = useAppContext();
+  const { currentUser, isLoading, logout, notifyAdminOfError } = useAppContext();
   const [authView, setAuthView] = useState<'login' | 'register' | 'adminLogin' | 'verifyEmail' | 'landing'>(() => {
     try {
       const stored = window.localStorage.getItem('tex_authView');
@@ -45,6 +45,13 @@ const AppRouter: React.FC = () => {
       // If a Buyer/MSME logs in through the Admin Portal, or an Admin logs in through the User Portal, force logout.
       if ((isAdminPortal && isUserRole) || (!isAdminPortal && authView !== 'landing' && authView !== 'register' && isAdminRole)) {
         console.warn('❌ Portal Role Mismatch: Forced Logout triggered', { authView, role: currentUser.role });
+        
+        // Notify admin of potential portal breach or unauthorized access attempt
+        if (notifyAdminOfError) {
+           const detail = `User ${currentUser.email} (${currentUser.role}) tried to access ${authView} portal. Session terminated.`;
+           notifyAdminOfError(detail, 'Web Security Guard');
+        }
+
         const timer = setTimeout(async () => {
           await logout();
           window.localStorage.setItem('tex_auth_error', 'Unauthorized portal access for your role.');

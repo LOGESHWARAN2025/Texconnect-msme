@@ -66,6 +66,7 @@ interface AppContextType {
 
   // Utility Actions
   cleanupOrphanedUser: (email: string) => Promise<void>;
+  notifyAdminOfError: (errorMsg: string, source: string) => Promise<void>;
 }
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -1147,13 +1148,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     if (error) {
       console.error('❌ Error updating order status:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
       throw error;
+    }
+
+    // TRIGGER NOTIFICATIONS
+    if (data && data.length > 0) {
+      const updatedOrder = data[0];
+      try {
+        await sendOrderStatusNotification(updatedOrder, status);
+      } catch (notifyErr) {
+        console.error('⚠️ Notification failed (non-critical):', notifyErr);
+      }
     }
     
     // Explicitly check for silent RLS failures (0 rows updated but no hard error)
@@ -1184,6 +1189,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       throw error;
     }
 
+    // Optional: Notify on significant progress
+    // (We could add logic here to notify when 50% or 100% units are scanned)
+
     console.log('✅ Order scanned units updated successfully');
     await fetchOrders();
   };
@@ -1196,6 +1204,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       buyerId: currentUser.id,
       buyerName: currentUser.username,
       buyerPhone: currentUser.phone || '',
+      msmeId: (item as any).msmeId || (item as any).msmeid || '',
       itemName: item.name,
       items: [{
         productId: item.id,
@@ -1296,36 +1305,132 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const requestProfileUpdate = async (userId: string, updatedData: Partial<User>, gstFile?: File | null) => {
-    // Convert camelCase to lowercase for database columns
-    const dbData: any = {};
-    for (const [key, value] of Object.entries(updatedData)) {
-      const dbKey = key.toLowerCase();
-      dbData[dbKey] = value;
-    }
-    dbData.updatedat = new Date().toISOString();
+    console.log('🔄 Requesting profile update for:', userId, 'Data:', updatedData);
+    
+    try {
+      // 1. Handle GST File Upload if provided
+      let gstUrl = updatedData.gstCertificateUrl;
+      if (gstFile) {
+        console.log('📤 Uploading new GST certificate:', gstFile.name);
+        const fileExt = gstFile.name.split('.').pop();
+        const fileName = `${userId}_gst_${Math.random()}.${fileExt}`;
+        const filePath = `gst_certificates/${fileName}`;
 
-    const { error } = await supabase
-      .from('users')
-      .update(dbData)
-      .eq('id', userId);
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(filePath, gstFile, { upsert: true });
 
-    if (error) throw error;
+        if (uploadError) {
+          console.error('❌ GST upload failed:', uploadError);
+          throw new Error(`GST Upload Failed: ${uploadError.message}`);
+        }
 
-    // Refresh current user data if updating own profile
-    if (currentUser && userId === currentUser.id) {
-      const { data: userData, error: fetchError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (userData && !fetchError) {
-        const mappedUser = mapDatabaseUserToType(userData);
-        setCurrentUser({
-          ...mappedUser,
-          isEmailVerified: currentUser.isEmailVerified
-        });
+        const { data: urlData } = supabase.storage
+          .from('documents')
+          .getPublicUrl(filePath);
+        
+        gstUrl = urlData.publicUrl;
+        console.log('✅ GST uploaded successfully:', gstUrl);
       }
+
+      // 2. Prepare database data (mapping camelCase to snake_case/lowercase)
+      const dbData: any = {};
+      if (updatedData.username !== undefined) dbData.username = updatedData.username;
+      if (updatedData.firstname !== undefined) dbData.firstname = updatedData.firstname;
+      if (updatedData.phone !== undefined) dbData.phone = updatedData.phone;
+      if (updatedData.address !== undefined) dbData.address = updatedData.address;
+      if (updatedData.gstNumber !== undefined) dbData.gstnumber = updatedData.gstNumber;
+      if (updatedData.domain !== undefined) dbData.domain = updatedData.domain;
+      if (gstUrl) dbData.gstcertificateurl = gstUrl;
+      
+      dbData.updatedat = new Date().toISOString();
+
+      console.log('💾 Saving to Supabase:', dbData);
+
+      const { error } = await supabase
+        .from('users')
+        .update(dbData)
+        .eq('id', userId);
+
+      if (error) {
+        console.error('❌ Supabase update error:', error);
+        throw error;
+      }
+
+      // 3. Refresh Local State
+      if (currentUser && userId === currentUser.id) {
+        const { data: userData, error: fetchError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (userData && !fetchError) {
+          const mappedUser = mapDatabaseUserToType(userData);
+          setCurrentUser({
+            ...mappedUser,
+            isEmailVerified: currentUser.isEmailVerified
+          });
+          console.log('✅ Current user profile updated in local state');
+        }
+      }
+    } catch (err: any) {
+      console.error('❌ requestProfileUpdate failed:', err);
+      throw err;
+    }
+  };
+
+  /**
+   * NOTIFICATION SERVICE (SMS/WhatsApp)
+   * Simulated service to notify buyers about order status changes.
+   */
+  const sendOrderStatusNotification = async (order: Order, status: OrderStatus) => {
+    // 1. Notify the Buyer
+    const buyerPhone = order.buyerPhone;
+    const buyerMsg = `TexConnect: Hello ${order.buyerName}! Your order #${order.id.slice(0,8)} has been updated to: ${status}. THANK YOU for choosing us!`;
+    
+    if (buyerPhone) {
+      console.log(`📱 [TEXCONNECT - BUYER NOTIFIED] To: ${buyerPhone} | Msg: ${buyerMsg}`);
+      // Simulated WhatsApp: https://wa.me/${buyerPhone.replace(/\D/g,'')}?text=${encodeURIComponent(buyerMsg)}
+    }
+
+    // 2. Notify the MSME (Manufacturer)
+    try {
+      // Find the MSME ID from the order items
+      const firstItem = order.items?.[0];
+      if (firstItem && firstItem.productId) {
+        const { data: productData } = await supabase
+          .from('products')
+          .select('msmeId')
+          .eq('id', firstItem.productId)
+          .single();
+        
+        const msmeId = productData?.msmeId || (order as any).msmeId;
+        
+        if (msmeId) {
+          const { data: msmeData } = await supabase
+            .from('users')
+            .select('phone, username')
+            .eq('id', msmeId)
+            .single();
+
+          if (msmeData && msmeData.phone) {
+            const msmeMsg = `TexConnect Alert: Order #${order.id.slice(0,8)} from ${order.buyerName} is now ${status}.`;
+            console.log(`📱 [TEXCONNECT - MSME NOTIFIED] To: ${msmeData.phone} | Msg: ${msmeMsg}`);
+            // Simulated WhatsApp: https://wa.me/${msmeData.phone.replace(/\D/g,'')}?text=${encodeURIComponent(msmeMsg)}
+            
+            await logAction('TexConnect Dual Notify', `Status (${status}) sent to Buyer and MSME (${msmeData.username})`);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ MSME notification lookup failed:', e);
+    }
+
+    // Fallback if MSME phone lookup fails
+    if (buyerPhone) {
+      await logAction('TexConnect Notify', `Status (${status}) sent to ${order.buyerName}`);
     }
   };
 
@@ -1335,6 +1440,28 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const rejectProfileChanges = async (userId: string) => {
     await logAction('Profile Update Rejected', `Rejected profile changes for user: ${userId}`);
+  };
+
+  const notifyAdminOfError = async (errorMsg: string, source: string) => {
+    try {
+      // 1. Find the Main Admin
+      const { data: adminData } = await supabase
+        .from('users')
+        .select('phone, username')
+        .eq('role', 'admin')
+        .eq('ismainadmin', true)
+        .single();
+      
+      if (adminData && adminData.phone) {
+        const fullMsg = `TexConnect CRITICAL ERROR: [${source}] ${errorMsg}`;
+        console.log(`🚨 [ADMIN NOTIFIED] To: ${adminData.phone} | Msg: ${fullMsg}`);
+        
+        // Simulated triggers for audit tracking
+        await logAction('Admin Error Notify', `Notified ${adminData.username} of issue in ${source}`);
+      }
+    } catch (e) {
+      console.warn('⚠️ Admin notification failed:', e);
+    }
   };
 
   const logAction = async (action: string, details: string) => {
@@ -1403,16 +1530,19 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     rejectProfileChanges,
     logAction,
     clearLogs,
-    cleanupOrphanedUser
+    cleanupOrphanedUser,
+    notifyAdminOfError
   }), [
     inventory,
     products,
     orders,
     users,
     auditLogs,
+    issues,
     currentUser,
     isLoading,
-    isOffline
+    isOffline,
+    notifyAdminOfError
   ]);
 
   console.log('SupabaseContext: Rendering provider, isLoading=', isLoading);
