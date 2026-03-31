@@ -28,6 +28,20 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
     showLoading('Signing in...');
 
     try {
+      // Pre-check role to prevent buyer/MSME from using Admin Login page
+      const { data: preUserData, error: preFetchError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('email', email)
+        .single();
+
+      if (!preFetchError && preUserData && (preUserData.role === 'buyer' || preUserData.role === 'msme')) {
+        setError('Buyer and MSME users are restricted from this page. Please use the User Login page');
+        setIsLoading(false);
+        hideLoading();
+        return;
+      }
+
       // Try to login first with the provided email/username
       const result = await login(email, password);
 
@@ -56,9 +70,11 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
       }
 
       // Check if user is an admin (includes both main admin and sub-admin)
-      if (userData.role !== 'admin') {
+      if (userData.role !== 'admin' && userData.role !== 'sub-admin') {
         console.error('User role is not admin:', userData.role);
-        setError('Only admin users can access this page');
+        // If a non-admin managed to login, force logout to avoid landing in wrong app
+        await supabase.auth.signOut();
+        setError('Buyer and MSME users are restricted from this page. Please use the User Login page');
         setIsLoading(false);
         hideLoading();
         return;

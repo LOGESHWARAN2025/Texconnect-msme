@@ -44,15 +44,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
         .eq('email', email)
         .single();
 
-      // If user found and is admin, block immediately without attempting login
-      if (!fetchError && userData && userData.role === 'admin') {
-        setError('Invalid user credentials. Admin users must use the Admin Login page');
+      // If user found and is admin or sub-admin, block immediately without attempting login
+      if (!fetchError && userData && (userData.role === 'admin' || userData.role === 'sub-admin')) {
+        setError('Admin and Sub-Admin users are restricted from this page. Please use the Admin Login page');
         setIsLoading(false);
         hideLoading();
         return;
       }
 
-      // If user not found or other error, proceed with normal login (which will fail with proper error)
+      // If user not found or other error, proceed with normal login
       const result = await login(email, password);
       if (!result.success) {
         if (result.reason === 'NOT_VERIFIED') {
