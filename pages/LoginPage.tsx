@@ -52,21 +52,39 @@ const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToRegister, onSwitchToAdm
         return;
       }
 
-      // If user not found or other error, proceed with normal login
+      // 2. Perform normal login
       const result = await login(email, password);
-      if (!result.success) {
+      
+      if (result.success) {
+        // Double check role AFTER login to handle RLS restrictions on the pre-check
+        const { data: finalUserData, error: finalFetchError } = await supabase
+          .from('users')
+          .select('role')
+          .eq('email', email)
+          .single();
+
+        if (!finalFetchError && finalUserData && (finalUserData.role === 'admin' || finalUserData.role === 'sub-admin')) {
+          // If unintended role logs in here, force sign out and show error
+          await supabase.auth.signOut();
+          setError('Admin and Sub-Admin users are restricted from this page. Please use the Admin Login page');
+          setIsLoading(false);
+          hideLoading();
+          return;
+        }
+        // Success - AppRouter will pick up the user state
+      } else {
         if (result.reason === 'NOT_VERIFIED') {
           setError(t('email_not_verified'));
           setUnverifiedEmail(result.userEmail || null);
-        } else if (result.reason === 'UNKNOWN_ERROR') {
-          // Check if this was an admin user trying to login
+        } else if (result.reason === 'UNKNOWN_ERROR' || result.reason === 'WRONG_PASSWORD') {
+          // If login fails, still try to see if it was an admin user to provide helpful guidance
           const { data: userData } = await supabase
             .from('users')
             .select('role')
             .eq('email', email)
             .single();
 
-          if (userData && userData.role === 'admin') {
+          if (userData && (userData.role === 'admin' || userData.role === 'sub-admin')) {
             setError('Admin and Sub-Admin users are restricted from this page. Please use the Admin Login page');
           } else {
             setError(t('login_failed'));

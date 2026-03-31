@@ -34,6 +34,20 @@ const AppRouter: React.FC = () => {
     setAuthView(view);
   };
 
+  // Sync login status for persistence tracking
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('tex_lastLoggedInRole', currentUser.role);
+      localStorage.setItem('tex_isLoggedIn', 'true');
+      // When logged in, we should ideally go back to a login view if we log out
+      if (currentUser.role === 'admin' || currentUser.role === 'sub-admin') {
+        localStorage.setItem('tex_authView', 'adminLogin');
+      } else {
+        localStorage.setItem('tex_authView', 'login');
+      }
+    }
+  }, [currentUser]);
+
   console.log('AppRouter: isLoading=', isLoading, 'currentUser=', currentUser);
   console.log('AppRouter: currentUser details:', currentUser ? {
     id: currentUser.id,
@@ -91,6 +105,7 @@ const AppRouter: React.FC = () => {
       console.log('App.tsx: Rendering DemoApp');
       return <DemoApp />;
     case 'admin':
+    case 'sub-admin':
       console.log('App.tsx: Rendering AdminApp');
       return <AdminApp />;
     default:

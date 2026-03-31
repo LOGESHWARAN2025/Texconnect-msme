@@ -7,7 +7,7 @@ const AdminApp: React.FC = () => {
 
   // Verify user is admin (main-admin or sub-admin)
   useEffect(() => {
-    if (!currentUser || currentUser.role !== 'admin') {
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'sub-admin')) {
       console.error('❌ Unauthorized access to AdminApp - redirecting to login');
       // window.location.href = '/'; 
       // Commented out to prevent infinite loop during dev testing if roles are messy

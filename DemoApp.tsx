@@ -14,11 +14,15 @@ const DemoApp: React.FC = () => {
     }
 
     // If the user is an MSME, they can switch between MSME and Buyer views.
-    // The initial view is set to their primary role, 'msme'.
-    const [displayRole, setDisplayRole] = useState<UserRole>('msme');
+    const [displayRole, setDisplayRole] = useState<UserRole>(() => {
+        const saved = localStorage.getItem('demo-app-display-role');
+        if (saved === 'msme' || saved === 'buyer') return saved as UserRole;
+        return 'msme';
+    });
 
     const handleSetRole = (role: UserRole) => {
         if (role === 'msme' || role === 'buyer') {
+            localStorage.setItem('demo-app-display-role', role);
             setDisplayRole(role);
         }
     };

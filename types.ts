@@ -1,5 +1,5 @@
 export type View = 'dashboard' | 'inventory' | 'orders' | 'profile' | 'products' | 'inventory-dashboard' | 'issues' | 'resolved' | 'market' | 'ai-market';
-export type UserRole = 'msme' | 'buyer' | 'admin';
+export type UserRole = 'msme' | 'buyer' | 'admin' | 'sub-admin';
 export type MSMEDomain = 'Spinning Mills' | 'Knitting and Weaving' | 'Dyeing and Finishing' | 'Apparel Manufacturing';
 
 export interface User {
