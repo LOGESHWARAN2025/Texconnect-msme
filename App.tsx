@@ -15,7 +15,7 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 import ScanStatusModal from './components/ScanStatusModal';
 
 const AppRouter: React.FC = () => {
-  const { currentUser, isLoading } = useAppContext();
+  const { currentUser, isLoading, logout } = useAppContext();
   const [authView, setAuthView] = useState<'login' | 'register' | 'adminLogin' | 'verifyEmail' | 'landing'>(() => {
     try {
       const stored = window.localStorage.getItem('tex_authView');
@@ -34,19 +34,36 @@ const AppRouter: React.FC = () => {
     setAuthView(view);
   };
 
-  // Sync login status for persistence tracking
+  // Sync login status for persistence tracking and enforce portal restrictions
   useEffect(() => {
     if (currentUser) {
+      const isAdminPortal = authView === 'adminLogin';
+      const isUserRole = currentUser.role === 'buyer' || currentUser.role === 'msme';
+      const isAdminRole = currentUser.role === 'admin' || currentUser.role === 'sub-admin';
+
+      // Portal Cross-Entry Guard:
+      // If a Buyer/MSME logs in through the Admin Portal, or an Admin logs in through the User Portal, force logout.
+      if ((isAdminPortal && isUserRole) || (!isAdminPortal && authView !== 'landing' && authView !== 'register' && isAdminRole)) {
+        console.warn('❌ Portal Role Mismatch: Forced Logout triggered', { authView, role: currentUser.role });
+        const timer = setTimeout(async () => {
+          await logout();
+          window.localStorage.setItem('tex_auth_error', 'Unauthorized portal access for your role.');
+          window.location.reload(); 
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+
       localStorage.setItem('tex_lastLoggedInRole', currentUser.role);
       localStorage.setItem('tex_isLoggedIn', 'true');
-      // When logged in, we should ideally go back to a login view if we log out
-      if (currentUser.role === 'admin' || currentUser.role === 'sub-admin') {
+      
+      // Update default view for next visit
+      if (isAdminRole) {
         localStorage.setItem('tex_authView', 'adminLogin');
       } else {
         localStorage.setItem('tex_authView', 'login');
       }
     }
-  }, [currentUser]);
+  }, [currentUser, authView]);
 
   console.log('AppRouter: isLoading=', isLoading, 'currentUser=', currentUser);
   console.log('AppRouter: currentUser details:', currentUser ? {

@@ -22,6 +22,15 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
   const [showRestrictionModal, setShowRestrictionModal] = useState(false);
   const [restrictionMessage, setRestrictionMessage] = useState('');
 
+  // Handle errors from the global AppRouter guard
+  React.useEffect(() => {
+    const storedError = window.localStorage.getItem('tex_auth_error');
+    if (storedError) {
+      setError(storedError);
+      window.localStorage.removeItem('tex_auth_error');
+    }
+  }, []);
+
   const adminUser = MOCK_USERS.find(user => user.role === 'admin');
 
   const handleLogin = async (e: React.FormEvent) => {
