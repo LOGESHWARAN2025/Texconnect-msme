@@ -69,10 +69,11 @@ const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSwitchToUserLogin }) 
         return;
       }
 
-      // Check if user is an admin (includes both main admin and sub-admin)
+      // STRICT RESTRICTION: Only 'admin' and 'sub-admin' roles allowed
       const allowedAdminRoles = ['admin', 'sub-admin'];
       if (!allowedAdminRoles.includes(userData.role)) {
-        console.error('User role is not authorized for admin panel:', userData.role);
+        console.error('Unauthorized access attempt to Admin Panel:', userData.role);
+        // Force logout to prevent any session persistence
         await supabase.auth.signOut();
         setError('Buyer and MSME users are restricted from this page. Please use the User Login page');
         setIsLoading(false);
