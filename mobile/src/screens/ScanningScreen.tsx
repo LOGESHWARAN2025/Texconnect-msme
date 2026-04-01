@@ -98,7 +98,7 @@ export default function ScanningScreen({ navigation, route }: any) {
                     const updatePayload: any = {
                         scannedunits: newScanned,
                         scannedUnits: newScanned,
-                        updatedat: new Date().toISOString()
+                        updated_at: new Date().toISOString()
                     };
 
                     // Check if this was the last unit
@@ -106,7 +106,7 @@ export default function ScanningScreen({ navigation, route }: any) {
                         updatePayload.status = targetStatus;
                         updatePayload.scannedunits = [];
                         updatePayload.scannedUnits = [];
-                        updatePayload.updatedat = new Date().toISOString();
+                        updatePayload.updated_at = new Date().toISOString();
                         
                         const { error: updateError } = await supabase
                             .from('orders')

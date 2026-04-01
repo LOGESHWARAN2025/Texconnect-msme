@@ -124,7 +124,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     status: targetStatus, 
                     scannedunits: [], 
                     scannedUnits: [],
-                    updatedat: new Date().toISOString()
+                    updated_at: new Date().toISOString()
                 })
                 .eq('id', order.id);
 
