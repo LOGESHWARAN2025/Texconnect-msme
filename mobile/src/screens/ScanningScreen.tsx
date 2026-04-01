@@ -94,16 +94,13 @@ export default function ScanningScreen({ navigation, route }: any) {
                     const totalUnits = Number(order.printedunits ?? order.printedUnits ?? order.totalunits ?? order.totalUnits ?? 0);
                     const targetStatus = route?.params?.targetStatus;
 
-                    // Batch update both columns and status if needed
                     const updatePayload: any = {
                         scannedunits: newScanned,
                         scannedUnits: newScanned,
                         updated_at: new Date().toISOString()
                     };
 
-                    // Check if this was the last unit
                     if (targetStatus && newScanned.length >= totalUnits) {
-                        // FORCE RESET FOR NEXT STAGE
                         updatePayload.status = targetStatus;
                         updatePayload.scannedunits = [];
                         updatePayload.scannedUnits = [];
