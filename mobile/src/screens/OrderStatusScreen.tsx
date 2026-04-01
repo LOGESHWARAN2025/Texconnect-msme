@@ -110,20 +110,26 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             }
 
             // 2. Perform Update (clearing scans to force re-scan for next stage)
+            console.log('--- STARTING STATUS UPDATE AND SCAN RESET ---');
+            console.log('Target Status:', targetStatus);
+            console.log('Order ID:', order.id);
+
             const { error } = await supabase
                 .from('orders')
                 .update({ 
                     status: targetStatus, 
-                    scannedunits: [], // ✅ Reset 'BOX SCAN PROGRESS' for the next stage
-                    scannedUnits: [], // Reset both lowercase and camelCase for safety
-                    updatedAt: new Date().toISOString()
+                    scannedunits: [], 
+                    scannedUnits: [],
+                    updatedat: new Date().toISOString()
                 })
                 .eq('id', order.id);
 
             if (error) {
+                console.error('DATABASE UPDATE ERROR:', error);
                 Alert.alert('Update Failed', error.message);
                 return;
             }
+            console.log('--- DATABASE UPDATE SUCCESSFUL ---');
 
             // TRIGGER NOTIFICATION
             try {
@@ -388,19 +394,17 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                             <View style={styles.boxGridContainer}>
                                 <View style={styles.boxGridHeader}>
                                     <Text style={styles.boxGridTitle}>BOX SCAN PROGRESS</Text>
-                                    {!isVerified && allowedStatuses.length > 0 && (
-                                        <TouchableOpacity 
-                                            style={styles.cameraIconButton}
-                                            onPress={() => navigation.navigate('Scanning', { 
-                                                orderId: order.id, 
-                                                targetStatus: allowedStatuses[0] 
-                                            })}
-                                        >
-                                            <View style={styles.cameraButtonSmall}>
-                                                <LucideCamera color="#94a3b8" size={16} />
-                                            </View>
-                                        </TouchableOpacity>
-                                    )}
+                                    <TouchableOpacity 
+                                        style={styles.cameraIconButton}
+                                        onPress={() => navigation.navigate('Scanning', { 
+                                            orderId: order.id, 
+                                            targetStatus: allowedStatuses.length > 0 ? allowedStatuses[0] : null 
+                                        })}
+                                    >
+                                        <View style={styles.cameraButtonSmall}>
+                                            <LucideCamera color="#38bdf8" size={20} />
+                                        </View>
+                                    </TouchableOpacity>
                                 </View>
                                 <View style={styles.boxGrid}>
                                     {Array.from({ length: reqUnits }, (_, i) => i + 1).map(unitNum => {

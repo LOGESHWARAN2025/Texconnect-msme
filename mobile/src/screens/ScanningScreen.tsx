@@ -85,7 +85,7 @@ export default function ScanningScreen({ navigation, route }: any) {
             return;
         }
 
-        // 2. If it was a unit scan (sticker), update the scannedUnits array
+            // 2. If it was a unit scan (sticker), update the scannedUnits array
         if (uid) {
             const currentScanned = order.scannedunits || order.scannedUnits || [];
             if (!currentScanned.includes(uid)) {
@@ -99,7 +99,9 @@ export default function ScanningScreen({ navigation, route }: any) {
                         .from('orders')
                         .update({ 
                             status: targetStatus,
-                            scannedunits: [] // ✅ Reset for next stage
+                            scannedunits: [], // ✅ Reset for next stage
+                            scannedUnits: [], // Double reset for safety
+                            updatedat: new Date().toISOString()
                         })
                         .eq('id', effectiveOrderId);
 
@@ -111,7 +113,10 @@ export default function ScanningScreen({ navigation, route }: any) {
                 } else {
                     const { error: updateError } = await supabase
                         .from('orders')
-                        .update({ scannedunits: newScanned })
+                        .update({ 
+                            scannedunits: newScanned,
+                            scannedUnits: newScanned
+                        })
                         .eq('id', effectiveOrderId);
 
                     if (updateError) {
