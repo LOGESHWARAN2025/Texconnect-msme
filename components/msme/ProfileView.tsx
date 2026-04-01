@@ -246,7 +246,7 @@ const ProfileView: React.FC = () => {
             <div className="flex justify-between items-end mb-12">
                 <div>
                     <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">{t('msme_profile')}</h1>
-                    <p className="text-slate-500 font-bold">{t('manage_your_business_details') || 'Manage your business identity'}</p>
+                    <p className="text-slate-500 font-bold">{t('manage_your_business_details') || 'Manage Your Business Details'}</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <button
