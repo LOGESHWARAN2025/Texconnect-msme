@@ -161,19 +161,19 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     async function triggerOrderNotification(status: string) {
         if (!order) return;
 
-        // Meta WhatsApp API Configuration (Temporary Token from user)
-        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRO8FOkHFwUDdgLNp2ZAR1JmWnhTiZARWvbgbCJDDlRecPnyJW1NAluWF3D9Sp13vEsZBwjv9jvtIFKwW1BwsvrhmGgSk6Wnz60x06xCzXGUKtMj7qwjEv5fUJY7Hb4ZBv0aW9K7xPqqz35WhCBGkWXOZCiCbC8e8k8G9EmElwRC12leSLHKeorZAF3x439LVausoPzEZCBaHR019Jkj7Pj7kPNjE6IGuXrH5dCSqVFieJRZA5VkFDzb5GwBZCUeBegNJM8cY4Rypj3fIz';
+        // Meta WhatsApp API Configuration (New Token provided by user)
+        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRPvLy1guMaZC81Mj2ZCZAg7putFXAKLjTJ8ff5gCZBGJ56C7kfbJPoxas2jd4lYuzmZCVj7QXu8aLJeJeYKTjCBwgHLWGOOAzwRuKB02KrItYcney8wjNm7EbZCdJnfUoQzPuBjWGCoJNYlWzEAV4qg4RgNpkWxqC01ZBAyQECnShpLoJbf47nSamVSOtg5S2y08NdGNundX4yV0ZCdNtrJz9FUemgM7Xypg7ZBcQN7p7QyUPuCmZAfZBiPli9F3ZAqzh7ZBdNPV9qCv8mZCwKNwZDZD';
         const PHONE_NUMBER_ID = '1079330375257311';
 
         // Fetch direct user records instead of relying on complex relational lookups that might fail
-        const { data: buyerProfile, error: buyerError } = await supabase
+        const { data: buyerProfile } = await supabase
             .from('users')
             .select('phone, username, displayName')
             .eq('id', order.buyerId)
             .single();
 
         // Find MSME ID from order items
-        const { data: orderItems, error: itemsError } = await supabase
+        const { data: orderItems } = await supabase
             .from('order_items')
             .select(`
                 product:products(
@@ -206,17 +206,12 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         const buyerMsg = `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`;
         const msmeMsg = `*Texconnect* 🔔\nOrder #${orderIdShort} from ${buyerName} has been *DELIVERED* successfully.`;
 
-        const options: any[] = [];
-
         // Function to send via Meta WhatsApp API (Automated)
         const sendWhatsAppAPI = async (toPhone: string, message: string) => {
             try {
                 const cleanPhone = toPhone.replace(/\D/g, '');
                 const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
                 
-                // Note: Meta API requires Approved Templates for production. 
-                // Using 'hello_world' as a test or direct text if permitted.
-                // For now, we use the direct message URL approach for reliability until templates are approved.
                 const response = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
                     method: 'POST',
                     headers: {
@@ -238,80 +233,65 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             }
         };
 
-        // 1. MSME Updates Status -> Notify Buyer
+        const sendSMSFallback = (toPhone: string, message: string) => {
+            const cleanPhone = toPhone.replace(/\D/g, '');
+            const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+            const url = `sms:${formattedPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
+            Linking.openURL(url).catch(err => console.error('SMS fallback failed:', err));
+        };
+
+        // 1. MSME Updates Status (Accepted -> Out for Delivery) -> AUTOMATED Notify Buyer
         if (userRole === 'msme') {
-            options.push({
-                text: `Send WhatsApp (Texconnect)`,
-                onPress: async () => {
-                    if (!buyerPhone) {
-                        Alert.alert("Error", "Buyer phone number not found.");
-                        return;
-                    }
-                    
-                    // Attempt API Send first (Automated)
-                    const apiResult = await sendWhatsAppAPI(buyerPhone, buyerMsg);
-                    
-                    if (apiResult?.messaging_product) {
-                        Alert.alert("Success", "Notification sent via Texconnect WhatsApp.");
+            if (!buyerPhone) {
+                console.warn("Buyer phone number not found for automated notification.");
+                return;
+            }
+            
+            console.log(`Sending automated notification to Buyer for status: ${status}`);
+            const apiResult = await sendWhatsAppAPI(buyerPhone, buyerMsg);
+            
+            if (!apiResult?.messaging_product) {
+                console.log("WhatsApp API failed, attempting deep link fallback (requires manual action)...");
+                // For deep links/SMS, we still need manual action but we trigger it immediately
+                const cleanPhone = buyerPhone.replace(/\D/g, '');
+                const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(buyerMsg)}`;
+                
+                Linking.canOpenURL(url).then(supported => {
+                    if (supported) {
+                        Linking.openURL(url);
                     } else {
-                        // Fallback to Deep Link if API fails (e.g., token expired or template required)
-                        const cleanPhone = buyerPhone.replace(/\D/g, '');
-                        const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-                        const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(buyerMsg)}`;
-                        
-                        Linking.canOpenURL(url).then(supported => {
-                            if (supported) {
-                                Linking.openURL(url);
-                            } else {
-                                Linking.openURL(`sms:${formattedPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(buyerMsg)}`);
-                            }
-                        });
+                        sendSMSFallback(buyerPhone, buyerMsg);
                     }
-                }
-            });
+                });
+            }
         }
 
-        // 2. Buyer Updates to Delivered -> Notify MSME
+        // 2. Buyer Updates to Delivered -> AUTOMATED Notify MSME
         if (userRole === 'buyer' && status === 'Delivered') {
-            options.push({
-                text: `Message MSME (${msmeName})`,
-                onPress: async () => {
-                    if (!msmePhone) {
-                        Alert.alert("Error", "MSME phone number not found.");
-                        return;
-                    }
+            if (!msmePhone) {
+                console.warn("MSME phone number not found for automated notification.");
+                return;
+            }
 
-                    const apiResult = await sendWhatsAppAPI(msmePhone, msmeMsg);
-                    
-                    if (apiResult?.messaging_product) {
-                        Alert.alert("Success", "MSME notified via Texconnect WhatsApp.");
+            console.log(`Sending automated notification to MSME for status: Delivered`);
+            const apiResult = await sendWhatsAppAPI(msmePhone, msmeMsg);
+            
+            if (!apiResult?.messaging_product) {
+                console.log("WhatsApp API failed, attempting deep link fallback...");
+                const cleanPhone = msmePhone.replace(/\D/g, '');
+                const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(msmeMsg)}`;
+                
+                Linking.canOpenURL(url).then(supported => {
+                    if (supported) {
+                        Linking.openURL(url);
                     } else {
-                        const cleanPhone = msmePhone.replace(/\D/g, '');
-                        const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-                        const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(msmeMsg)}`;
-                        
-                        Linking.canOpenURL(url).then(supported => {
-                            if (supported) {
-                                Linking.openURL(url);
-                            } else {
-                                Linking.openURL(`sms:${formattedPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msmeMsg)}`);
-                            }
-                        });
+                        sendSMSFallback(msmePhone, msmeMsg);
                     }
-                }
-            });
+                });
+            }
         }
-
-        if (options.length === 0) return;
-
-        const dismissBtn: any = { text: "Dismiss", style: "cancel" };
-        options.push(dismissBtn);
-
-        Alert.alert(
-            "Order Status Updated",
-            `The status is now ${status}. Notify the other party via Texconnect WhatsApp?`,
-            options
-        );
     }
 
     const getStatusIndex = (status: string) => {

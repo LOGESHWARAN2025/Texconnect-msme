@@ -85,6 +85,46 @@ const RegistrationPage: React.FC<RegistrationPageProps> = ({ onSwitchToLogin, on
     try {
       const result = await register(userData as any);
       if (result.success && result.user) {
+        // Send Registration Confirmation via WhatsApp API
+        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRO8FOkHFwUDdgLNp2ZAR1JmWnhTiZARWvbgbCJDDlRecPnyJW1NAluWF3D9Sp13vEsZBwjv9jvtIFKwW1BwsvrhmGgSk6Wnz60x06xCzXGUKtMj7qwjEv5fUJY7Hb4ZBv0aW9K7xPqqz35WhCBGkWXOZCiCbC8e8k8G9EmElwRC12leSLHKeorZAF3x439LVausoPzEZCBaHR019Jkj7Pj7kPNjE6IGuXrH5dCSqVFieJRZA5VkFDzb5GwBZCUeBegNJM8cY4Rypj3fIz';
+        const PHONE_NUMBER_ID = '1079330375257311';
+        
+        const cleanPhone = formData.phone.replace(/\D/g, '');
+        const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+        const regMsg = `*Texconnect* ✨\nWelcome ${formData.username}! Your registration as a ${currentRole.toUpperCase()} is successful.\n\nThank you for joining Texconnect!`;
+
+        const sendSMS = () => {
+          // SMS Fallback logic for web (protocol handler)
+          window.location.href = `sms:${formattedPhone}?body=${encodeURIComponent(regMsg)}`;
+        };
+
+        fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: formattedPhone,
+            type: 'text',
+            text: { body: regMsg }
+          })
+        }).then(res => {
+          if (!res.ok) {
+            // If API fails (e.g. token expired), offer WhatsApp deep link or SMS
+            const confirmMsg = "WhatsApp API delivery failed. Would you like to send via WhatsApp Web or SMS instead?";
+            if (window.confirm(confirmMsg)) {
+              window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(regMsg)}`, '_blank');
+            } else {
+              sendSMS();
+            }
+          }
+        }).catch(err => {
+          console.error('Registration WhatsApp failed:', err);
+          sendSMS();
+        });
+
         setRegisteredEmail(result.user.email);
         setShowVerificationNotice(true);
       } else {

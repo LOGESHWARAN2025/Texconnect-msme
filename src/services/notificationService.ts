@@ -421,6 +421,114 @@ export const sendDetailedStatusWhatsApp = async (
   }
 };
 
+// Meta WhatsApp API Configuration (New Token provided by user)
+const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRPvLy1guMaZC81Mj2ZCZAg7putFXAKLjTJ8ff5gCZBGJ56C7kfbJPoxas2jd4lYuzmZCVj7QXu8aLJeJeYKTjCBwgHLWGOOAzwRuKB02KrItYcney8wjNm7EbZCdJnfUoQzPuBjWGCoJNYlWzEAV4qg4RgNpkWxqC01ZBAyQECnShpLoJbf47nSamVSOtg5S2y08NdGNundX4yV0ZCdNtrJz9FUemgM7Xypg7ZBcQN7p7QyUPuCmZAfZBiPli9F3ZAqzh7ZBdNPV9qCv8mZCwKNwZDZD';
+const PHONE_NUMBER_ID = '1079330375257311';
+
+/**
+ * Send automated WhatsApp notification using Meta API
+ */
+const sendAutomatedWhatsApp = async (toPhone: string, message: string) => {
+  try {
+    const cleanPhone = toPhone.replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    
+    const response = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: formattedPhone,
+        type: 'text',
+        text: { body: message }
+      })
+    });
+    return await response.json();
+  } catch (err) {
+    console.error('Meta WhatsApp API Error:', err);
+    return null;
+  }
+};
+
+/**
+ * Send automated SMS fallback (via protocol handler on web)
+ */
+const sendAutomatedSMS = (toPhone: string, message: string) => {
+  const cleanPhone = toPhone.replace(/\D/g, '');
+  const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+  window.location.href = `sms:${formattedPhone}?body=${encodeURIComponent(message)}`;
+};
+
+/**
+ * Trigger automated order status notifications (Web)
+ * MSME -> Buyer for Accepted to Out for Delivery
+ * Buyer -> MSME for Delivered
+ */
+export const triggerAutomatedOrderNotification = async (
+  order: any, 
+  status: string, 
+  userRole: string
+) => {
+  try {
+    // 1. Fetch contact details
+    const { data: buyerProfile } = await supabase
+      .from('users')
+      .select('phone, username, displayName')
+      .eq('id', order.buyerId)
+      .single();
+
+    const { data: orderItems } = await supabase
+      .from('order_items')
+      .select('product:products(msmeId)')
+      .eq('orderId', order.id)
+      .limit(1);
+
+    let msmeProfile = null;
+    const firstItem: any = orderItems?.[0];
+    if (firstItem?.product?.msmeId) {
+      const { data: mProfile } = await supabase
+        .from('users')
+        .select('phone, username, displayName')
+        .eq('id', firstItem.product.msmeId)
+        .single();
+      msmeProfile = mProfile;
+    }
+
+    const buyerPhone = buyerProfile?.phone;
+    const buyerName = buyerProfile?.displayName || buyerProfile?.username || 'Buyer';
+    const msmePhone = msmeProfile?.phone;
+    const orderIdShort = order.id.split('-')[0].toUpperCase();
+
+    const buyerMsg = `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`;
+    const msmeMsg = `*Texconnect* 🔔\nOrder #${orderIdShort} from ${buyerName} has been *DELIVERED* successfully.`;
+
+    // 2. Logic: MSME -> Buyer (Accepted to Out for Delivery)
+    if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status)) {
+      if (buyerPhone) {
+        const result = await sendAutomatedWhatsApp(buyerPhone, buyerMsg);
+        if (!result?.messaging_product) {
+          sendAutomatedSMS(buyerPhone, buyerMsg);
+        }
+      }
+    }
+
+    // 3. Logic: Buyer -> MSME (Delivered)
+    if (userRole === 'buyer' && status === 'Delivered') {
+      if (msmePhone) {
+        const result = await sendAutomatedWhatsApp(msmePhone, msmeMsg);
+        if (!result?.messaging_product) {
+          sendAutomatedSMS(msmePhone, msmeMsg);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error triggering automated notification:', err);
+  }
+};
+
 /**
  * Send both SMS and WhatsApp for order status update
  */

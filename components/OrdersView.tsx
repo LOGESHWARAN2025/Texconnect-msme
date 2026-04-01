@@ -6,7 +6,7 @@ import type { OrderStatus, Order } from '../types';
 import InvoiceModal from './invoice/InvoiceModal';
 import QRCodeStickerPrinter from './QRCodeStickerPrinter';
 import OrderQRScanner from './OrderQRScanner';
-import { sendOrderStatusUpdateBothChannels } from '../src/services/notificationService';
+import { sendOrderStatusUpdateBothChannels, triggerAutomatedOrderNotification } from '../src/services/notificationService';
 
 const getStatusColor = (status: OrderStatus) => {
   switch (status) {
@@ -176,30 +176,10 @@ const OrdersView: React.FC = () => {
       await updateOrderStatus(orderId, newStatus);
       console.log('✅ Status changed successfully');
 
-      // 📱 Send SMS + WhatsApp notification to buyer
-      if (order) {
-        // Try buyerPhone from order, fallback to users list
-        const buyerPhone = order.buyerPhone
-          || users.find(u => u.id === order.buyerId)?.phone
-          || '';
-        if (buyerPhone) {
-          // Fire-and-forget (non-blocking)
-          sendOrderStatusUpdateBothChannels(
-            order.buyerName,
-            buyerPhone,
-            order.id,
-            newStatus,
-            order.itemName || 'Textile Order',
-            order.items?.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0) || 1,
-            order.totalAmount || 0
-          ).then(result => {
-            console.log('📨 Notification result:', result);
-          }).catch(err => {
-            console.warn('⚠️ Notification failed (non-fatal):', err);
-          });
-        } else {
-          console.log('ℹ️ Buyer phone not found — skipping notification (orderId:', orderId, ')');
-        }
+      // 📱 Send Automated WhatsApp/SMS notification
+      if (order && currentUser) {
+        triggerAutomatedOrderNotification(order, newStatus, currentUser.role)
+          .catch(err => console.error('⚠️ Automated notification failed:', err));
       }
     } catch (error: any) {
       const errorMessage = error?.message || error?.code || 'Unknown error occurred';
