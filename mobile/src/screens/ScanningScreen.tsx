@@ -97,14 +97,14 @@ export default function ScanningScreen({ navigation, route }: any) {
                     const updatePayload: any = {
                         scannedunits: newScanned,
                         scannedUnits: newScanned,
-                        updated_at: new Date().toISOString()
+                        updatedAt: new Date().toISOString()
                     };
 
                     if (targetStatus && newScanned.length >= totalUnits) {
                         updatePayload.status = targetStatus;
                         updatePayload.scannedunits = [];
                         updatePayload.scannedUnits = [];
-                        updatePayload.updated_at = new Date().toISOString();
+                        updatePayload.updatedAt = new Date().toISOString();
                         
                         console.log(`--- ALL UNITS SCANNED (${newScanned.length}/${totalUnits}). UPDATING STATUS TO ${targetStatus} AND RESETTING UNITS ---`);
                         const { error: updateError } = await supabase

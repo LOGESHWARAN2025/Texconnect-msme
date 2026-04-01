@@ -124,7 +124,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     status: targetStatus, 
                     scannedunits: [], 
                     scannedUnits: [],
-                    updated_at: new Date().toISOString()
+                    updatedAt: new Date().toISOString()
                 })
                 .eq('id', order.id);
 
@@ -141,7 +141,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 status: targetStatus, 
                 scannedunits: [], 
                 scannedUnits: [],
-                updated_at: new Date().toISOString()
+                updatedAt: new Date().toISOString()
             } : null);
 
             // Fetch in background without blocking UI
