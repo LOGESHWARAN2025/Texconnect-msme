@@ -140,7 +140,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 ...prev, 
                 status: targetStatus, 
                 scannedunits: [], 
-                scannedUnits: [] 
+                scannedUnits: [],
+                updated_at: new Date().toISOString()
             } : null);
 
             // Fetch in background without blocking UI

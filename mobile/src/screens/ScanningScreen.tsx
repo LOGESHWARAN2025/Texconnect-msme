@@ -103,11 +103,13 @@ export default function ScanningScreen({ navigation, route }: any) {
 
                     // Check if this was the last unit
                     if (targetStatus && newScanned.length >= totalUnits) {
+                        // FORCE RESET FOR NEXT STAGE
                         updatePayload.status = targetStatus;
                         updatePayload.scannedunits = [];
                         updatePayload.scannedUnits = [];
                         updatePayload.updated_at = new Date().toISOString();
                         
+                        console.log(`--- ALL UNITS SCANNED (${newScanned.length}/${totalUnits}). UPDATING STATUS TO ${targetStatus} AND RESETTING UNITS ---`);
                         const { error: updateError } = await supabase
                             .from('orders')
                             .update(updatePayload)
