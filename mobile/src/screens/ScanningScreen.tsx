@@ -97,7 +97,8 @@ export default function ScanningScreen({ navigation, route }: any) {
                     // Batch update both columns and status if needed
                     const updatePayload: any = {
                         scannedunits: newScanned,
-                        scannedUnits: newScanned
+                        scannedUnits: newScanned,
+                        updatedat: new Date().toISOString()
                     };
 
                     // Check if this was the last unit
