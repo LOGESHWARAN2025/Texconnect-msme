@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 /**
  * Notification Service
  * Handles WhatsApp and SMS notifications for order confirmations
