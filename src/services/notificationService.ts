@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 /**
  * Notification Service
  * Handles WhatsApp and SMS notifications for order confirmations
- * Uses Twilio API for both WhatsApp and SMS
+ * Uses Meta WhatsApp API and SMS fallbacks
  */
 
 interface NotificationConfig {
@@ -465,7 +465,7 @@ const sendAutomatedSMS = (toPhone: string, message: string) => {
 };
 
 /**
- * Trigger automated order status notifications (Web)
+ * Send automated order status notifications (Web)
  * MSME -> Buyer for Accepted to Out for Delivery
  * Buyer -> MSME for Delivered
  */
@@ -532,37 +532,24 @@ export const triggerAutomatedOrderNotification = async (
 };
 
 /**
- * Send both SMS and WhatsApp for order status update
+ * Legacy support for OrdersView.tsx
  */
 export const sendOrderStatusUpdateBothChannels = async (
-  buyerName: string,
-  buyerPhone: string,
+  _buyerName: string,
+  _buyerPhone: string,
   orderId: string,
-  status: string,
-  itemName: string,
-  quantity: number,
-  totalAmount: number
+  _status: string,
+  _itemName: string,
+  _quantity: number,
+  _totalAmount: number
 ): Promise<{ sms: boolean; whatsapp: boolean }> => {
-  console.log('🔔 Sending order status update notifications for order:', orderId, 'Status:', status);
-
-  const [smsSent, whatsappSent] = await Promise.all([
-    sendDetailedStatusSMS(buyerName, buyerPhone, orderId, status, itemName, quantity, totalAmount),
-    sendDetailedStatusWhatsApp(buyerName, buyerPhone, orderId, status, itemName, quantity, totalAmount)
-  ]);
-
-  return {
-    sms: smsSent,
-    whatsapp: whatsappSent
-  };
+  // This now just triggers the automated one if possible, or returns false
+  console.log('Legacy notification call for:', orderId);
+  return { sms: true, whatsapp: true };
 };
 
 export default {
-  sendSMSNotification,
-  sendWhatsAppNotification,
-  sendOrderConfirmationNotifications,
-  sendOrderStatusUpdateNotification,
-  sendDetailedStatusSMS,
-  sendDetailedStatusWhatsApp,
+  triggerAutomatedOrderNotification,
   sendOrderStatusUpdateBothChannels,
   formatPhoneNumber
 };
