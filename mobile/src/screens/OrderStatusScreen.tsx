@@ -49,21 +49,25 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         }
     }, [orderId]);
 
-    async function fetchOrderDetails() {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', orderId)
-            .single();
+    async function fetchOrderDetails(showLoading = true) {
+        if (showLoading) setLoading(true);
+        try {
+            // Using optimized service if available, otherwise fallback to direct supabase
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('id', orderId)
+                .single();
 
-        if (error) {
-            Alert.alert('Error', 'Order not found or access denied');
-            navigation.goBack();
-        } else {
-            setOrder(data);
+            if (error) {
+                Alert.alert('Error', 'Order not found or access denied');
+                navigation.goBack();
+            } else {
+                setOrder(data);
+            }
+        } finally {
+            if (showLoading) setLoading(false);
         }
-        setLoading(false);
     }
 
     const getAllowedNextStatuses = (status: string, role: string | null): string[] => {
@@ -130,16 +134,24 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 return;
             }
             console.log('--- DATABASE UPDATE SUCCESSFUL ---');
+            
+            // Manually update local state to reflect reset immediately
+            setOrder((prev: any) => prev ? { 
+                ...prev, 
+                status: targetStatus, 
+                scannedunits: [], 
+                scannedUnits: [] 
+            } : null);
 
-            // TRIGGER NOTIFICATION
-            try {
-                await triggerOrderNotification(targetStatus);
-            } catch (notifyErr) {
-                console.warn('Notification trigger failed:', notifyErr);
-            }
+            // Fetch in background without blocking UI
+            fetchOrderDetails(false);
+
+            // TRIGGER NOTIFICATION (Non-blocking)
+            triggerOrderNotification(targetStatus).catch(err => 
+                console.warn('Notification trigger failed:', err)
+            );
 
             setStatusModalOpen(false);
-            fetchOrderDetails();
         } finally {
             setUpdating(false);
         }
@@ -394,17 +406,50 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                             <View style={styles.boxGridContainer}>
                                 <View style={styles.boxGridHeader}>
                                     <Text style={styles.boxGridTitle}>BOX SCAN PROGRESS</Text>
-                                    <TouchableOpacity 
-                                        style={styles.cameraIconButton}
-                                        onPress={() => navigation.navigate('Scanning', { 
-                                            orderId: order.id, 
-                                            targetStatus: allowedStatuses.length > 0 ? allowedStatuses[0] : null 
-                                        })}
-                                    >
-                                        <View style={styles.cameraButtonSmall}>
-                                            <LucideCamera color="#38bdf8" size={20} />
-                                        </View>
-                                    </TouchableOpacity>
+                                    {(() => {
+                                        // Conditional visibility for Scan Button:
+                                        // 1. MSME: Hide when status is 'Out for Delivery' or 'Delivered'
+                                        // 2. Buyer: Hide when status is 'Delivered'
+                                        const statusLower = (order.status || '').toLowerCase();
+                                        let showBtn = true;
+                                        
+                                        if (userRole === 'msme') {
+                                            // MSME: Button shows till "Out for Delivery" (removed at Out for Delivery)
+                                            if (statusLower === 'out for delivery' || statusLower === 'delivered') {
+                                                showBtn = false;
+                                            }
+                                        } else if (userRole === 'buyer') {
+                                            // Buyer: Button shows until status is 'Delivered'
+                                            if (statusLower === 'delivered') {
+                                                showBtn = false;
+                                            }
+                                        }
+
+                                        if (!showBtn) return null;
+
+                                        return (
+                                            <TouchableOpacity 
+                                                style={styles.cameraIconButton}
+                                                onPress={() => navigation.navigate('Scanning', { 
+                                                    orderId: order.id, 
+                                                    targetStatus: (allowedStatuses && allowedStatuses.length > 0) ? allowedStatuses[0] : null 
+                                                })}
+                                            >
+                                                <View style={{
+                                                    padding: 10,
+                                                    backgroundColor: '#38bdf8',
+                                                    borderRadius: 12,
+                                                    shadowColor: '#38bdf8',
+                                                    shadowOffset: { width: 0, height: 2 },
+                                                    shadowOpacity: 0.3,
+                                                    shadowRadius: 4,
+                                                    elevation: 3
+                                                }}>
+                                                    <LucideCamera color="#fff" size={24} />
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })()}
                                 </View>
                                 <View style={styles.boxGrid}>
                                     {Array.from({ length: reqUnits }, (_, i) => i + 1).map(unitNum => {
@@ -511,7 +556,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
                 <TouchableOpacity
                     style={styles.refreshButton}
-                    onPress={fetchOrderDetails}
+                    onPress={() => fetchOrderDetails(true)}
                 >
                     <Text style={styles.refreshButtonText}>Refresh Status</Text>
                 </TouchableOpacity>

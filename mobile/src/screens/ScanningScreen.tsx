@@ -72,65 +72,74 @@ export default function ScanningScreen({ navigation, route }: any) {
             return;
         }
 
-        // 1. Fetch current order data
-        const { data: order, error: fetchError } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', effectiveOrderId)
-            .single();
+        try {
+            // 1. Fetch current order data
+            const { data: order, error: fetchError } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('id', effectiveOrderId)
+                .single();
 
-        if (fetchError || !order) {
-            Alert.alert('Order Not Found', 'The scanned Order ID does not exist.');
-            setScanned(false);
-            return;
-        }
+            if (fetchError || !order) {
+                Alert.alert('Order Not Found', 'The scanned Order ID does not exist.');
+                setScanned(false);
+                return;
+            }
 
             // 2. If it was a unit scan (sticker), update the scannedUnits array
-        if (uid) {
-            const currentScanned = order.scannedunits || order.scannedUnits || [];
-            if (!currentScanned.includes(uid)) {
-                const newScanned = [...currentScanned, uid];
-                const totalUnits = Number(order.printedunits ?? order.printedUnits ?? order.totalunits ?? order.totalUnits ?? 0);
-                const targetStatus = route?.params?.targetStatus;
+            if (uid) {
+                const currentScanned = order.scannedunits || order.scannedUnits || [];
+                if (!currentScanned.includes(uid)) {
+                    const newScanned = [...currentScanned, uid];
+                    const totalUnits = Number(order.printedunits ?? order.printedUnits ?? order.totalunits ?? order.totalUnits ?? 0);
+                    const targetStatus = route?.params?.targetStatus;
 
-                // Check if this was the last unit
-                if (targetStatus && newScanned.length >= totalUnits) {
-                    const { error: updateError } = await supabase
-                        .from('orders')
-                        .update({ 
-                            status: targetStatus,
-                            scannedunits: [], // ✅ Reset for next stage
-                            scannedUnits: [], // Double reset for safety
-                            updatedat: new Date().toISOString()
-                        })
-                        .eq('id', effectiveOrderId);
+                    // Batch update both columns and status if needed
+                    const updatePayload: any = {
+                        scannedunits: newScanned,
+                        scannedUnits: newScanned
+                    };
 
-                    if (!updateError) {
-                        Alert.alert('Success', `Task Completed! Order updated to ${targetStatus}.`);
+                    // Check if this was the last unit
+                    if (targetStatus && newScanned.length >= totalUnits) {
+                        updatePayload.status = targetStatus;
+                        updatePayload.scannedunits = [];
+                        updatePayload.scannedUnits = [];
+                        updatePayload.updatedat = new Date().toISOString();
+                        
+                        const { error: updateError } = await supabase
+                            .from('orders')
+                            .update(updatePayload)
+                            .eq('id', effectiveOrderId);
+
+                        if (!updateError) {
+                            Alert.alert('Success', `Task Completed! Order updated to ${targetStatus}.`);
+                        } else {
+                            throw updateError;
+                        }
                     } else {
-                        Alert.alert('Update Failed', updateError.message);
+                        const { error: updateError } = await supabase
+                            .from('orders')
+                            .update(updatePayload)
+                            .eq('id', effectiveOrderId);
+
+                        if (updateError) {
+                            throw updateError;
+                        }
                     }
                 } else {
-                    const { error: updateError } = await supabase
-                        .from('orders')
-                        .update({ 
-                            scannedunits: newScanned,
-                            scannedUnits: newScanned
-                        })
-                        .eq('id', effectiveOrderId);
-
-                    if (updateError) {
-                        Alert.alert('Update Failed', updateError.message || 'Could not record the unit scan.');
-                    }
+                    Alert.alert('Duplicate Scan', 'This unit has already been scanned.');
                 }
-            } else {
-                Alert.alert('Duplicate Scan', 'This unit has already been scanned.');
             }
-        }
 
-        // 3. Navigate back to Status screen
-        navigation.navigate('OrderStatus', { orderId: order.id });
-        setTimeout(() => setScanned(false), 2000);
+            // 3. Navigate back to Status screen
+            navigation.navigate('OrderStatus', { orderId: effectiveOrderId });
+        } catch (error: any) {
+            console.error('Scan processing error:', error);
+            Alert.alert('Update Failed', error.message || 'Could not record the unit scan.');
+        } finally {
+            setTimeout(() => setScanned(false), 1000);
+        }
     };
 
     const handleLogout = async () => {

@@ -16,6 +16,8 @@ import SalesInsights from './SalesInsights';
 import AIMarketDashboard from '../ai/AIMarketDashboard';
 import EnhancedMarketAnalysisAI from '../ai/EnhancedMarketAnalysisAI';
 import { fetchMarketChatReply } from '../../src/services/market/marketInsightsService';
+import { optimizedDataService } from '../../src/services/optimizedDataService';
+import cacheService from '../../src/services/cacheService';
 
 export default function ModernMSMEDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -57,6 +59,16 @@ export default function ModernMSMEDashboard() {
     unitOfMeasure: '',
     minStockLevel: 0
   });
+
+  useEffect(() => {
+    // Prefetch all critical data on dashboard load to speed up navigation
+    const prefetch = async () => {
+      if (currentUser) {
+        await optimizedDataService.prefetchData(currentUser.id, currentUser.id);
+      }
+    };
+    prefetch();
+  }, [currentUser]);
 
   useEffect(() => {
     localStorage.setItem('msme-current-view', currentView);
