@@ -935,7 +935,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           id: authData.user.id,
           email: userData.email,
           username: userData.username,
+          firstname: userData.firstname || userData.username,
+          phone: userData.phone || '',
+          address: userData.address || '',
           role: userData.role,
+          gstNumber: userData.gstNumber || '',
           isApproved: userData.role === 'admin',
           isEmailVerified: false
         } as User
@@ -1026,7 +1030,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('inventory')
       .update(updateData)
       .eq('id', id)
-      .eq('msmeId', currentUser.id);
+      .eq('msmeid', currentUser.id);
 
     if (error) {
       console.error('❌ Error updating inventory item:', error);
@@ -1045,7 +1049,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('inventory')
       .delete()
       .eq('id', itemId)
-      .eq('msmeId', currentUser.id);
+      .eq('msmeid', currentUser.id);
 
     if (error) throw error;
   };
@@ -1100,7 +1104,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('products')
       .update(updateData)
       .eq('id', id)
-      .eq('msmeId', currentUser.id);
+      .eq('msmeid', currentUser.id);
 
     if (error) {
       console.error('❌ Error updating product:', error);
@@ -1121,7 +1125,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('products')
       .delete()
       .eq('id', productId)
-      .eq('msmeId', currentUser.id);
+      .eq('msmeid', currentUser.id);
 
     if (error) {
       console.error('❌ Error deleting product:', error);
@@ -1141,7 +1145,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .update({
         status,
         scannedunits: [], // Reset scanned units to require re-scan for next stage
-        updatedAt: new Date().toISOString() // Explicitly update timestamp
+        updatedat: new Date().toISOString() // Use lowercase 'updatedat' for database
       })
       .eq('id', orderId)
       .select();
@@ -1180,7 +1184,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('orders')
       .update({
         scannedunits: scannedUnits,
-        updatedAt: new Date().toISOString()
+        updatedat: new Date().toISOString()
       })
       .eq('id', orderId);
 
@@ -1382,55 +1386,70 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   /**
    * NOTIFICATION SERVICE (SMS/WhatsApp)
-   * Simulated service to notify buyers about order status changes.
+   * Real/Mock service to notify buyers and MSMEs about order status changes.
    */
   const sendOrderStatusNotification = async (order: Order, status: OrderStatus) => {
-    // 1. Notify the Buyer
-    const buyerPhone = order.buyerPhone;
-    const buyerMsg = `TexConnect: Hello ${order.buyerName}! Your order #${order.id.slice(0,8)} has been updated to: ${status}. THANK YOU for choosing us!`;
-    
-    if (buyerPhone) {
-      console.log(`📱 [TEXCONNECT - BUYER NOTIFIED] To: ${buyerPhone} | Msg: ${buyerMsg}`);
-      // Simulated WhatsApp: https://wa.me/${buyerPhone.replace(/\D/g,'')}?text=${encodeURIComponent(buyerMsg)}
-    }
+    // We conditionally import or call the real implementation to avoid circular loops
+    const { sendOrderStatusNotification: realSendNotification } = await import('../services/notificationService');
 
-    // 2. Notify the MSME (Manufacturer)
-    try {
-      // Find the MSME ID from the order items
-      const firstItem = order.items?.[0];
-      if (firstItem && firstItem.productId) {
-        const { data: productData } = await supabase
-          .from('products')
-          .select('msmeId')
-          .eq('id', firstItem.productId)
-          .single();
-        
-        const msmeId = productData?.msmeId || (order as any).msmeId;
-        
-        if (msmeId) {
-          const { data: msmeData } = await supabase
-            .from('users')
-            .select('phone, username')
-            .eq('id', msmeId)
-            .single();
-
-          if (msmeData && msmeData.phone) {
-            const msmeMsg = `TexConnect Alert: Order #${order.id.slice(0,8)} from ${order.buyerName} is now ${status}.`;
-            console.log(`📱 [TEXCONNECT - MSME NOTIFIED] To: ${msmeData.phone} | Msg: ${msmeMsg}`);
-            // Simulated WhatsApp: https://wa.me/${msmeData.phone.replace(/\D/g,'')}?text=${encodeURIComponent(msmeMsg)}
-            
-            await logAction('TexConnect Dual Notify', `Status (${status}) sent to Buyer and MSME (${msmeData.username})`);
-            return;
-          }
+    // 1. Notify the Buyer for progression statuses
+    if (status !== 'Delivered' && status !== 'Cancelled') {
+      const buyerPhone = order.buyerPhone;
+      if (buyerPhone) {
+        try {
+          await realSendNotification({
+            recipientName: order.buyerName,
+            recipientPhone: buyerPhone,
+            recipientRole: 'buyer',
+            orderId: order.id,
+            orderStatus: status,
+            itemName: order.items?.[0]?.productName,
+            totalAmount: order.items?.reduce((total, item) => total + ((item.price || 0) * item.quantity), 0)
+          });
+          await logAction('TexConnect Notify', `Status (${status}) sent to Buyer: ${order.buyerName}`);
+        } catch (e) {
+          console.error('Failed to notify buyer:', e);
         }
       }
-    } catch (e) {
-      console.warn('⚠️ MSME notification lookup failed:', e);
     }
 
-    // Fallback if MSME phone lookup fails
-    if (buyerPhone) {
-      await logAction('TexConnect Notify', `Status (${status}) sent to ${order.buyerName}`);
+    // 2. Notify the MSME (Manufacturer) when Delivered
+    if (status === 'Delivered') {
+      try {
+        // Find the MSME ID from the order items
+        const firstItem = order.items?.[0];
+        if (firstItem && firstItem.productId) {
+          const { data: productData } = await supabase
+            .from('products')
+            .select('msmeId')
+            .eq('id', firstItem.productId)
+            .single();
+          
+          const msmeId = productData?.msmeId || (order as any).msmeId;
+          
+          if (msmeId) {
+            const { data: msmeData } = await supabase
+              .from('users')
+              .select('phone, username, firstname')
+              .eq('id', msmeId)
+              .single();
+
+            if (msmeData && msmeData.phone) {
+              await realSendNotification({
+                recipientName: msmeData.firstname || msmeData.username,
+                recipientPhone: msmeData.phone,
+                recipientRole: 'msme',
+                orderId: order.id,
+                orderStatus: status,
+                itemName: firstItem.productName
+              });
+              await logAction('TexConnect Notify', `Delivered alert sent to MSME (${msmeData.username})`);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ MSME notification lookup failed:', e);
+      }
     }
   };
 

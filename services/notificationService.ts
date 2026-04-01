@@ -17,8 +17,9 @@ import type { OrderStatus } from '../types';
 import { supabase } from '../src/lib/supabase';
 
 export interface NotificationPayload {
-  buyerName: string;
-  buyerPhone: string; // E.164 format e.g. +919876543210
+  recipientName: string;
+  recipientPhone: string; // E.164 format e.g. +919876543210
+  recipientRole: 'buyer' | 'msme';
   orderId: string;
   orderStatus: OrderStatus;
   itemName?: string;
@@ -29,6 +30,14 @@ const APP_NAME = 'TexConnect';
 
 function buildSmsMessage(payload: NotificationPayload): string {
   const shortId = payload.orderId.substring(0, 8).toUpperCase();
+  
+  if (payload.recipientRole === 'msme') {
+    if (payload.orderStatus === 'Delivered') {
+      return `🎉 Success! Order #${shortId} has been Delivered successfully to the buyer. - ${APP_NAME}`;
+    }
+    return `Order #${shortId} status changed to ${payload.orderStatus}. - ${APP_NAME}`;
+  }
+
   const statusMessages: Partial<Record<OrderStatus, string>> = {
     Accepted:         `✅ Your order #${shortId} has been Accepted by the MSME. We will prepare it shortly.`,
     'Ready to Prepare': `🔧 Good news! Your order #${shortId} is now being Prepared.`,
@@ -45,9 +54,22 @@ function buildSmsMessage(payload: NotificationPayload): string {
 function buildWhatsAppMessage(payload: NotificationPayload): string {
   const shortId = payload.orderId.substring(0, 8).toUpperCase();
   const amount = payload.totalAmount ? `₹${payload.totalAmount.toLocaleString('en-IN')}` : '';
+  
+  if (payload.recipientRole === 'msme') {
+    return (
+      `*${APP_NAME} MSME Alert* 🏭\n\n` +
+      `Hello ${payload.recipientName}! 👋\n\n` +
+      `The order *#${shortId}*${payload.itemName ? ` (${payload.itemName})` : ''} ` +
+      `has been updated to:\n\n` +
+      `*📌 Status: ${payload.orderStatus}*\n\n` +
+      buildSmsMessage(payload) + `\n\n` +
+      `_– ${APP_NAME} Team_`
+    );
+  }
+
   return (
     `*${APP_NAME} Order Update* 🏭\n\n` +
-    `Hello ${payload.buyerName}! 👋\n\n` +
+    `Hello ${payload.recipientName}! 👋\n\n` +
     `Your order *#${shortId}*${payload.itemName ? ` (${payload.itemName})` : ''}${amount ? ` worth ${amount}` : ''} ` +
     `has been updated to:\n\n` +
     `*📌 Status: ${payload.orderStatus}*\n\n` +
@@ -64,11 +86,11 @@ function buildWhatsAppMessage(payload: NotificationPayload): string {
 async function sendViaSupabaseEdge(payload: NotificationPayload): Promise<void> {
   const { error } = await supabase.functions.invoke('send-notification', {
     body: {
-      phone: payload.buyerPhone,
+      phone: payload.recipientPhone,
       sms: buildSmsMessage(payload),
       whatsapp: buildWhatsAppMessage(payload),
       orderId: payload.orderId,
-      buyerName: payload.buyerName,
+      recipientName: payload.recipientName,
       status: payload.orderStatus,
     },
   });
@@ -96,7 +118,7 @@ async function sendViaTwilio(payload: NotificationPayload): Promise<void> {
     'Content-Type': 'application/x-www-form-urlencoded',
   };
 
-  const toPhone = payload.buyerPhone.startsWith('+') ? payload.buyerPhone : `+91${payload.buyerPhone}`;
+  const toPhone = payload.recipientPhone.startsWith('+') ? payload.recipientPhone : `+91${payload.recipientPhone}`;
 
   // Send SMS
   try {
@@ -140,8 +162,8 @@ async function sendViaTwilio(payload: NotificationPayload): Promise<void> {
  * Useful for development/testing.
  */
 function sendMock(payload: NotificationPayload): void {
-  console.group(`📱 [MOCK] TexConnect Notification — Order ${payload.orderId.substring(0, 8)}`);
-  console.log('📞 To:', payload.buyerPhone);
+  console.group(`📱 [MOCK] TexConnect Notification — Order ${payload.orderId.substring(0, 8)} (${payload.recipientRole})`);
+  console.log('📞 To:', payload.recipientPhone);
   console.log('📝 SMS:', buildSmsMessage(payload));
   console.log('💬 WhatsApp:', buildWhatsAppMessage(payload));
   console.groupEnd();
@@ -152,8 +174,8 @@ function sendMock(payload: NotificationPayload): void {
  * It will NOT throw; errors are caught and logged so the UI keeps working.
  */
 export async function sendOrderStatusNotification(payload: NotificationPayload): Promise<void> {
-  if (!payload.buyerPhone) {
-    console.warn('⚠️ Notification skipped: buyer has no phone number');
+  if (!payload.recipientPhone) {
+    console.warn(`⚠️ Notification skipped: ${payload.recipientRole} has no phone number`);
     return;
   }
 
