@@ -327,6 +327,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'confirm_password': 'Confirm Password',
     'confirm_password_placeholder': 'Confirm your password',
     'agree_terms': 'I agree to the terms and conditions',
+    'manage_your_business_details': 'Manage Your Business Details',
     'reset_password_title': 'Reset Password',
     'reset_password_desc': 'Enter your email address and we will send you a link to reset your password.',
     'send_reset_link': 'Send Reset Link',
