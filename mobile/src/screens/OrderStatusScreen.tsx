@@ -161,76 +161,143 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     async function triggerOrderNotification(status: string) {
         if (!order) return;
 
-        // Fetch buyer and MSME details to ensure phone numbers are available
-        const { data: orderWithDetails, error: orderError } = await supabase
-            .from('orders')
-            .select(`
-                *,
-                buyer:users!buyerId(phone, username, displayName),
-                items:order_items(
-                    *,
-                    product:products(
-                        *,
-                        msme:users!msmeId(phone, username, displayName)
-                    )
-                )
-            `)
-            .eq('id', order.id)
+        // Meta WhatsApp API Configuration (Temporary Token from user)
+        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRO8FOkHFwUDdgLNp2ZAR1JmWnhTiZARWvbgbCJDDlRecPnyJW1NAluWF3D9Sp13vEsZBwjv9jvtIFKwW1BwsvrhmGgSk6Wnz60x06xCzXGUKtMj7qwjEv5fUJY7Hb4ZBv0aW9K7xPqqz35WhCBGkWXOZCiCbC8e8k8G9EmElwRC12leSLHKeorZAF3x439LVausoPzEZCBaHR019Jkj7Pj7kPNjE6IGuXrH5dCSqVFieJRZA5VkFDzb5GwBZCUeBegNJM8cY4Rypj3fIz';
+        const PHONE_NUMBER_ID = '1079330375257311';
+
+        // Fetch direct user records instead of relying on complex relational lookups that might fail
+        const { data: buyerProfile, error: buyerError } = await supabase
+            .from('users')
+            .select('phone, username, displayName')
+            .eq('id', order.buyerId)
             .single();
 
-        if (orderError || !orderWithDetails) {
-            console.error('Error fetching order details for notification:', orderError);
-            return;
+        // Find MSME ID from order items
+        const { data: orderItems, error: itemsError } = await supabase
+            .from('order_items')
+            .select(`
+                product:products(
+                    msmeId
+                )
+            `)
+            .eq('orderId', order.id)
+            .limit(1);
+
+        const firstItem: any = orderItems?.[0];
+        let msmeProfile = null;
+        if (firstItem?.product?.msmeId) {
+            const { data: mProfile } = await supabase
+                .from('users')
+                .select('phone, username, displayName')
+                .eq('id', firstItem.product.msmeId)
+                .single();
+            msmeProfile = mProfile;
         }
 
-        const buyer = orderWithDetails.buyer;
-        const buyerPhone = buyer?.phone;
-        const buyerName = buyer?.displayName || buyer?.username || 'Buyer';
+        const buyerPhone = buyerProfile?.phone;
+        const buyerName = buyerProfile?.displayName || buyerProfile?.username || 'Buyer';
         
-        const msme = orderWithDetails.items?.[0]?.product?.msme;
-        const msmePhone = msme?.phone;
-        const msmeName = msme?.displayName || msme?.username || 'MSME';
+        const msmePhone = msmeProfile?.phone;
+        const msmeName = msmeProfile?.displayName || msmeProfile?.username || 'MSME';
 
-        const msg = `TexConnect Update: Hello ${buyerName}, your order #${order.id.split('-')[0].toUpperCase()} is now ${status}. Thank you for choosing us!`;
+        const orderIdShort = order.id.split('-')[0].toUpperCase();
         
+        // TEMPLATE: Texconnect branding
+        const buyerMsg = `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`;
+        const msmeMsg = `*Texconnect* 🔔\nOrder #${orderIdShort} from ${buyerName} has been *DELIVERED* successfully.`;
+
         const options: any[] = [];
 
-        // Logic: Accepted/Prepared/Shipped/Out for Delivery -> Notify Buyer
-        const notifyBuyerStatuses = ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'];
-        if (notifyBuyerStatuses.includes(status)) {
+        // Function to send via Meta WhatsApp API (Automated)
+        const sendWhatsAppAPI = async (toPhone: string, message: string) => {
+            try {
+                const cleanPhone = toPhone.replace(/\D/g, '');
+                const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                
+                // Note: Meta API requires Approved Templates for production. 
+                // Using 'hello_world' as a test or direct text if permitted.
+                // For now, we use the direct message URL approach for reliability until templates are approved.
+                const response = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messaging_product: 'whatsapp',
+                        to: formattedPhone,
+                        type: 'text',
+                        text: { body: message }
+                    })
+                });
+                const result = await response.json();
+                return result;
+            } catch (err) {
+                console.error('WhatsApp API Error:', err);
+                return null;
+            }
+        };
+
+        // 1. MSME Updates Status -> Notify Buyer
+        if (userRole === 'msme') {
             options.push({
-                text: `Notify Buyer (${buyerName})`,
-                onPress: () => {
+                text: `Send WhatsApp (Texconnect)`,
+                onPress: async () => {
                     if (!buyerPhone) {
-                        Alert.alert("Error", "Buyer phone number not found in profile.");
+                        Alert.alert("Error", "Buyer phone number not found.");
                         return;
                     }
-                    const cleanPhone = buyerPhone.replace(/\D/g, '');
-                    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-                    const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(msg)}`;
-                    Linking.openURL(url).catch(() => {
-                        Linking.openURL(`sms:${buyerPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`);
-                    });
+                    
+                    // Attempt API Send first (Automated)
+                    const apiResult = await sendWhatsAppAPI(buyerPhone, buyerMsg);
+                    
+                    if (apiResult?.messaging_product) {
+                        Alert.alert("Success", "Notification sent via Texconnect WhatsApp.");
+                    } else {
+                        // Fallback to Deep Link if API fails (e.g., token expired or template required)
+                        const cleanPhone = buyerPhone.replace(/\D/g, '');
+                        const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                        const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(buyerMsg)}`;
+                        
+                        Linking.canOpenURL(url).then(supported => {
+                            if (supported) {
+                                Linking.openURL(url);
+                            } else {
+                                Linking.openURL(`sms:${formattedPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(buyerMsg)}`);
+                            }
+                        });
+                    }
                 }
             });
         }
 
-        // Logic: Delivered -> Notify MSME
-        if (status === 'Delivered') {
+        // 2. Buyer Updates to Delivered -> Notify MSME
+        if (userRole === 'buyer' && status === 'Delivered') {
             options.push({
-                text: `Notify MSME (${msmeName})`,
-                onPress: () => {
+                text: `Message MSME (${msmeName})`,
+                onPress: async () => {
                     if (!msmePhone) {
-                        Alert.alert("Error", "MSME phone number not found in profile.");
+                        Alert.alert("Error", "MSME phone number not found.");
                         return;
                     }
-                    const msmeMsg = `TexConnect Alert: Order #${order.id.split('-')[0].toUpperCase()} from ${buyerName} has been DELIVERED successfully.`;
-                    const cleanPhone = msmePhone.replace(/\D/g, '');
-                    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-                    const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(msmeMsg)}`;
-                    Linking.openURL(url).catch(() => {
-                        Linking.openURL(`sms:${msmePhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msmeMsg)}`);
-                    });
+
+                    const apiResult = await sendWhatsAppAPI(msmePhone, msmeMsg);
+                    
+                    if (apiResult?.messaging_product) {
+                        Alert.alert("Success", "MSME notified via Texconnect WhatsApp.");
+                    } else {
+                        const cleanPhone = msmePhone.replace(/\D/g, '');
+                        const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                        const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(msmeMsg)}`;
+                        
+                        Linking.canOpenURL(url).then(supported => {
+                            if (supported) {
+                                Linking.openURL(url);
+                            } else {
+                                Linking.openURL(`sms:${formattedPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msmeMsg)}`);
+                            }
+                        });
+                    }
                 }
             });
         }
@@ -242,7 +309,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
         Alert.alert(
             "Order Status Updated",
-            `The status is now ${status}.`,
+            `The status is now ${status}. Notify the other party via Texconnect WhatsApp?`,
             options
         );
     }
