@@ -114,7 +114,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                 .from('orders')
                 .update({ 
                     status: targetStatus, 
-                    scannedunits: [], // ✅ Reset check-in for the next stage
+                    scannedunits: [], // ✅ Reset 'BOX SCAN PROGRESS' for the next stage
+                    scannedUnits: [], // Reset both lowercase and camelCase for safety
                     updatedAt: new Date().toISOString()
                 })
                 .eq('id', order.id);
@@ -141,56 +142,89 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     async function triggerOrderNotification(status: string) {
         if (!order) return;
 
-        const buyerPhone = order.buyerPhone;
-        const buyerName = order.buyerName || 'Buyer';
-        const msg = `TexConnect Update: Hello ${buyerName}, your order #${order.id.slice(0,8)} is now ${status}. Thank you for choosing us!`;
+        // Fetch buyer and MSME details to ensure phone numbers are available
+        const { data: orderWithDetails, error: orderError } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                buyer:users!buyerId(phone, username, displayName),
+                items:order_items(
+                    *,
+                    product:products(
+                        *,
+                        msme:users!msmeId(phone, username, displayName)
+                    )
+                )
+            `)
+            .eq('id', order.id)
+            .single();
+
+        if (orderError || !orderWithDetails) {
+            console.error('Error fetching order details for notification:', orderError);
+            return;
+        }
+
+        const buyer = orderWithDetails.buyer;
+        const buyerPhone = buyer?.phone;
+        const buyerName = buyer?.displayName || buyer?.username || 'Buyer';
         
-        const options = [
-            {
+        const msme = orderWithDetails.items?.[0]?.product?.msme;
+        const msmePhone = msme?.phone;
+        const msmeName = msme?.displayName || msme?.username || 'MSME';
+
+        const msg = `TexConnect Update: Hello ${buyerName}, your order #${order.id.split('-')[0].toUpperCase()} is now ${status}. Thank you for choosing us!`;
+        
+        const options: any[] = [];
+
+        // Logic: Accepted/Prepared/Shipped/Out for Delivery -> Notify Buyer
+        const notifyBuyerStatuses = ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'];
+        if (notifyBuyerStatuses.includes(status)) {
+            options.push({
                 text: `Notify Buyer (${buyerName})`,
                 onPress: () => {
                     if (!buyerPhone) {
-                        Alert.alert("Error", "Buyer phone number not found");
+                        Alert.alert("Error", "Buyer phone number not found in profile.");
                         return;
                     }
-                    const url = `whatsapp://send?phone=${buyerPhone.replace(/\D/g,'')}&text=${encodeURIComponent(msg)}`;
+                    const cleanPhone = buyerPhone.replace(/\D/g, '');
+                    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                    const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(msg)}`;
                     Linking.openURL(url).catch(() => {
                         Linking.openURL(`sms:${buyerPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`);
                     });
                 }
-            }
-        ];
+            });
+        }
 
-        // Attempt to notify MSME as well if they are not the one updating
-        if (userRole === 'admin' || userRole === 'subadmin') {
+        // Logic: Delivered -> Notify MSME
+        if (status === 'Delivered') {
             options.push({
-                text: "Notify MSME",
-                onPress: async () => {
-                    // Quick lookup for MSME phone
-                    const { data: productData } = await supabase
-                        .from('products')
-                        .select('msmeId')
-                        .eq('id', order.items?.[0]?.productId)
-                        .single();
-                    
-                    if (productData?.msmeId) {
-                        const { data: msme } = await supabase.from('users').select('phone, username').eq('id', productData.msmeId).single();
-                        if (msme?.phone) {
-                            const msmeMsg = `TexConnect Alert: Order #${order.id.slice(0,8)} from ${buyerName} changed to ${status}.`;
-                            Linking.openURL(`whatsapp://send?phone=${msme.phone.replace(/\D/g,'')}&text=${encodeURIComponent(msmeMsg)}`);
-                        }
+                text: `Notify MSME (${msmeName})`,
+                onPress: () => {
+                    if (!msmePhone) {
+                        Alert.alert("Error", "MSME phone number not found in profile.");
+                        return;
                     }
+                    const msmeMsg = `TexConnect Alert: Order #${order.id.split('-')[0].toUpperCase()} from ${buyerName} has been DELIVERED successfully.`;
+                    const cleanPhone = msmePhone.replace(/\D/g, '');
+                    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                    const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(msmeMsg)}`;
+                    Linking.openURL(url).catch(() => {
+                        Linking.openURL(`sms:${msmePhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msmeMsg)}`);
+                    });
                 }
             });
         }
+
+        if (options.length === 0) return;
 
         const dismissBtn: any = { text: "Dismiss", style: "cancel" };
         options.push(dismissBtn);
 
         Alert.alert(
             "Order Status Updated",
-            `The status is now ${status}. Who would you like to notify?`,
-            options as any
+            `The status is now ${status}.`,
+            options
         );
     }
 
@@ -353,7 +387,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                             {/* Box Grid */}
                             <View style={styles.boxGridContainer}>
                                 <View style={styles.boxGridHeader}>
-                                    <Text style={styles.boxGridTitle}>Box Scan Progress</Text>
+                                    <Text style={styles.boxGridTitle}>BOX SCAN PROGRESS</Text>
                                     {!isVerified && allowedStatuses.length > 0 && (
                                         <TouchableOpacity 
                                             style={styles.cameraIconButton}
@@ -362,7 +396,9 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                                                 targetStatus: allowedStatuses[0] 
                                             })}
                                         >
-                                            <LucideCamera color="#38bdf8" size={24} />
+                                            <View style={styles.cameraButtonSmall}>
+                                                <LucideCamera color="#94a3b8" size={16} />
+                                            </View>
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -879,7 +915,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 16,
+    },
+    cameraButtonSmall: {
+        padding: 8,
+        backgroundColor: 'rgba(248, 250, 252, 0.05)',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
     },
     boxGridTitle: {
         color: '#94a3b8',
