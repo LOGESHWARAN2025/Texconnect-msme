@@ -475,27 +475,61 @@ export const triggerAutomatedOrderNotification = async (
   userRole: string
 ) => {
   try {
-    // 1. Fetch contact details
-    const { data: buyerProfile } = await supabase
+    // 1. Fetch contact details - Fix: Use correct column name 'buyerId' or 'buyer_id'
+    // Based on previous logs, the column is likely 'buyerId'
+    const buyerIdToQuery = order.buyerId || order.buyer_id;
+    console.log('[Web] Debug: order object:', JSON.stringify(order));
+    console.log('[Web] Debug: buyerIdToQuery:', buyerIdToQuery);
+
+    const { data: buyerProfile, error: buyerError } = await supabase
       .from('users')
       .select('phone, username, displayName')
-      .eq('id', order.buyerId)
+      .eq('id', buyerIdToQuery)
       .single();
 
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select('product:products(msmeId)')
-      .eq('orderId', order.id)
-      .limit(1);
+    if (buyerError) {
+      console.error('[Web] Error fetching buyer profile:', buyerError);
+    } else {
+      console.log('[Web] Debug: Found buyer profile:', JSON.stringify(buyerProfile));
+    }
+
+    // Fix: Simplify relational lookup which is causing 404/400
+    // First get the msmeId from the order if it's there, otherwise from order_items
+    let msmeId = order.msmeId || order.msme_id;
+    
+    if (!msmeId) {
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('productId')
+        .eq('orderId', order.id)
+        .limit(1);
+
+      if (itemsError) {
+        console.error('[Web] Error fetching order items:', itemsError);
+      }
+
+      const firstItem = orderItems?.[0];
+      if (firstItem?.productId) {
+        const { data: productData } = await supabase
+          .from('products')
+          .select('msmeId')
+          .eq('id', firstItem.productId)
+          .single();
+        msmeId = productData?.msmeId;
+      }
+    }
 
     let msmeProfile = null;
-    const firstItem: any = orderItems?.[0];
-    if (firstItem?.product?.msmeId) {
-      const { data: mProfile } = await supabase
+    if (msmeId) {
+      const { data: mProfile, error: msmeError } = await supabase
         .from('users')
         .select('phone, username, displayName')
-        .eq('id', firstItem.product.msmeId)
+        .eq('id', msmeId)
         .single();
+      
+      if (msmeError) {
+        console.error('[Web] Error fetching MSME profile:', msmeError);
+      }
       msmeProfile = mProfile;
     }
 
