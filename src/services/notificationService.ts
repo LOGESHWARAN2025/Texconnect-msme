@@ -477,11 +477,12 @@ export const triggerAutomatedOrderNotification = async (
   try {
     // 1. Fetch contact details - Fix: Use correct column name 'buyerId' or 'buyer_id'
     // Based on previous logs, the column is likely 'buyerId'
-    const buyerIdToQuery = order.buyerId || order.buyer_id;
+    const buyerIdToQuery = order.buyerId || order.buyer_id || order.buyerid;
     console.log('[Web] Debug: order object:', JSON.stringify(order));
     console.log('[Web] Debug: buyerIdToQuery:', buyerIdToQuery);
 
-    const { data: buyerProfile, error: buyerError } = await supabase
+    let buyerProfile: any = null;
+    const { data: bProfile, error: buyerError } = await supabase
       .from('users')
       .select('phone, username, displayName')
       .eq('id', buyerIdToQuery)
@@ -489,8 +490,21 @@ export const triggerAutomatedOrderNotification = async (
 
     if (buyerError) {
       console.error('[Web] Error fetching buyer profile:', buyerError);
+      console.log('[Web] Debug: Attempting fallback fetch by buyerName:', order.buyerName);
+      if (order.buyerName) {
+        const { data: fallbackProfile } = await supabase
+          .from('users')
+          .select('phone, username, displayName')
+          .eq('username', order.buyerName)
+          .single();
+        if (fallbackProfile) {
+          console.log('[Web] Debug: Found buyer profile via fallback:', JSON.stringify(fallbackProfile));
+          buyerProfile = fallbackProfile;
+        }
+      }
     } else {
-      console.log('[Web] Debug: Found buyer profile:', JSON.stringify(buyerProfile));
+      console.log('[Web] Debug: Found buyer profile:', JSON.stringify(bProfile));
+      buyerProfile = bProfile;
     }
 
     // Fix: Simplify relational lookup which is causing 404/400
