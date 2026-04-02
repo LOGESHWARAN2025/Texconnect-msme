@@ -423,9 +423,10 @@ export const sendDetailedStatusWhatsApp = async (
   }
 };
 
-// Meta WhatsApp API Configuration (New Token provided by user)
-const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRCJraaNkoe018cUvlvzHAuLWSb2ZC08bNi7hbBwNXmBlxrn3pFcRHccrOWUKoIdsPGnQbBYLl3zUexkUZCNxgTNqVNaKJ0cK5SgopoZARmV2VqebTbAizajHVV0NlLUkwHglqbVQGOatfSUZAKm8UtpOVUKox3t1pzno9kE7iZCEZBuZCeRxdREkp5eZBPdnaZA0316Oqtn8lNQPUdxAwL6bZAuD6WWUXRVQ8PYBdYZArZC7fHqwy7LXNxxmTao4OLi4WyTRr5ZAsxYbuvFEa';
-const PHONE_NUMBER_ID = '1079330375257311';
+/**
+ * Meta WhatsApp API Configuration
+ * On Web: Proxying through Vercel API routes (/api/whatsapp/send-template)
+ */
 
 /**
  * Send automated WhatsApp notification using Meta API (Template based)
@@ -439,38 +440,27 @@ const sendAutomatedWhatsApp = async (toPhone: string, templateName: string, comp
     const isBrowser = typeof window !== 'undefined' && !window.navigator.userAgent.includes('ReactNative');
     
     if (isBrowser) {
-      console.warn('[Web] Meta API cannot be called directly from browser due to CORS. Falling back to SMS/Protocol handler.');
-      return { success: false, reason: 'CORS_RESTRICTION' };
+      // Use serverless proxy to avoid CORS and keep token secret
+      const response = await fetch('/api/whatsapp/send-template', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: toPhone,
+          templateName,
+          languageCode: 'en_US',
+          parameters: components,
+        }),
+      });
+
+      const data = await response.json();
+      return data;
     }
 
-    const cleanPhone = toPhone.replace(/\D/g, '');
-    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    
-    const response = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: formattedPhone,
-        type: 'template',
-        template: {
-          name: templateName,
-          language: {
-            code: 'en_US'
-          },
-          components: [
-            {
-              type: 'body',
-              parameters: components
-            }
-          ]
-        }
-      })
-    });
-    return await response.json();
+    // Non-browser environments aren't expected here for the Vite web app.
+    // If this ever runs (tests/SSR), return a clear error.
+    return { success: false, reason: 'NON_BROWSER_ENV_NOT_SUPPORTED' };
   } catch (err) {
     console.error('Meta WhatsApp API Error:', err);
     return null;
@@ -568,6 +558,8 @@ export const triggerAutomatedOrderNotification = async (
     const buyerMsg = `Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}. Thank you for choosing TexConnect!`;
     const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`;
 
+    // Template parameters for 'order_status_update'
+    // Matches template: "Hello {{customer_name}}, your order #{{order_id}} is now {{status}}."
     const buyerParams = [
       { type: 'text', text: buyerName },
       { type: 'text', text: orderIdShort },
@@ -579,12 +571,8 @@ export const triggerAutomatedOrderNotification = async (
       if (buyerPhone) {
         console.log(`[Web] Sending automated notification to Buyer: ${buyerPhone} for status: ${status}`);
         
-        // TEST: Try hello_world template first to verify connectivity
-        // const result = await sendAutomatedWhatsApp(buyerPhone, 'order_status_update', buyerParams);
-        const result = await sendAutomatedWhatsApp(buyerPhone, 'hello_world', []);
-        
-        // Use buyerParams in a log to satisfy TS6133 and verify template params
-        console.log('[Web] Debug: Original buyerParams would have been:', JSON.stringify(buyerParams));
+        // Use the actual template instead of hello_world
+        const result = await sendAutomatedWhatsApp(buyerPhone, 'order_status_update', buyerParams);
         
         // CRITICAL DEBUG: If message is not received, this log will show the Meta API error
         console.log('[Web] WhatsApp API Full Response:', JSON.stringify(result, null, 2));
