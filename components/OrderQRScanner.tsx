@@ -40,11 +40,7 @@ const OrderQRScanner: React.FC<OrderQRScannerProps> = ({ isOpen, onClose, order,
 
                     const config = {
                         fps: 10,
-                        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-                            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                            const edgeSize = Math.floor(minEdge * 0.7);
-                            return { width: edgeSize, height: edgeSize };
-                        }
+                        qrbox: { width: 250, height: 250 }
                     };
 
                     await html5QrCode.start(

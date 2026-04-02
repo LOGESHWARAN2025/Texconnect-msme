@@ -1145,7 +1145,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .update({
         status,
         scannedunits: [], // Reset scanned units to require re-scan for next stage
-        updatedat: new Date().toISOString() // Use lowercase 'updatedat' for database
+        updatedAt: new Date().toISOString() // Fixed: changed 'updatedat' to 'updatedAt'
       })
       .eq('id', orderId)
       .select();
@@ -1184,7 +1184,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       .from('orders')
       .update({
         scannedunits: scannedUnits,
-        updatedat: new Date().toISOString()
+        scannedUnits: scannedUnits, // Keep both for safety
+        updatedAt: new Date().toISOString()
       })
       .eq('id', orderId);
 
