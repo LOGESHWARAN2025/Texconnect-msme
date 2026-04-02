@@ -475,8 +475,7 @@ export const triggerAutomatedOrderNotification = async (
   userRole: string
 ) => {
   try {
-    // 1. Fetch contact details - Fix: Use correct column name 'buyerId' or 'buyer_id'
-    // Based on previous logs, the column is likely 'buyerId'
+    // 1. Fetch contact details - Fix: Use lowercase column names 'displayname' as per Supabase hint
     const buyerIdToQuery = order.buyerId || order.buyer_id || order.buyerid;
     console.log('[Web] Debug: order object:', JSON.stringify(order));
     console.log('[Web] Debug: buyerIdToQuery:', buyerIdToQuery);
@@ -484,7 +483,7 @@ export const triggerAutomatedOrderNotification = async (
     let buyerProfile: any = null;
     const { data: bProfile, error: buyerError } = await supabase
       .from('users')
-      .select('phone, username, displayName')
+      .select('phone, username, displayname')
       .eq('id', buyerIdToQuery)
       .single();
 
@@ -494,7 +493,7 @@ export const triggerAutomatedOrderNotification = async (
       if (order.buyerName) {
         const { data: fallbackProfile } = await supabase
           .from('users')
-          .select('phone, username, displayName')
+          .select('phone, username, displayname')
           .eq('username', order.buyerName)
           .single();
         if (fallbackProfile) {
@@ -508,36 +507,28 @@ export const triggerAutomatedOrderNotification = async (
     }
 
     // Fix: Simplify relational lookup which is causing 404/400
-    // First get the msmeId from the order if it's there, otherwise from order_items
-    let msmeId = order.msmeId || order.msme_id;
+    // First get the msmeId from the order if it's there (try both cases)
+    let msmeId = order.msmeId || order.msme_id || order.msmeid;
     
     if (!msmeId) {
-      const { data: orderItems, error: itemsError } = await supabase
-        .from('order_items')
-        .select('productId')
-        .eq('orderId', order.id)
-        .limit(1);
-
-      if (itemsError) {
-        console.error('[Web] Error fetching order items:', itemsError);
-      }
-
-      const firstItem = orderItems?.[0];
-      if (firstItem?.productId) {
+      // Use 'orders' table since 'order_items' might not exist or be accessible
+      // Extracting from order items if they are embedded in the order object
+      const firstItem = order.items?.[0];
+      if (firstItem?.productId || firstItem?.product_id) {
         const { data: productData } = await supabase
           .from('products')
-          .select('msmeId')
-          .eq('id', firstItem.productId)
+          .select('msmeid')
+          .eq('id', firstItem.productId || firstItem.product_id)
           .single();
-        msmeId = productData?.msmeId;
+        msmeId = productData?.msmeid;
       }
     }
 
-    let msmeProfile = null;
+    let msmeProfile: any = null;
     if (msmeId) {
       const { data: mProfile, error: msmeError } = await supabase
         .from('users')
-        .select('phone, username, displayName')
+        .select('phone, username, displayname')
         .eq('id', msmeId)
         .single();
       
@@ -548,9 +539,9 @@ export const triggerAutomatedOrderNotification = async (
     }
 
     const buyerPhone = buyerProfile?.phone;
-    const buyerName = buyerProfile?.displayName || buyerProfile?.username || 'Buyer';
+    const buyerName = buyerProfile?.displayname || buyerProfile?.username || 'Buyer';
     const msmePhone = msmeProfile?.phone;
-    const orderIdShort = order.id.split('-')[0].toUpperCase();
+    const orderIdShort = (order.id || '').split('-')[0].toUpperCase();
 
     const buyerMsg = `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`;
     const msmeMsg = `*Texconnect* 🔔\nOrder #${orderIdShort} from ${buyerName} has been *DELIVERED* successfully.`;
