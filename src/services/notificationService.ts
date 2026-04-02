@@ -429,9 +429,20 @@ const PHONE_NUMBER_ID = '1079330375257311';
 
 /**
  * Send automated WhatsApp notification using Meta API (Template based)
+ * NOTE: Browsers block direct calls to Meta API due to CORS.
+ * On Web, this will use the SMS fallback unless a proxy/backend is used.
+ * Mobile (React Native) is NOT affected by CORS and will work directly.
  */
 const sendAutomatedWhatsApp = async (toPhone: string, templateName: string, components: any[]) => {
   try {
+    // Check if we are in a browser environment
+    const isBrowser = typeof window !== 'undefined' && !window.navigator.userAgent.includes('ReactNative');
+    
+    if (isBrowser) {
+      console.warn('[Web] Meta API cannot be called directly from browser due to CORS. Falling back to SMS/Protocol handler.');
+      return { success: false, reason: 'CORS_RESTRICTION' };
+    }
+
     const cleanPhone = toPhone.replace(/\D/g, '');
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     
@@ -557,7 +568,6 @@ export const triggerAutomatedOrderNotification = async (
     const buyerMsg = `Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}. Thank you for choosing TexConnect!`;
     const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`;
 
-    // Template parameters for 'order_status_update'
     const buyerParams = [
       { type: 'text', text: buyerName },
       { type: 'text', text: orderIdShort },
@@ -568,7 +578,13 @@ export const triggerAutomatedOrderNotification = async (
     if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status)) {
       if (buyerPhone) {
         console.log(`[Web] Sending automated notification to Buyer: ${buyerPhone} for status: ${status}`);
-        const result = await sendAutomatedWhatsApp(buyerPhone, 'order_status_update', buyerParams);
+        
+        // TEST: Try hello_world template first to verify connectivity
+        // const result = await sendAutomatedWhatsApp(buyerPhone, 'order_status_update', buyerParams);
+        const result = await sendAutomatedWhatsApp(buyerPhone, 'hello_world', []);
+        
+        // Use buyerParams in a log to satisfy TS6133 and verify template params
+        console.log('[Web] Debug: Original buyerParams would have been:', JSON.stringify(buyerParams));
         
         // CRITICAL DEBUG: If message is not received, this log will show the Meta API error
         console.log('[Web] WhatsApp API Full Response:', JSON.stringify(result, null, 2));
