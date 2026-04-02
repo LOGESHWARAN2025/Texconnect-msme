@@ -165,19 +165,23 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRPvLy1guMaZC81Mj2ZCZAg7putFXAKLjTJ8ff5gCZBGJ56C7kfbJPoxas2jd4lYuzmZCVj7QXu8aLJeJeYKTjCBwgHLWGOOAzwRuKB02KrItYcney8wjNm7EbZCdJnfUoQzPuBjWGCoJNYlWzEAV4qg4RgNpkWxqC01ZBAyQECnShpLoJbf47nSamVSOtg5S2y08NdGNundX4yV0ZCdNtrJz9FUemgM7Xypg7ZBcQN7p7QyUPuCmZAfZBiPli9F3ZAqzh7ZBdNPV9qCv8mZCwKNwZDZD';
         const PHONE_NUMBER_ID = '1079330375257311';
 
-        // Fetch direct user records instead of relying on complex relational lookups that might fail
-        const { data: buyerProfile } = await supabase
+        // 1. Fetch contact details - Fix: Use lowercase column names 'displayname' as per Supabase hint
+        const { data: buyerProfile, error: buyerError } = await supabase
             .from('users')
-            .select('phone, username, displayName')
+            .select('phone, username, displayname')
             .eq('id', order.buyerId)
             .single();
+
+        if (buyerError) {
+            console.error('[Mobile] Error fetching buyer profile:', buyerError);
+        }
 
         // Find MSME ID from order items
         const { data: orderItems } = await supabase
             .from('order_items')
             .select(`
                 product:products(
-                    msmeId
+                    msmeid
                 )
             `)
             .eq('orderId', order.id)
@@ -185,20 +189,20 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
         const firstItem: any = orderItems?.[0];
         let msmeProfile = null;
-        if (firstItem?.product?.msmeId) {
+        if (firstItem?.product?.msmeid) {
             const { data: mProfile } = await supabase
                 .from('users')
-                .select('phone, username, displayName')
-                .eq('id', firstItem.product.msmeId)
+                .select('phone, username, displayname')
+                .eq('id', firstItem.product.msmeid)
                 .single();
             msmeProfile = mProfile;
         }
 
         const buyerPhone = buyerProfile?.phone;
-        const buyerName = buyerProfile?.displayName || buyerProfile?.username || 'Buyer';
+        const buyerName = buyerProfile?.displayname || buyerProfile?.username || 'Buyer';
         
         const msmePhone = msmeProfile?.phone;
-        const msmeName = msmeProfile?.displayName || msmeProfile?.username || 'MSME';
+        const msmeName = msmeProfile?.displayname || msmeProfile?.username || 'MSME';
 
         const orderIdShort = order.id.split('-')[0].toUpperCase();
         
