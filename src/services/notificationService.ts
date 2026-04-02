@@ -428,9 +428,9 @@ const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRPvLy1guMaZC81Mj2ZCZAg7putFXAKLjTJ8ff5gCZBG
 const PHONE_NUMBER_ID = '1079330375257311';
 
 /**
- * Send automated WhatsApp notification using Meta API
+ * Send automated WhatsApp notification using Meta API (Template based)
  */
-const sendAutomatedWhatsApp = async (toPhone: string, message: string) => {
+const sendAutomatedWhatsApp = async (toPhone: string, templateName: string, components: any[]) => {
   try {
     const cleanPhone = toPhone.replace(/\D/g, '');
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
@@ -444,8 +444,19 @@ const sendAutomatedWhatsApp = async (toPhone: string, message: string) => {
       body: JSON.stringify({
         messaging_product: 'whatsapp',
         to: formattedPhone,
-        type: 'text',
-        text: { body: message }
+        type: 'template',
+        template: {
+          name: templateName,
+          language: {
+            code: 'en_US'
+          },
+          components: [
+            {
+              type: 'body',
+              parameters: components
+            }
+          ]
+        }
       })
     });
     return await response.json();
@@ -543,15 +554,32 @@ export const triggerAutomatedOrderNotification = async (
     const msmePhone = msmeProfile?.phone;
     const orderIdShort = (order.id || '').split('-')[0].toUpperCase();
 
-    const buyerMsg = `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`;
-    const msmeMsg = `*Texconnect* 🔔\nOrder #${orderIdShort} from ${buyerName} has been *DELIVERED* successfully.`;
+    const buyerMsg = `Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}. Thank you for choosing TexConnect!`;
+    const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`;
+
+    // Template parameters for 'order_status_update'
+    const buyerParams = [
+      { type: 'text', text: buyerName },
+      { type: 'text', text: orderIdShort },
+      { type: 'text', text: status.toUpperCase() }
+    ];
 
     // 2. Logic: MSME -> Buyer (Accepted to Out for Delivery)
     if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status)) {
       if (buyerPhone) {
         console.log(`[Web] Sending automated notification to Buyer: ${buyerPhone} for status: ${status}`);
-        const result = await sendAutomatedWhatsApp(buyerPhone, buyerMsg);
-        console.log('[Web] WhatsApp API Result:', JSON.stringify(result));
+        const result = await sendAutomatedWhatsApp(buyerPhone, 'order_status_update', buyerParams);
+        
+        // CRITICAL DEBUG: If message is not received, this log will show the Meta API error
+        console.log('[Web] WhatsApp API Full Response:', JSON.stringify(result, null, 2));
+        
+        if (result?.error) {
+          console.error('[Web] Meta WhatsApp API Error:', result.error.message, 'Code:', result.error.code);
+          if (result.error.code === 131030) {
+            console.error('[Web] Hint: This error usually means you must use a pre-approved TEMPLATE for business-initiated messages.');
+          }
+        }
+
         if (!result?.messaging_product) {
           console.log('[Web] WhatsApp API failed, attempting SMS fallback');
           sendAutomatedSMS(buyerPhone, buyerMsg);
@@ -565,8 +593,16 @@ export const triggerAutomatedOrderNotification = async (
     if (userRole === 'buyer' && status === 'Delivered') {
       if (msmePhone) {
         console.log(`[Web] Sending automated notification to MSME: ${msmePhone} for status: Delivered`);
-        const result = await sendAutomatedWhatsApp(msmePhone, msmeMsg);
-        console.log('[Web] WhatsApp API Result:', JSON.stringify(result));
+        
+        // Template parameters for 'order_status_update' (MSME notification)
+        const msmeParams = [
+          { type: 'text', text: buyerName },
+          { type: 'text', text: orderIdShort },
+          { type: 'text', text: 'DELIVERED' }
+        ];
+
+        const result = await sendAutomatedWhatsApp(msmePhone, 'order_status_update', msmeParams);
+        console.log('[Web] WhatsApp API Result:', JSON.stringify(result, null, 2));
         if (!result?.messaging_product) {
           console.log('[Web] WhatsApp API failed, attempting SMS fallback');
           sendAutomatedSMS(msmePhone, msmeMsg);

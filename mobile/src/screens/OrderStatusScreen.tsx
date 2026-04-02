@@ -206,12 +206,8 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
         const orderIdShort = order.id.split('-')[0].toUpperCase();
         
-        // TEMPLATE: Texconnect branding
-        const buyerMsg = `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`;
-        const msmeMsg = `*Texconnect* 🔔\nOrder #${orderIdShort} from ${buyerName} has been *DELIVERED* successfully.`;
-
-        // Function to send via Meta WhatsApp API (Automated)
-        const sendWhatsAppAPI = async (toPhone: string, message: string) => {
+        // Function to send via Meta WhatsApp API (Template based)
+        const sendWhatsAppAPI = async (toPhone: string, templateName: string, components: any[]) => {
             try {
                 const cleanPhone = toPhone.replace(/\D/g, '');
                 const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
@@ -225,12 +221,22 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     body: JSON.stringify({
                         messaging_product: 'whatsapp',
                         to: formattedPhone,
-                        type: 'text',
-                        text: { body: message }
+                        type: 'template',
+                        template: {
+                            name: templateName,
+                            language: {
+                                code: 'en_US'
+                            },
+                            components: [
+                                {
+                                    type: 'body',
+                                    parameters: components
+                                }
+                            ]
+                        }
                     })
                 });
-                const result = await response.json();
-                return result;
+                return await response.json();
             } catch (err) {
                 console.error('WhatsApp API Error:', err);
                 return null;
@@ -244,6 +250,15 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             Linking.openURL(url).catch(err => console.error('SMS fallback failed:', err));
         };
 
+        // Template parameters for 'order_status_update'
+        const buyerParams = [
+            { type: 'text', text: buyerName },
+            { type: 'text', text: orderIdShort },
+            { type: 'text', text: status.toUpperCase() }
+        ];
+
+        const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`;
+
         // 1. MSME Updates Status (Accepted -> Out for Delivery) -> AUTOMATED Notify Buyer
         if (userRole === 'msme') {
             if (!buyerPhone) {
@@ -252,23 +267,20 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             }
             
             console.log(`[Mobile] Sending automated notification to Buyer: ${buyerPhone} for status: ${status}`);
-            const apiResult = await sendWhatsAppAPI(buyerPhone, buyerMsg);
+            
+            // Template parameters for 'order_status_update'
+            const buyerParams = [
+                { type: 'text', text: buyerName },
+                { type: 'text', text: orderIdShort },
+                { type: 'text', text: status.toUpperCase() }
+            ];
+
+            const apiResult = await sendWhatsAppAPI(buyerPhone, 'order_status_update', buyerParams);
             console.log('[Mobile] WhatsApp API Result:', JSON.stringify(apiResult));
             
             if (!apiResult?.messaging_product) {
                 console.log("[Mobile] WhatsApp API failed, attempting deep link fallback...");
-                // For deep links/SMS, we still need manual action but we trigger it immediately
-                const cleanPhone = buyerPhone.replace(/\D/g, '');
-                const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-                const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(buyerMsg)}`;
-                
-                Linking.canOpenURL(url).then(supported => {
-                    if (supported) {
-                        Linking.openURL(url);
-                    } else {
-                        sendSMSFallback(buyerPhone, buyerMsg);
-                    }
-                });
+                sendSMSFallback(buyerPhone, `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`);
             }
         }
 
@@ -280,7 +292,15 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             }
 
             console.log(`[Mobile] Sending automated notification to MSME: ${msmePhone} for status: Delivered`);
-            const apiResult = await sendWhatsAppAPI(msmePhone, msmeMsg);
+            
+            // Template parameters for 'order_status_update' (MSME notification)
+            const msmeParams = [
+                { type: 'text', text: buyerName },
+                { type: 'text', text: orderIdShort },
+                { type: 'text', text: 'DELIVERED' }
+            ];
+
+            const apiResult = await sendWhatsAppAPI(msmePhone, 'order_status_update', msmeParams);
             console.log('[Mobile] WhatsApp API Result:', JSON.stringify(apiResult));
             
             if (!apiResult?.messaging_product) {
