@@ -243,15 +243,16 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         // 1. MSME Updates Status (Accepted -> Out for Delivery) -> AUTOMATED Notify Buyer
         if (userRole === 'msme') {
             if (!buyerPhone) {
-                console.warn("Buyer phone number not found for automated notification.");
+                console.warn("[Mobile] Buyer phone number not found for automated notification.");
                 return;
             }
             
-            console.log(`Sending automated notification to Buyer for status: ${status}`);
+            console.log(`[Mobile] Sending automated notification to Buyer: ${buyerPhone} for status: ${status}`);
             const apiResult = await sendWhatsAppAPI(buyerPhone, buyerMsg);
+            console.log('[Mobile] WhatsApp API Result:', JSON.stringify(apiResult));
             
             if (!apiResult?.messaging_product) {
-                console.log("WhatsApp API failed, attempting deep link fallback (requires manual action)...");
+                console.log("[Mobile] WhatsApp API failed, attempting deep link fallback...");
                 // For deep links/SMS, we still need manual action but we trigger it immediately
                 const cleanPhone = buyerPhone.replace(/\D/g, '');
                 const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
@@ -270,15 +271,16 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         // 2. Buyer Updates to Delivered -> AUTOMATED Notify MSME
         if (userRole === 'buyer' && status === 'Delivered') {
             if (!msmePhone) {
-                console.warn("MSME phone number not found for automated notification.");
+                console.warn("[Mobile] MSME phone number not found for automated notification.");
                 return;
             }
 
-            console.log(`Sending automated notification to MSME for status: Delivered`);
+            console.log(`[Mobile] Sending automated notification to MSME: ${msmePhone} for status: Delivered`);
             const apiResult = await sendWhatsAppAPI(msmePhone, msmeMsg);
+            console.log('[Mobile] WhatsApp API Result:', JSON.stringify(apiResult));
             
             if (!apiResult?.messaging_product) {
-                console.log("WhatsApp API failed, attempting deep link fallback...");
+                console.log("[Mobile] WhatsApp API failed, attempting deep link fallback...");
                 const cleanPhone = msmePhone.replace(/\D/g, '');
                 const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
                 const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(msmeMsg)}`;

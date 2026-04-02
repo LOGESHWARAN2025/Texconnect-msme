@@ -510,20 +510,30 @@ export const triggerAutomatedOrderNotification = async (
     // 2. Logic: MSME -> Buyer (Accepted to Out for Delivery)
     if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status)) {
       if (buyerPhone) {
+        console.log(`[Web] Sending automated notification to Buyer: ${buyerPhone} for status: ${status}`);
         const result = await sendAutomatedWhatsApp(buyerPhone, buyerMsg);
+        console.log('[Web] WhatsApp API Result:', JSON.stringify(result));
         if (!result?.messaging_product) {
+          console.log('[Web] WhatsApp API failed, attempting SMS fallback');
           sendAutomatedSMS(buyerPhone, buyerMsg);
         }
+      } else {
+        console.warn('[Web] No buyer phone found for order:', order.id);
       }
     }
 
     // 3. Logic: Buyer -> MSME (Delivered)
     if (userRole === 'buyer' && status === 'Delivered') {
       if (msmePhone) {
+        console.log(`[Web] Sending automated notification to MSME: ${msmePhone} for status: Delivered`);
         const result = await sendAutomatedWhatsApp(msmePhone, msmeMsg);
+        console.log('[Web] WhatsApp API Result:', JSON.stringify(result));
         if (!result?.messaging_product) {
+          console.log('[Web] WhatsApp API failed, attempting SMS fallback');
           sendAutomatedSMS(msmePhone, msmeMsg);
         }
+      } else {
+        console.warn('[Web] No MSME phone found for order:', order.id);
       }
     }
   } catch (err) {

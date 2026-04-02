@@ -35,7 +35,9 @@ const getNextStatus = (status: OrderStatus): OrderStatus | null => {
     case 'Shipped':
       return 'Out for Delivery';
     case 'Out for Delivery':
-      return null; // MSME cannot mark Delivered; Buyer must scan to mark Delivered
+      return 'Delivered';
+    case 'Delivered':
+      return null;
     default:
       return null;
   }
