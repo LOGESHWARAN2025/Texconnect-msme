@@ -162,7 +162,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         if (!order) return;
 
         // Meta WhatsApp API Configuration (New Token provided by user)
-        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRPvLy1guMaZC81Mj2ZCZAg7putFXAKLjTJ8ff5gCZBGJ56C7kfbJPoxas2jd4lYuzmZCVj7QXu8aLJeJeYKTjCBwgHLWGOOAzwRuKB02KrItYcney8wjNm7EbZCdJnfUoQzPuBjWGCoJNYlWzEAV4qg4RgNpkWxqC01ZBAyQECnShpLoJbf47nSamVSOtg5S2y08NdGNundX4yV0ZCdNtrJz9FUemgM7Xypg7ZBcQN7p7QyUPuCmZAfZBiPli9F3ZAqzh7ZBdNPV9qCv8mZCwKNwZDZD';
+        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRCJraaNkoe018cUvlvzHAuLWSb2ZC08bNi7hbBwNXmBlxrn3pFcRHccrOWUKoIdsPGnQbBYLl3zUexkUZCNxgTNqVNaKJ0cK5SgopoZARmV2VqebTbAizajHVV0NlLUkwHglqbVQGOatfSUZAKm8UtpOVUKox3t1pzno9kE7iZCEZBuZCeRxdREkp5eZBPdnaZA0316Oqtn8lNQPUdxAwL6bZAuD6WWUXRVQ8PYBdYZArZC7fHqwy7LXNxxmTao4OLi4WyTRr5ZAsxYbuvFEa';
         const PHONE_NUMBER_ID = '1079330375257311';
 
         // 1. Fetch contact details - Fix: Use lowercase column names 'displayname' as per Supabase hint
