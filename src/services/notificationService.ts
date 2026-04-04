@@ -556,7 +556,7 @@ export const triggerAutomatedOrderNotification = async (
     const orderIdShort = (order.id || '').split('-')[0].toUpperCase();
 
     const buyerMsg = `Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}. Thank you for choosing TexConnect!`;
-    const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`;
+    const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully via TexConnect.`;
 
     // Template parameters for 'order_status_update'
     // Matches template: "Hello {{customer_name}}, your order #{{order_id}} is now {{status}}."

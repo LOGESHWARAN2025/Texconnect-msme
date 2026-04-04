@@ -4,6 +4,7 @@ import { useAppContext } from '../../context/SupabaseContext';
 import { supabase } from '../../src/lib/supabase';
 import type { Order, OrderStatus } from '../../types';
 import InvoiceModal from '../invoice/InvoiceModal';
+import { triggerAutomatedOrderNotification } from '../../src/services/notificationService';
 import FeedbackForm from '../feedback/FeedbackForm';
 import OrderQRScanner from '../OrderQRScanner';
 
@@ -284,9 +285,17 @@ const BuyerOrdersView: React.FC = () => {
                <button onClick={() => setPendingStatusUpdate(null)} className="px-6 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
                <button onClick={async () => {
                   const id = pendingStatusUpdate.orderId;
+                  const order = orders.find(o => o.id === id);
                   setPendingStatusUpdate(null);
                   try {
                      await updateOrderStatus(id, 'Delivered');
+                     
+                     // 📱 Send notification to MSME when buyer marks as Delivered
+                     if (order && currentUser) {
+                        triggerAutomatedOrderNotification(order, 'Delivered', currentUser.role)
+                          .catch(err => console.error('⚠️ Automated notification failed:', err));
+                     }
+                     
                      alert("Success! Order marked as Delivered. The invoice is now available.");
                   } catch (e: any) {
                      alert("Error marking as delivered: " + e.message);
