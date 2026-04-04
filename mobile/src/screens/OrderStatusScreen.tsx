@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import {
-    StyleSheet,
-    View,
-    Text,
-    ScrollView,
-    ActivityIndicator,
-    TouchableOpacity,
-    Alert,
-    Modal,
-    Pressable,
-    Linking,
-    Platform,
+   StyleSheet,
+   View,
+   Text,
+   ScrollView,
+   ActivityIndicator,
+   TouchableOpacity,
+   Alert,
+   Modal,
+   Pressable,
+   Linking,
+   Platform,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,443 +19,428 @@ import { RoleContext } from '../../App';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-const STATUS_STEPS = ['Pending', 'Accepted', 'Prepared', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
+const STATUS_STEPS = ['Pending', 'Accepted', 'Prepared', 'Shiped', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
 export default function OrderStatusScreen({ route, navigation }: any) {
-    const { orderId } = route.params || {};
-    const [order, setOrder] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [statusModalOpen, setStatusModalOpen] = useState(false);
-    const [updating, setUpdating] = useState(false);
-    const { role: userRole } = React.useContext(RoleContext);
+   const { orderId } = route.params || {};
+   const [order, setOrder] = useState<any>(null);
+   const [loading, setLoading] = useState(true);
+   const [statusModalOpen, setStatusModalOpen] = useState(false);
+   const [updating, setUpdating] = useState(false);
+   const { role: userRole } = React.useContext(RoleContext);
 
-    useEffect(() => {
-        if (orderId) {
-            fetchOrderDetails();
+   useEffect(() => {
+       if (orderId) {
+           fetchOrderDetails();
 
-            // Set up real-time subscription for this specific order
-            const channel = supabase
-                .channel(`order-updates-${orderId}`)
-                .on(
-                    'postgres_changes',
-                    { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
-                    () => fetchOrderDetails()
-                )
-                .subscribe();
+           const channel = supabase
+               .channel(`order-updates-${orderId}`)
+               .on(
+                   'postgres_changes',
+                   { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
+                   () => fetchOrderDetails()
+               )
+               .subscribe();
 
-            return () => {
-                supabase.removeChannel(channel);
-            };
-        }
-    }, [orderId]);
+           return () => {
+               supabase.removeChannel(channel);
+           };
+       }
+   }, [orderId]);
 
-    async function fetchOrderDetails(showLoading = true) {
-        if (showLoading) setLoading(true);
-        try {
-            // Using optimized service if available, otherwise fallback to direct supabase
-            const { data, error } = await supabase
-                .from('orders')
-                .select('*')
-                .eq('id', orderId)
-                .single();
+   async function fetchOrderDetails(showLoading = true) {
+       if (showLoading) setLoading(true);
+       try {
+           const { data, error } = await supabase
+               .from('orders')
+               .select('*')
+               .eq('id', orderId)
+               .single();
 
-            if (error) {
-                Alert.alert('Error', 'Order not found or access denied');
-                navigation.goBack();
-            } else {
-                setOrder(data);
-            }
-        } finally {
-            if (showLoading) setLoading(false);
-        }
-    }
+           if (error) {
+               Alert.alert('Error', 'Order not found or access denied');
+               navigation.goBack();
+           } else {
+               setOrder(data);
+           }
+       } finally {
+           if (showLoading) setLoading(false);
+       }
+   }
 
-    const getAllowedNextStatuses = (status: string, role: string | null): string[] => {
-        let possibleNext: string[] = [];
-        switch ((status || '').toLowerCase()) {
-            case 'pending':
-                possibleNext = ['Accepted']; break;
-            case 'accepted':
-                possibleNext = ['Prepared']; break;
-            case 'prepared':
-                possibleNext = ['Shipped']; break;
-            case 'shipped':
-                possibleNext = ['Out for Delivery']; break;
-            case 'out for delivery':
-                possibleNext = ['Delivered']; break;
-            default:
-                possibleNext = [];
-        }
+   const getAllowedNextStatuses = (status: string, role: string | null): string[] => {
+       let possibleNext: string[] = [];
+       switch ((status || '').toLowerCase()) {
+           case 'pending':
+               possibleNext = ['Accepted']; break;
+           case 'accepted':
+               possibleNext = ['Prepared']; break;
+           case 'prepared':
+               possibleNext = ['Shiped']; break;
+           case 'shipped':
+               possibleNext = ['Out for Delivery']; break;
+           case 'out for delivery':
+               possibleNext = ['Delivered']; break;
+           default:
+               possibleNext = [];
+       }
 
-        if (role === 'buyer') {
-            // Buyer can strictly ONLY do Out for Delivery -> Delivered
-            return possibleNext.filter(s => s === 'Delivered');
-        } else if (role === 'msme') {
-            // MSME can do Accepted -> Prepared -> Shipped -> Out for Delivery only
-            return possibleNext.filter(s => s !== 'Delivered' && s !== 'Accepted');
-        }
+       if (role === 'buyer') {
+           return possibleNext.filter(s => s === 'Delivered');
+       } else if (role === 'msme') {
+           return possibleNext.filter(s => s !== 'Delivered' && s !== 'Accepted');
+       }
         
-        return [];
-    };
+       return [];
+   };
 
-    async function handleUpdateStatus(targetStatus: string) {
-        if (!order) return;
-        try {
-            setUpdating(true);
+   async function handleUpdateStatus(targetStatus: string) {
+       if (!order) return;
+       try {
+           setUpdating(true);
 
-            // 1. Role and scan validation before update
-            const reqUnits = Number(order.printedunits ?? order.printedUnits ?? order.totalunits ?? order.totalUnits ?? 0);
-            const scanned = order.scannedunits ?? order.scannedUnits ?? [];
-            const isFullyScanned = scanned.length >= reqUnits;
+           const reqUnits = Number(order.printedunits ?? order.printedUnits ?? order.totalunits ?? order.totalUnits ?? 0);
+           const scanned = order.scannedunits ?? order.scannedUnits ?? [];
+           const isFullyScanned = scanned.length >= reqUnits;
 
-            if (reqUnits > 0 && !isFullyScanned) {
-                Alert.alert('Verification Required', `Please scan all ${reqUnits} units before updating to ${targetStatus}.`);
-                return;
-            }
+           if (reqUnits > 0 && !isFullyScanned) {
+               Alert.alert('Verification Required', `Please scan all ${reqUnits} units before updating to ${targetStatus}.`);
+               return;
+           }
 
-            // 2. Perform Update (clearing scans to force re-scan for next stage)
-            console.log('--- STARTING STATUS UPDATE AND SCAN RESET ---');
-            console.log('Target Status:', targetStatus);
-            console.log('Order ID:', order.id);
+           const { error } = await supabase
+               .from('orders')
+               .update({ 
+                   status: targetStatus, 
+                   scannedunits: [], 
+                   scannedUnits: [],
+                   updatedAt: new Date().toISOString()
+               })
+               .eq('id', order.id);
 
-            const { error } = await supabase
-                .from('orders')
-                .update({ 
-                    status: targetStatus, 
-                    scannedunits: [], 
-                    scannedUnits: [],
-                    updatedAt: new Date().toISOString()
-                })
-                .eq('id', order.id);
+           if (error) {
+               Alert.alert('Update Failed', error.message);
+               return;
+           }
 
-            if (error) {
-                console.error('DATABASE UPDATE ERROR:', error);
-                Alert.alert('Update Failed', error.message);
-                return;
-            }
-            console.log('--- DATABASE UPDATE SUCCESSFUL ---');
-            
-            // Manually update local state to reflect reset immediately
-            setOrder((prev: any) => prev ? { 
-                ...prev, 
-                status: targetStatus, 
-                scannedunits: [], 
-                scannedUnits: [],
-                updatedAt: new Date().toISOString()
-            } : null);
+           setOrder((prev: any) => prev ? { 
+               ...prev, 
+               status: targetStatus, 
+               scannedunits: [], 
+               scannedUnits: [],
+               updatedAt: new Date().toISOString()
+           } : null);
 
-            // Fetch in background without blocking UI
-            fetchOrderDetails(false);
+           fetchOrderDetails(false);
+           triggerOrderNotification(targetStatus);
+           setStatusModalOpen(false);
+       } finally {
+           setUpdating(false);
+       }
+   }
 
-            // TRIGGER NOTIFICATION (Non-blocking)
-            triggerOrderNotification(targetStatus).catch(err => 
-                console.warn('Notification trigger failed:', err)
-            );
-
-            setStatusModalOpen(false);
-        } finally {
-            setUpdating(false);
-        }
-    }
-
-    async function triggerOrderNotification(status: string) {
-        if (!order) return;
-
-        // Meta WhatsApp API Configuration (New Token provided by user)
-        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRCJraaNkoe018cUvlvzHAuLWSb2ZC08bNi7hbBwNXmBlxrn3pFcRHccrOWUKoIdsPGnQbBYLl3zUexkUZCNxgTNqVNaKJ0cK5SgopoZARmV2VqebTbAizajHVV0NlLUkwHglqbVQGOatfSUZAKm8UtpOVUKox3t1pzno9kE7iZCEZBuZCeRxdREkp5eZBPdnaZA0316Oqtn8lNQPUdxAwL6bZAuD6WWUXRVQ8PYBdYZArZC7fHqwy7LXNxxmTao4OLi4WyTRr5ZAsxYbuvFEa';
-        const PHONE_NUMBER_ID = '1079330375257311';
-
-        // DEBUG: Log order object to see available fields
-        console.log('[DEBUG] Full order object:', JSON.stringify(order, null, 2));
-        console.log('[DEBUG] Order buyerId:', order?.buyerId);
-        console.log('[DEBUG] Order buyer_id:', order?.buyer_id);
-        console.log('[DEBUG] Order items:', order?.items);
-
-        // 1. Fetch contact details - Fix: Use lowercase column names 'displayname' as per Supabase hint
-        let buyerIdToQuery = order.buyerId || order.buyer_id || order.buyerid;
+   async function triggerOrderNotification(status: string) {
+       if (!order) return;
         
-        // If no buyerId, try to extract from items array
-        if (!buyerIdToQuery && order.items && Array.isArray(order.items) && order.items.length > 0) {
-            buyerIdToQuery = order.items[0]?.buyerId || order.items[0]?.buyer_id;
-            console.log('[DEBUG] Extracted buyerId from items:', buyerIdToQuery);
-        }
+       const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRCJraNkoe018cUvlvzHAuLWSb2ZC08bNi7hbBwNXmBlxrn3pFcRHccrOWUKoIdsPGnQbBYLl3zUexkUZCNxgTNqVNaKJ0cK5SgopoZARmV2VqebTbAizajHVV0NlLUkwHglqbVQGOatfSUZAKm8UtpOVUKox3t1pzno9kE7iZCEZBuZCeRxdREkp5eZBPdnaZA0316Oqtn8lNQPUdxAwL6bZAuD6WWUXRVQ8PYBdYZArZC7fHqwy7LXNxxmTao4OLi4WyTRr5ZAsxYbuvFEa';
+       const PHONE_NUMBER_ID = '107933037525731';
 
-        console.log('[DEBUG] Final buyerIdToQuery:', buyerIdToQuery);
-
-        let buyerProfile: any = null;
-        if (buyerIdToQuery) {
-            const { data: buyerProfileData, error: buyerError } = await supabase
-                .from('users')
-                .select('phone, username, displayname')
-                .eq('id', buyerIdToQuery)
-                .single();
-
-            if (buyerError) {
-                console.error('[Mobile] Error fetching buyer profile:', buyerError);
-            } else {
-                buyerProfile = buyerProfileData;
-                console.log('[DEBUG] Found buyer profile:', JSON.stringify(buyerProfile, null, 2));
-            }
-        }
-
-        // Find MSME ID from order items
-        let msmeId = null;
+       // Fetch buyer phone from users table
+       let buyerPhone = order.buyerPhone;
+       let buyerName = order.buyerName;
         
-        // Try to get msmeId from order items
-        if (order.items && Array.isArray(order.items) && order.items.length > 0) {
-            const firstItem = order.items[0];
-            if (firstItem.productId || firstItem.product_id) {
-                const { data: productData, error: productError } = await supabase
-                    .from('products')
-                    .select('msmeid')
-                    .eq('id', firstItem.productId || firstItem.product_id)
-                    .single();
-                
-                if (!productError && productData) {
-                    msmeId = productData.msmeid;
-                    console.log('[DEBUG] Found MSME ID from product:', msmeId);
-                }
-            }
-        }
+       if (!buyerPhone || !buyerName) {
+           try {
+               const buyerId = order.buyerId || order.buyer_id || order.buyerid;
+               if (buyerId) {
+                   const { data: buyerData } = await supabase
+                       .from('users')
+                       .select('phone, username, displayname')
+                       .eq('id', buyerId)
+                       .single();
+                    
+                   if (buyerData) {
+                       buyerPhone = buyerData.phone || buyerPhone;
+                       buyerName = buyerData.displayname || buyerData.username || buyerName;
+                   }
+               }
+           } catch (err) {
+               console.error('Failed to fetch buyer:', err);
+           }
+       }
 
-        // Fallback: Try order_items table
-        if (!msmeId) {
-            const { data: orderItems } = await supabase
-                .from('order_items')
-                .select(`
-                    product:products(
-                        msmeid
-                    )
-                `)
-                .eq('orderId', order.id)
-                .limit(1);
-
-            const firstItem: any = orderItems?.[0];
-            if (firstItem?.product?.msmeid) {
-                msmeId = firstItem.product.msmeid;
-                console.log('[DEBUG] Found MSME ID from order_items:', msmeId);
-            }
-        }
-
-        let msmeProfile = null;
-        if (msmeId) {
-            const { data: mProfile, error: msmeError } = await supabase
-                .from('users')
-                .select('phone, username, displayname')
-                .eq('id', msmeId)
-                .single();
-            
-            if (msmeError) {
-                console.error('[Mobile] Error fetching MSME profile:', msmeError);
-            } else {
-                msmeProfile = mProfile;
-                console.log('[DEBUG] Found MSME profile:', JSON.stringify(msmeProfile, null, 2));
-            }
-        }
-
-        const buyerPhone = buyerProfile?.phone;
-        const buyerName = buyerProfile?.displayname || buyerProfile?.username || 'Buyer';
+       // Fetch MSME phone
+       let msmePhone = null;
+       let msmeName = null;
         
-        const msmePhone = msmeProfile?.phone;
-        const msmeName = msmeProfile?.displayname || msmeProfile?.username || 'MSME';
+       if (order.items && order.items.length > 0) {
+           const firstItem = order.items[0];
+           if (firstItem.productId || firstItem.product_id) {
+               const { data: productData } = await supabase
+                   .from('products')
+                   .select('msmeid')
+                   .eq('id', firstItem.productId || firstItem.product_id)
+                   .single();
+                
+               if (productData?.msmeid) {
+                   const { data: msmeData } = await supabase
+                       .from('users')
+                       .select('phone, username, displayname')
+                       .eq('id', productData.msmeid)
+                       .single();
+                    
+                   if (msmeData) {
+                       msmePhone = msmeData.phone;
+                       msmeName = msmeData.displayname || msmeData.username;
+                   }
+               }
+           }
+       }
 
-        // DEBUG: Log phone numbers
-        console.log('[DEBUG] buyerPhone:', buyerPhone);
-        console.log('[DEBUG] msmePhone:', msmePhone);
+       const orderIdShort = order.id.split('-')[0].toUpperCase();
 
-        const orderIdShort = order.id.split('-')[0].toUpperCase();
-        
-        // Function to send via Meta WhatsApp API (Template based)
-        const sendWhatsAppAPI = async (toPhone: string, templateName: string, components: any[]) => {
-            try {
-                // Clean phone number - remove all non-digits
-                const cleanPhone = toPhone.replace(/\D/g, '');
+       const sendWhatsAppAPI = async (toPhone: string, templateName: string, components: any[]) => {
+           try {
+               const cleanPhone = toPhone.replace(/\D/g, '');
+               const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
                 
-                // Format: country code + number (no + prefix)
-                let formattedPhone;
-                if (cleanPhone.length === 10) {
-                    // Indian number without country code
-                    formattedPhone = `91${cleanPhone}`;
-                } else if (cleanPhone.startsWith('91') && cleanPhone.length === 12) {
-                    // Already has 91 prefix
-                    formattedPhone = cleanPhone;
-                } else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
-                    // Starts with 0, remove it and add 91
-                    formattedPhone = `91${cleanPhone.substring(1)}`;
-                } else {
-                    // Assume it has country code already
-                    formattedPhone = cleanPhone;
-                }
+               const response = await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
+                   method: 'POST',
+                   headers: {
+                       'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                       'Content-Type': 'application/json',
+                   },
+                   body: JSON.stringify({
+                       messaging_product: 'whatsapp',
+                       recipient_type: 'individual',
+                       to: formattedPhone,
+                       type: 'template',
+                       template: {
+                           name: templateName,
+                           language: { code: 'en' },
+                           components: [{ type: 'body', parameters: components }]
+                       }
+                   })
+               });
                 
-                console.log('[DEBUG] Original phone:', toPhone);
-                console.log('[DEBUG] Clean phone:', cleanPhone);
-                console.log('[DEBUG] Formatted phone for WhatsApp:', formattedPhone);
-                console.log('[DEBUG] Template:', templateName);
-                console.log('[DEBUG] Components:', JSON.stringify(components));
-                
-                const apiUrl = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
-                console.log('[DEBUG] API URL:', apiUrl);
-                
-                const requestBody = {
-                    messaging_product: 'whatsapp',
-                    recipient_type: 'individual',
-                    to: formattedPhone,
-                    type: 'template',
-                    template: {
-                        name: templateName,
-                        language: {
-                            code: 'en'
-                        },
-                        components: [
-                            {
-                                type: 'body',
-                                parameters: components
-                            }
-                        ]
-                    }
-                };
-                
-                console.log('[DEBUG] Request body:', JSON.stringify(requestBody, null, 2));
-                
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                const result = await response.json();
-                console.log('[DEBUG] WhatsApp API Response:', JSON.stringify(result, null, 2));
-                console.log('[DEBUG] Response status:', response.status);
-                
-                return result;
-            } catch (err) {
-                console.error('WhatsApp API Error:', err);
-                return null;
-            }
-        };
+               return await response.json();
+           } catch (err) {
+               console.error('WhatsApp API Error:', err);
+               return null;
+           }
+       };
 
-        const sendSMSFallback = (toPhone: string, message: string) => {
-            const cleanPhone = toPhone.replace(/\D/g, '');
-            const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-            const url = `sms:${formattedPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
-            console.log('[DEBUG] SMS fallback URL:', url);
-            Linking.openURL(url).catch(err => console.error('SMS fallback failed:', err));
-        };
+       const sendSMSFallback = (toPhone: string, message: string) => {
+           const cleanPhone = toPhone.replace(/\D/g, '');
+           const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+           const url = `sms:${formattedPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
+           Linking.openURL(url);
+       };
 
-        // 1. MSME Updates Status (Accepted -> Out for Delivery) -> AUTOMATED Notify Buyer
-        if (userRole === 'msme') {
-            if (!buyerPhone) {
-                console.warn("[Mobile] ❌ Buyer phone number not found! Cannot send notification.");
-                Alert.alert('Notification Failed', 'Buyer phone number not found in database.');
-                return;
-            }
+       // MSME -> Notify Buyer
+       if (userRole === 'msme' && buyerPhone) {
+           const params = [
+               { type: 'text', text: buyerName },
+               { type: 'text', text: orderIdShort },
+               { type: 'text', text: status.toUpperCase() }
+           ];
             
-            console.log(`[Mobile] ✅ Sending automated notification to Buyer: ${buyerPhone} for status: ${status}`);
+           const result = await sendWhatsAppAPI(buyerPhone, 'order_status_update', params);
             
-            // Template parameters for 'order_status_update'
-            const buyerParams = [
-                { type: 'text', text: buyerName },
-                { type: 'text', text: orderIdShort },
-                { type: 'text', text: status.toUpperCase() }
-            ];
+           if (result?.error || !result?.messages) {
+               sendSMSFallback(buyerPhone, `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`);
+           }
+       }
 
-            const apiResult = await sendWhatsAppAPI(buyerPhone, 'order_status_update', buyerParams);
+       // Buyer -> Notify MSME
+       if (userRole === 'buyer' && status === 'Delivered' && msmePhone) {
+           const params = [
+               { type: 'text', text: buyerName },
+               { type: 'text', text: orderIdShort },
+               { type: 'text', text: 'DELIVERED' }
+           ];
             
-            if (apiResult?.error) {
-                console.error('[Mobile] WhatsApp API Error:', apiResult.error);
-                console.log("[Mobile] WhatsApp API failed, attempting SMS fallback...");
-                Alert.alert(
-                    'WhatsApp Failed', 
-                    'WhatsApp message could not be sent. Opening SMS app as fallback.',
-                    [{ text: 'OK' }]
-                );
-                sendSMSFallback(buyerPhone, `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`);
-            } else if (apiResult?.messages && apiResult.messages.length > 0) {
-                console.log('[Mobile] ✅ WhatsApp message sent successfully!');
-                Alert.alert('Notification Sent', `WhatsApp notification sent to buyer: ${buyerPhone}`);
-            } else {
-                console.log("[Mobile] Unknown WhatsApp response, attempting SMS fallback...");
-                console.log('[DEBUG] Full API result:', JSON.stringify(apiResult));
-                Alert.alert(
-                    'Notification Status Unknown', 
-                    'WhatsApp response unclear. Opening SMS as backup.',
-                    [{ text: 'OK' }]
-                );
-                sendSMSFallback(buyerPhone, `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`);
-            }
-        }
-
-        // 2. Buyer Updates to Delivered -> AUTOMATED Notify MSME
-        if (userRole === 'buyer' && status === 'Delivered') {
-            if (!msmePhone) {
-                console.warn("[Mobile] ❌ MSME phone number not found! Cannot send notification.");
-                Alert.alert('Notification Failed', 'MSME phone number not found in database.');
-                return;
-            }
-
-            console.log(`[Mobile] ✅ Sending automated notification to MSME: ${msmePhone} for status: Delivered`);
+           const result = await sendWhatsAppAPI(msmePhone, 'order_status_update', params);
             
-            // Template parameters for 'order_status_update' (MSME notification)
-            const msmeParams = [
-                { type: 'text', text: buyerName },
-                { type: 'text', text: orderIdShort },
-                { type: 'text', text: 'DELIVERED' }
-            ];
+           if (result?.error || !result?.messages) {
+               sendSMSFallback(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
+           }
+       }
+   }
 
-            const apiResult = await sendWhatsAppAPI(msmePhone, 'order_status_update', msmeParams);
-            
-            if (apiResult?.error) {
-                console.error('[Mobile] WhatsApp API Error:', apiResult.error);
-                console.log("[Mobile] WhatsApp API failed, attempting fallback...");
-                Alert.alert(
-                    'WhatsApp Failed', 
-                    'WhatsApp message could not be sent. Opening SMS/WhatsApp app as fallback.',
-                    [{ text: 'OK' }]
-                );
-                const cleanPhone = msmePhone.replace(/\D/g, '');
-                const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-                const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(`Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`)}`;
-                
-                Linking.canOpenURL(url).then(supported => {
-                    if (supported) {
-                        Linking.openURL(url);
-                    } else {
-                        sendSMSFallback(msmePhone, `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`);
-                    }
-                });
-            } else if (apiResult?.messages && apiResult.messages.length > 0) {
-                console.log('[Mobile] ✅ WhatsApp message sent successfully to MSME!');
-                Alert.alert('Notification Sent', `WhatsApp notification sent to MSME: ${msmePhone}`);
-            } else {
-                console.log("[Mobile] Unknown WhatsApp response");
-                console.log('[DEBUG] Full API result:', JSON.stringify(apiResult));
-                Alert.alert(
-                    'Notification Status Unknown', 
-                    'Response unclear. Opening SMS fallback.',
-                    [{ text: 'OK' }]
-                );
-                sendSMSFallback(msmePhone, `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`);
-            }
-        }
-    }
+   const getStatusIndex = (status: string) => {
+       return STATUS_STEPS.findIndex(s => s.toLowerCase() === status.toLowerCase());
+   };
 
-    const getStatusIndex = (status: string) => {
-        return STATUS_STEPS.findIndex(s => s.toLowerCase() === status.toLowerCase());
-    };
+   if (loading) {
+       return (
+           <View style={styles.loadingContainer}>
+               <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
+               <ActivityIndicator size="large" color="#38bdf8" />
+           </View>
+       );
+   }
 
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
-                <ActivityIndicator size="large" color="#38bdf8" />
-            </View>
-        );
-    }
+   if (!order) return null;
 
-    if (!order) return null;
+   const currentStatusIndex = getStatusIndex(order.status);
+   const totalUnits = Number(order.printedUnits ?? order.printedunits ?? order.totalUnits ?? order.totalunits ?? 0);
 
-    const currentStatusIndex = getStatusIndex(order.status);
-    const totalUnits = Number(order.printedUnits ?? order.printedunits ?? order.totalUnits ?? order.totalunits ?? 0);
+   // Rest of your component JSX here...
+   return (
+       <View style={styles.container}>
+           <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
+           <ScrollView style={styles.scrollView}>
+               <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                   <LucideChevronLeft color="#38bdf8" size={24} />
+                   <Text style={styles.backText}>Back</Text>
+               </TouchableOpacity>
+
+               <Text style={styles.title}>Order #{order.id.substring(0, 8).toUpperCase()}</Text>
+               <Text style={styles.status}>Status: {order.status}</Text>
+
+               {totalUnits > 0 && (
+                   <View style={styles.progressCard}>
+                       <Text style={styles.progressText}>
+                           Scanned: {(order.scannedUnits?.length || 0)} / {totalUnits} units
+                       </Text>
+                   </View>
+               )}
+
+               <TouchableOpacity 
+                   style={styles.updateButton}
+                   onPress={() => setStatusModalOpen(true)}
+                   disabled={updating}
+               >
+                   <Text style={styles.updateButtonText}>
+                       {updating ? 'Updating...' : 'Update Status'}
+                   </Text>
+               </TouchableOpacity>
+           </ScrollView>
+
+           <Modal
+               visible={statusModalOpen}
+               transparent
+               animationType="slide"
+               onRequestClose={() => setStatusModalOpen(false)}
+           >
+               <View style={styles.modalBackdrop}>
+                   <View style={styles.modalCard}>
+                       <Text style={styles.modalTitle}>Update Status</Text>
+                       {getAllowedNextStatuses(order.status, userRole).map((nextStatus) => (
+                           <TouchableOpacity
+                               key={nextStatus}
+                               style={styles.statusOption}
+                               onPress={() => handleUpdateStatus(nextStatus)}
+                           >
+                               <Text style={styles.statusOptionText}>{nextStatus}</Text>
+                           </TouchableOpacity>
+                       ))}
+                       <TouchableOpacity onPress={() => setStatusModalOpen(false)}>
+                           <Text style={styles.cancelText}>Cancel</Text>
+                       </TouchableOpacity>
+                   </View>
+               </View>
+           </Modal>
+       </View>
+   );
+}
+
+const styles = StyleSheet.create({
+   container: {
+       flex: 1,
+       backgroundColor: '#0f172a',
+   },
+   background: {
+       position: 'absolute',
+       left: 0,
+       right: 0,
+       top: 0,
+       bottom: 0,
+   },
+   scrollView: {
+       flex: 1,
+       padding: 20,
+   },
+   loadingContainer: {
+       flex: 1,
+       justifyContent: 'center',
+       alignItems: 'center',
+   },
+   backButton: {
+       flexDirection: 'row',
+       alignItems: 'center',
+       marginBottom: 20,
+   },
+   backText: {
+       color: '#38bdf8',
+       fontSize: 16,
+       marginLeft: 8,
+   },
+   title: {
+       color: '#fff',
+       fontSize: 24,
+       fontWeight: 'bold',
+       marginBottom: 10,
+   },
+   status: {
+       color: '#94a3b8',
+       fontSize: 16,
+       marginBottom: 20,
+   },
+   progressCard: {
+       backgroundColor: 'rgba(56, 189, 248, 0.1)',
+       padding: 16,
+       borderRadius: 12,
+       marginBottom: 20,
+   },
+   progressText: {
+       color: '#38bdf8',
+       fontSize: 14,
+   },
+   updateButton: {
+       backgroundColor: '#10b981',
+       padding: 16,
+       borderRadius: 12,
+       alignItems: 'center',
+   },
+   updateButtonText: {
+       color: '#fff',
+       fontSize: 16,
+       fontWeight: 'bold',
+   },
+   modalBackdrop: {
+       flex: 1,
+       backgroundColor: 'rgba(0,0,0,0.6)',
+       justifyContent: 'center',
+       padding: 20,
+   },
+   modalCard: {
+       backgroundColor: '#1e293b',
+       padding: 20,
+       borderRadius: 16,
+   },
+   modalTitle: {
+       color: '#fff',
+       fontSize: 18,
+       fontWeight: 'bold',
+       marginBottom: 16,
+   },
+   statusOption: {
+       padding: 16,
+       backgroundColor: 'rgba(56, 189, 248, 0.1)',
+       borderRadius: 12,
+       marginBottom: 12,
+   },
+   statusOptionText: {
+       color: '#fff',
+       fontSize: 16,
+       textAlign: 'center',
+   },
+   cancelText: {
+       color: '#94a3b8',
+       fontSize: 14,
+       textAlign: 'center',
+       marginTop: 12,
+   },
+});
