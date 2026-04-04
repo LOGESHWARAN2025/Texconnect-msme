@@ -1393,13 +1393,37 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // We conditionally import or call the real implementation to avoid circular loops
     const { sendOrderStatusNotification: realSendNotification } = await import('../services/notificationService');
 
+    // Fetch buyer phone from users table (in case order.buyerPhone is empty)
+    let buyerPhone = order.buyerPhone;
+    let buyerName = order.buyerName;
+    
+    if (!buyerPhone || !buyerName) {
+      try {
+        const buyerId = order.buyerId || (order as any).buyer_id || (order as any).buyerid;
+        if (buyerId) {
+          const { data: buyerData } = await supabase
+            .from('users')
+            .select('phone, username, displayname')
+            .eq('id', buyerId)
+            .single();
+          
+          if (buyerData) {
+            buyerPhone = buyerData.phone || buyerPhone;
+            buyerName = buyerData.displayname || buyerData.username || buyerName;
+            console.log('[Notification] Fetched buyer from users table:', buyerPhone, buyerName);
+          }
+        }
+      } catch (err) {
+        console.error('[Notification] Failed to fetch buyer data:', err);
+      }
+    }
+
     // 1. Notify the Buyer for progression statuses
     if (status !== 'Delivered' && status !== 'Cancelled') {
-      const buyerPhone = order.buyerPhone;
       if (buyerPhone) {
         try {
           await realSendNotification({
-            recipientName: order.buyerName,
+            recipientName: buyerName,
             recipientPhone: buyerPhone,
             recipientRole: 'buyer',
             orderId: order.id,
@@ -1407,10 +1431,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             itemName: order.items?.[0]?.productName,
             totalAmount: order.items?.reduce((total, item) => total + ((item.price || 0) * item.quantity), 0)
           });
-          await logAction('TexConnect Notify', `Status (${status}) sent to Buyer: ${order.buyerName}`);
+          await logAction('TexConnect Notify', `Status (${status}) sent to Buyer: ${buyerName}`);
         } catch (e) {
           console.error('Failed to notify buyer:', e);
         }
+      } else {
+        console.warn('[Notification] Buyer phone number not found, skipping notification');
       }
     }
 
