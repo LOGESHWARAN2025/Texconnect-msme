@@ -268,39 +268,68 @@ export default function OrderStatusScreen({ route, navigation }: any) {
         // Function to send via Meta WhatsApp API (Template based)
         const sendWhatsAppAPI = async (toPhone: string, templateName: string, components: any[]) => {
             try {
+                // Clean phone number - remove all non-digits
                 const cleanPhone = toPhone.replace(/\D/g, '');
-                const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
                 
-                console.log('[DEBUG] Sending WhatsApp to:', formattedPhone);
+                // Format: country code + number (no + prefix)
+                let formattedPhone;
+                if (cleanPhone.length === 10) {
+                    // Indian number without country code
+                    formattedPhone = `91${cleanPhone}`;
+                } else if (cleanPhone.startsWith('91') && cleanPhone.length === 12) {
+                    // Already has 91 prefix
+                    formattedPhone = cleanPhone;
+                } else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
+                    // Starts with 0, remove it and add 91
+                    formattedPhone = `91${cleanPhone.substring(1)}`;
+                } else {
+                    // Assume it has country code already
+                    formattedPhone = cleanPhone;
+                }
+                
+                console.log('[DEBUG] Original phone:', toPhone);
+                console.log('[DEBUG] Clean phone:', cleanPhone);
+                console.log('[DEBUG] Formatted phone for WhatsApp:', formattedPhone);
                 console.log('[DEBUG] Template:', templateName);
                 console.log('[DEBUG] Components:', JSON.stringify(components));
                 
-                const response = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
+                const apiUrl = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
+                console.log('[DEBUG] API URL:', apiUrl);
+                
+                const requestBody = {
+                    messaging_product: 'whatsapp',
+                    recipient_type: 'individual',
+                    to: formattedPhone,
+                    type: 'template',
+                    template: {
+                        name: templateName,
+                        language: {
+                            code: 'en'
+                        },
+                        components: [
+                            {
+                                type: 'body',
+                                parameters: components
+                            }
+                        ]
+                    }
+                };
+                
+                console.log('[DEBUG] Request body:', JSON.stringify(requestBody, null, 2));
+                
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        messaging_product: 'whatsapp',
-                        to: formattedPhone,
-                        type: 'template',
-                        template: {
-                            name: templateName,
-                            language: {
-                                code: 'en_US'
-                            },
-                            components: [
-                                {
-                                    type: 'body',
-                                    parameters: components
-                                }
-                            ]
-                        }
-                    })
+                    body: JSON.stringify(requestBody)
                 });
+                
                 const result = await response.json();
                 console.log('[DEBUG] WhatsApp API Response:', JSON.stringify(result, null, 2));
+                console.log('[DEBUG] Response status:', response.status);
+                
                 return result;
             } catch (err) {
                 console.error('WhatsApp API Error:', err);
@@ -344,11 +373,17 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     [{ text: 'OK' }]
                 );
                 sendSMSFallback(buyerPhone, `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`);
-            } else if (apiResult?.messaging_product) {
+            } else if (apiResult?.messages && apiResult.messages.length > 0) {
                 console.log('[Mobile] ✅ WhatsApp message sent successfully!');
                 Alert.alert('Notification Sent', `WhatsApp notification sent to buyer: ${buyerPhone}`);
             } else {
                 console.log("[Mobile] Unknown WhatsApp response, attempting SMS fallback...");
+                console.log('[DEBUG] Full API result:', JSON.stringify(apiResult));
+                Alert.alert(
+                    'Notification Status Unknown', 
+                    'WhatsApp response unclear. Opening SMS as backup.',
+                    [{ text: 'OK' }]
+                );
                 sendSMSFallback(buyerPhone, `*Texconnect* 📦\nHello ${buyerName}, your order #${orderIdShort} is now *${status.toUpperCase()}*.\n\nThank you for choosing Texconnect!`);
             }
         }
@@ -391,9 +426,18 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                         sendSMSFallback(msmePhone, `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`);
                     }
                 });
-            } else if (apiResult?.messaging_product) {
+            } else if (apiResult?.messages && apiResult.messages.length > 0) {
                 console.log('[Mobile] ✅ WhatsApp message sent successfully to MSME!');
                 Alert.alert('Notification Sent', `WhatsApp notification sent to MSME: ${msmePhone}`);
+            } else {
+                console.log("[Mobile] Unknown WhatsApp response");
+                console.log('[DEBUG] Full API result:', JSON.stringify(apiResult));
+                Alert.alert(
+                    'Notification Status Unknown', 
+                    'Response unclear. Opening SMS fallback.',
+                    [{ text: 'OK' }]
+                );
+                sendSMSFallback(msmePhone, `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully.`);
             }
         }
     }
