@@ -15,15 +15,14 @@ DROP POLICY IF EXISTS "Enable update for msme" ON orders;
 DROP POLICY IF EXISTS "Allow MSME updates" ON orders;
 
 -- Create policy for BUYERS to update their orders (for Delivered status)
--- Uses buyerId column to match authenticated user
+-- Use exact column name "buyerId" with quotes (camelCase)
 CREATE POLICY "Allow buyer updates" ON orders
 FOR UPDATE 
 USING (
-  auth.uid()::text = COALESCE("buyerId"::text, buyerid::text, (buyerId)::text)
+  auth.uid() = "buyerId"
 );
 
 -- Create policy for MSME to update orders
--- MSME can update any order (they verify via items -> products lookup in app code)
 CREATE POLICY "Allow MSME updates" ON orders
 FOR UPDATE 
 USING (
@@ -41,7 +40,7 @@ DROP POLICY IF EXISTS "Allow buyer select" ON orders;
 CREATE POLICY "Allow buyer select" ON orders
 FOR SELECT
 USING (
-  auth.uid()::text = COALESCE("buyerId"::text, buyerid::text, (buyerId)::text)
+  auth.uid() = "buyerId"
 );
 
 -- MSME can view orders
