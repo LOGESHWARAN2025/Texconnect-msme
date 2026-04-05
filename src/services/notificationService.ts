@@ -539,21 +539,67 @@ export const triggerAutomatedOrderNotification = async (
     const buyerMsg = `Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}. Thank you for choosing TexConnect!`;
     const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully via TexConnect.`;
 
-    // 2. Logic: MSME -> Buyer (Accepted to Out for Delivery) - SMS only
+    // 2. Logic: MSME -> Buyer (Accepted to Out for Delivery)
     if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status)) {
       if (buyerPhone) {
-        console.log(`[Web] Sending SMS notification to Buyer: ${buyerPhone} for status: ${status}`);
-        await sendAutomatedSMS(buyerPhone, buyerMsg, order.id);
+        console.log(`[Web] Sending notifications to Buyer: ${buyerPhone} for status: ${status}`);
+        
+        // 1. Send SMS (via Twilio Proxy)
+        const smsResult = await sendAutomatedSMS(buyerPhone, buyerMsg, order.id);
+        console.log('[Web] SMS API Response:', JSON.stringify(smsResult, null, 2));
+
+        // 2. Send WhatsApp Template (via Meta Proxy)
+        const buyerParams = [
+          { type: 'text', text: buyerName },
+          { type: 'text', text: orderIdShort },
+          { type: 'text', text: status.toUpperCase() }
+        ];
+        
+        const waResult = await fetch('/api/whatsapp/send-template', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: buyerPhone,
+            templateName: 'order_status_update',
+            languageCode: 'en_US',
+            parameters: buyerParams,
+          }),
+        }).then(res => res.json());
+        
+        console.log('[Web] WhatsApp API Response:', JSON.stringify(waResult, null, 2));
       } else {
         console.warn('[Web] No buyer phone found for order:', order.id);
       }
     }
 
-    // 3. Logic: Buyer -> MSME (Delivered) - SMS only
+    // 3. Logic: Buyer -> MSME (Delivered)
     if (userRole === 'buyer' && status === 'Delivered') {
       if (msmePhone) {
-        console.log(`[Web] Sending SMS notification to MSME: ${msmePhone} for status: Delivered`);
-        await sendAutomatedSMS(msmePhone, msmeMsg, order.id);
+        console.log(`[Web] Sending notifications to MSME: ${msmePhone} for status: Delivered`);
+        
+        // 1. Send SMS (via Twilio Proxy)
+        const smsResult = await sendAutomatedSMS(msmePhone, msmeMsg, order.id);
+        console.log('[Web] SMS API Response:', JSON.stringify(smsResult, null, 2));
+
+        // 2. Send WhatsApp Template (via Meta Proxy)
+        const msmeParams = [
+          { type: 'text', text: buyerName },
+          { type: 'text', text: orderIdShort },
+          { type: 'text', text: 'DELIVERED' }
+        ];
+
+        const waResult = await fetch('/api/whatsapp/send-template', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: msmePhone,
+            templateName: 'order_status_update',
+            languageCode: 'en_US',
+            parameters: msmeParams,
+          }),
+        }).then(res => res.json());
+
+        console.log('[Web] WhatsApp API Response:', JSON.stringify(waResult, null, 2));
       } else {
         console.warn('[Web] No MSME phone found for order:', order.id);
       }
