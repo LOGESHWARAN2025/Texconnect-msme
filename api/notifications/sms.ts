@@ -30,9 +30,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing required fields: to, message' });
   }
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+  const accountSid = (process.env.TWILIO_ACCOUNT_SID || '').trim();
+  const authToken = (process.env.TWILIO_AUTH_TOKEN || '').trim();
+  const fromNumber = (process.env.TWILIO_PHONE_NUMBER || '').trim();
+
+  // Debugging logs (safe - only shows lengths and first/last chars)
+  console.log('[DEBUG] Twilio Config Check:');
+  console.log(`- AccountSID: ${accountSid.substring(0, 4)}... (length: ${accountSid.length})`);
+  console.log(`- AuthToken: ${authToken.substring(0, 2)}... (length: ${authToken.length})`);
+  console.log(`- FromNumber: ${fromNumber}`);
 
   if (!accountSid || !authToken || !fromNumber) {
     console.warn('⚠️ Twilio SMS credentials not configured');
