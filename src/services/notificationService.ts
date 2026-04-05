@@ -561,7 +561,7 @@ export const triggerAutomatedOrderNotification = async (
           body: JSON.stringify({
             to: buyerPhone,
             templateName: 'order_status_update',
-            languageCode: 'en_US',
+            languageCode: 'en',
             parameters: buyerParams,
           }),
         }).then(res => res.json());
@@ -594,7 +594,7 @@ export const triggerAutomatedOrderNotification = async (
           body: JSON.stringify({
             to: msmePhone,
             templateName: 'order_status_update',
-            languageCode: 'en_US',
+            languageCode: 'en',
             parameters: msmeParams,
           }),
         }).then(res => res.json());
