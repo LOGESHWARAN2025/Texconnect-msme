@@ -549,11 +549,11 @@ export const triggerAutomatedOrderNotification = async (
         console.log('[Web] SMS API Response:', JSON.stringify(smsResult, null, 2));
 
         // 2. Send WhatsApp Template (via Meta Proxy)
-        const buyerParams = [
-          { type: 'text', text: buyerName },
-          { type: 'text', text: orderIdShort },
-          { type: 'text', text: status.toUpperCase() }
-        ];
+        const buyerParams = {
+          customer_name: buyerName,
+          order_id: orderIdShort,
+          status: status.toUpperCase()
+        };
         
         const waResult = await fetch('/api/whatsapp/send-template', {
           method: 'POST',
@@ -582,11 +582,11 @@ export const triggerAutomatedOrderNotification = async (
         console.log('[Web] SMS API Response:', JSON.stringify(smsResult, null, 2));
 
         // 2. Send WhatsApp Template (via Meta Proxy)
-        const msmeParams = [
-          { type: 'text', text: buyerName },
-          { type: 'text', text: orderIdShort },
-          { type: 'text', text: 'DELIVERED' }
-        ];
+        const msmeParams = {
+          customer_name: buyerName,
+          order_id: orderIdShort,
+          status: 'DELIVERED'
+        };
 
         const waResult = await fetch('/api/whatsapp/send-template', {
           method: 'POST',
