@@ -552,7 +552,8 @@ export const triggerAutomatedOrderNotification = async (
         const buyerParams = {
           customer_name: buyerName,
           order_id: orderIdShort,
-          status: status.toUpperCase()
+          status: status.toUpperCase(),
+          button_url: `${orderIdShort}`
         };
         
         const waResult = await fetch('/api/whatsapp/send-template', {
@@ -585,7 +586,8 @@ export const triggerAutomatedOrderNotification = async (
         const msmeParams = {
           customer_name: buyerName,
           order_id: orderIdShort,
-          status: 'DELIVERED'
+          status: 'DELIVERED',
+          button_url: `${orderIdShort}`
         };
 
         const waResult = await fetch('/api/whatsapp/send-template', {
