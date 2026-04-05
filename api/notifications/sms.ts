@@ -60,10 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       Body: message,
     });
 
+    const authHeader = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+        'Authorization': authHeader,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: body.toString(),
@@ -72,8 +74,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const data = await response.json() as any;
 
     if (!response.ok) {
-      console.error('❌ Twilio SMS error:', data);
-      return res.status(500).json({ error: data.message || 'Twilio SMS error', details: data });
+      console.error('❌ Twilio SMS error:', JSON.stringify(data, null, 2));
+      return res.status(response.status).json({ 
+        error: data.message || 'Twilio SMS error', 
+        code: data.code,
+        status: data.status,
+        details: data 
+      });
     }
 
     console.log('✅ SMS sent successfully:', data.sid);
