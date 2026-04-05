@@ -76,7 +76,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
            case 'accepted':
                possibleNext = ['Prepared']; break;
            case 'prepared':
-               possibleNext = ['Shiped']; break;
+               possibleNext = ['Shipped']; break;
            case 'shipped':
                possibleNext = ['Out for Delivery']; break;
            case 'out for delivery':
