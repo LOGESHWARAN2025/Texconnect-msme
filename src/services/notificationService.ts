@@ -536,11 +536,14 @@ export const triggerAutomatedOrderNotification = async (
     const msmePhone = msmeProfile?.phone;
     const orderIdShort = (order.id || '').split('-')[0].toUpperCase();
 
-    const buyerMsg = `Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}. Thank you for choosing TexConnect!`;
+    const buyerMsg = status === 'Cancelled'
+      ? `Hello ${buyerName}, your order #${orderIdShort} has been CANCELLED. Please contact the MSME for details. - TexConnect`
+      : `Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}. Thank you for choosing TexConnect!`;
     const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully via TexConnect.`;
 
-    // 2. Logic: MSME -> Buyer (Accepted to Out for Delivery)
-    if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status)) {
+    // 2. Logic: MSME -> Buyer (Any status update except Pending/Delivered)
+    // Includes Cancelled.
+    if (userRole === 'msme' && status !== 'Pending' && status !== 'Delivered') {
       if (buyerPhone) {
         console.log(`[Web] Sending notifications to Buyer: ${buyerPhone} for status: ${status}`);
         

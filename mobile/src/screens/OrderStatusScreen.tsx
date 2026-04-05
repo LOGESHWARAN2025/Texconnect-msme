@@ -207,7 +207,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             return clean.length === 10 ? `91${clean}` : clean;
         };
 
-        const sendWhatsAppTemplate = async (to: string, template: string, params: any[]) => {
+        const sendWhatsAppTemplate = async (to: string, template: string, bodyParams: Record<string, string>, buttonParam?: string) => {
             try {
                 const response = await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
                     method: 'POST',
@@ -222,7 +222,26 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                         template: {
                             name: template,
                             language: { code: 'en' },
-                            components: [{ type: 'body', parameters: params }]
+                            components: [
+                              {
+                                type: 'body',
+                                parameters: Object.entries(bodyParams).map(([key, value]) => ({
+                                  type: 'text',
+                                  text: String(value),
+                                  parameter_name: key
+                                }))
+                              },
+                              ...(buttonParam
+                                ? [
+                                    {
+                                      type: 'button',
+                                      sub_type: 'url',
+                                      index: '0',
+                                      parameters: [{ type: 'text', text: String(buttonParam) }]
+                                    }
+                                  ]
+                                : [])
+                            ]
                         }
                     })
                 });
@@ -239,27 +258,31 @@ export default function OrderStatusScreen({ route, navigation }: any) {
             Linking.openURL(url).catch(e => console.error('[Mobile] SMS failed:', e));
         };
 
-        // Logic: MSME -> Buyer (Accepted to Out for Delivery)
-        if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status) && buyerPhone) {
-            const params = [
-                { type: 'text', text: buyerName },
-                { type: 'text', text: orderIdShort },
-                { type: 'text', text: status.toUpperCase() }
-            ];
-            const res = await sendWhatsAppTemplate(buyerPhone, 'order_status_update', params);
+        // Logic: MSME -> Buyer (Any status update except Pending/Delivered)
+        // Includes Cancelled.
+        if (userRole === 'msme' && status !== 'Pending' && status !== 'Delivered' && buyerPhone) {
+            const bodyParams = {
+              customer_name: buyerName,
+              order_id: orderIdShort,
+              status: status.toUpperCase()
+            };
+            const res = await sendWhatsAppTemplate(buyerPhone, 'order_status_update', bodyParams, orderIdShort);
             if (res?.error) {
-                sendSMSFallback(buyerPhone, `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`);
+                const smsMsg = status === 'Cancelled'
+                  ? `TexConnect: Hello ${buyerName}, your order #${orderIdShort} has been CANCELLED.`
+                  : `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`;
+                sendSMSFallback(buyerPhone, smsMsg);
             }
         }
 
         // Logic: Buyer -> MSME (Delivered)
         if (userRole === 'buyer' && status === 'Delivered' && msmePhone) {
-            const params = [
-                { type: 'text', text: buyerName },
-                { type: 'text', text: orderIdShort },
-                { type: 'text', text: 'DELIVERED' }
-            ];
-            const res = await sendWhatsAppTemplate(msmePhone, 'order_status_update', params);
+            const bodyParams = {
+              customer_name: buyerName,
+              order_id: orderIdShort,
+              status: 'DELIVERED'
+            };
+            const res = await sendWhatsAppTemplate(msmePhone, 'order_status_update', bodyParams, orderIdShort);
             if (res?.error) {
                 sendSMSFallback(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
             }
