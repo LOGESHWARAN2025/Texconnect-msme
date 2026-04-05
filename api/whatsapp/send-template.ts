@@ -53,13 +53,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const lang = languageCode || 'en';
-  const params = Array.isArray(parameters) ? parameters : [];
+  const paramsArray = Array.isArray(parameters) ? parameters : null;
+  const paramsObject =
+    parameters && typeof parameters === 'object' && !Array.isArray(parameters) ? parameters : null;
 
   console.log('[API] WhatsApp request:', {
     to: formattedPhone,
     templateName,
     language: lang,
-    paramCount: params.length
+    paramCount: paramsArray ? paramsArray.length : paramsObject ? Object.keys(paramsObject).length : 0
   });
 
   try {
@@ -76,10 +78,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         components: [
           {
             type: 'body',
-            parameters: params.map(p => ({
-              type: p.type || 'text',
-              text: String(p.text || p)
-            }))
+            parameters: paramsArray
+              ? paramsArray.map((p: any) => ({
+                  type: p?.type || 'text',
+                  text: String(p?.text ?? p)
+                }))
+              : paramsObject
+                ? Object.entries(paramsObject).map(([key, value]) => ({
+                    type: 'text',
+                    text: String(value),
+                    parameter_name: key
+                  }))
+                : []
           }
         ]
       }
