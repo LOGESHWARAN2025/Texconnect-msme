@@ -19,6 +19,8 @@ import { RoleContext } from '../../App';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
+const API_BASE_URL = 'https://texconnect-msme.vercel.app';
+
 const STATUS_STEPS = ['Pending', 'Accepted', 'Prepared', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
 export default function OrderStatusScreen({ route, navigation }: any) {
@@ -142,18 +144,12 @@ export default function OrderStatusScreen({ route, navigation }: any) {
     async function triggerOrderNotification(status: string) {
         if (!order) return;
 
-        // Meta WhatsApp API Configuration (Permanent System User Token)
-        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRCJraaNkoe018cUvlvzHAuLWSb2ZC08bNi7hbBwNXmBlxrn3pFcRHccrOWUKoIdsPGnQbBYLl3zUexkUZCNxgTNqVNaKJ0cK5SgopoZARmV2VqebTbAizajHVV0NlLUkwHglqbVQGOatfSUZAKm8UtpOVUKox3t1pzno9kE7iZCEZBuZCeRxdREkp5eZBPdnaZA0316Oqtn8lNQPUdxAwL6bZAuD6WWUXRVQ8PYBdYZArZC7fHqwy7LXNxxmTao4OLi4WyTRr5ZAsxYbuvFEa';
-        const PHONE_NUMBER_ID = '1079330375257311';
-
-        // 1. Fetch contact details
-        let buyerPhone = null;
+        // Fetch Buyer and MSME phone numbers (same logic as old UI commit)
+        let buyerPhone: string | null = null;
         let buyerName = 'Buyer';
-        let msmePhone = null;
-        let msmeName = 'MSME';
+        let msmePhone: string | null = null;
 
         try {
-            // Fetch Buyer Profile
             const buyerId = order.buyerId || order.buyer_id || order.buyerid;
             if (buyerId) {
                 const { data: buyerData } = await supabase
@@ -161,130 +157,128 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     .select('phone, username, displayname')
                     .eq('id', buyerId)
                     .single();
-                
                 if (buyerData) {
                     buyerPhone = buyerData.phone;
                     buyerName = buyerData.displayname || buyerData.username || 'Buyer';
                 }
             }
 
-            // Fetch MSME ID and Profile
-            let msmeId = null;
-            if (order.items && order.items.length > 0) {
-                const firstItem = order.items[0];
-                const pid = firstItem.productId || firstItem.product_id;
-                if (pid) {
-                    const { data: productData } = await supabase
-                        .from('products')
-                        .select('msmeid')
-                        .eq('id', pid)
-                        .single();
-                    msmeId = productData?.msmeid;
-                }
+            let msmeId: string | null = null;
+            const firstItem = order.items?.[0];
+            if (firstItem?.productId || firstItem?.product_id) {
+                const { data: productData } = await supabase
+                    .from('products')
+                    .select('msmeid')
+                    .eq('id', firstItem.productId || firstItem.product_id)
+                    .single();
+                msmeId = productData?.msmeid || null;
             }
 
             if (msmeId) {
                 const { data: msmeData } = await supabase
                     .from('users')
-                    .select('phone, username, displayname')
+                    .select('phone')
                     .eq('id', msmeId)
                     .single();
-                
-                if (msmeData) {
+                if (msmeData?.phone) {
                     msmePhone = msmeData.phone;
-                    msmeName = msmeData.displayname || msmeData.username || 'MSME';
                 }
             }
-        } catch (err) {
-            console.error('[Mobile] Error fetching profiles:', err);
+        } catch {
+            // ignore
         }
 
         const orderIdShort = order.id.split('-')[0].toUpperCase();
 
-        // Helper to format phone for WhatsApp
-        const formatPhone = (phone: string) => {
-            const clean = phone.replace(/\D/g, '');
-            return clean.length === 10 ? `91${clean}` : clean;
-        };
+        const sendAutomatedSMS = async (toPhone: string, message: string) => {
+            const cleanPhone = toPhone.replace(/\D/g, '');
+            const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : (toPhone.startsWith('+') ? toPhone : `+${cleanPhone}`);
 
-        const sendWhatsAppTemplate = async (to: string, template: string, bodyParams: Record<string, string>, buttonParam?: string) => {
             try {
-                const response = await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
+                const resp = await fetch(`${API_BASE_URL}/api/notifications/sms`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        messaging_product: 'whatsapp',
-                        to: formatPhone(to),
-                        type: 'template',
-                        template: {
-                            name: template,
-                            language: { code: 'en' },
-                            components: [
-                              {
-                                type: 'body',
-                                parameters: Object.entries(bodyParams).map(([key, value]) => ({
-                                  type: 'text',
-                                  text: String(value),
-                                  parameter_name: key
-                                }))
-                              },
-                              ...(buttonParam
-                                ? [
-                                    {
-                                      type: 'button',
-                                      sub_type: 'url',
-                                      index: '0',
-                                      parameters: [{ type: 'text', text: String(buttonParam) }]
-                                    }
-                                  ]
-                                : [])
-                            ]
-                        }
-                    })
+                        to: formattedPhone,
+                        message,
+                        orderId: order.id,
+                    }),
                 });
-                return await response.json();
-            } catch (err) {
-                console.error('[Mobile] WhatsApp Error:', err);
-                return { error: err };
+                return await resp.json();
+            } catch (e: any) {
+                return { error: e?.message || String(e) };
             }
         };
 
-        const sendSMSFallback = (to: string, msg: string) => {
-            const phone = formatPhone(to);
-            const url = `sms:${phone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
-            Linking.openURL(url).catch(e => console.error('[Mobile] SMS failed:', e));
+        const sendAutomatedWhatsApp = async (toPhone: string, customerName: string, statusText: string) => {
+            const cleanPhone = toPhone.replace(/\D/g, '');
+            const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : (toPhone.startsWith('+') ? toPhone : `+${cleanPhone}`);
+            try {
+                const resp = await fetch(`${API_BASE_URL}/api/whatsapp/send-template`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        to: formattedPhone,
+                        templateName: 'order_status_update',
+                        languageCode: 'en',
+                        parameters: {
+                            customer_name: customerName,
+                            order_id: orderIdShort,
+                            status: statusText,
+                            button_url: `${orderIdShort}`,
+                        },
+                    }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    console.warn('[Mobile] WhatsApp API non-200:', resp.status, JSON.stringify(data));
+                } else {
+                    console.log('[Mobile] WhatsApp API ok:', JSON.stringify(data));
+                }
+                return data;
+            } catch (e: any) {
+                return { error: e?.message || String(e) };
+            }
         };
 
-        // Logic: MSME -> Buyer (Any status update except Pending/Delivered)
-        // Includes Cancelled.
-        if (userRole === 'msme' && status !== 'Pending' && status !== 'Delivered' && buyerPhone) {
-            const bodyParams = {
-              customer_name: buyerName,
-              order_id: orderIdShort,
-              status: status.toUpperCase()
-            };
-            const res = await sendWhatsAppTemplate(buyerPhone, 'order_status_update', bodyParams, orderIdShort);
-            if (res?.error) {
-                const smsMsg = status === 'Cancelled'
-                  ? `TexConnect: Hello ${buyerName}, your order #${orderIdShort} has been CANCELLED.`
-                  : `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`;
-                sendSMSFallback(buyerPhone, smsMsg);
+        // MSME -> Buyer: any status except Pending/Delivered (includes Cancelled)
+        if (userRole === 'msme' && buyerPhone && status !== 'Pending' && status !== 'Delivered') {
+            const smsMsg = status === 'Cancelled'
+                ? `TexConnect: Hello ${buyerName}, your order #${orderIdShort} has been CANCELLED.`
+                : `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`;
+
+            const [waResult, smsResult] = await Promise.allSettled([
+                sendAutomatedWhatsApp(buyerPhone, buyerName, status.toUpperCase()),
+                sendAutomatedSMS(buyerPhone, smsMsg),
+            ]);
+
+            const waVal: any = waResult.status === 'fulfilled' ? waResult.value : { error: String(waResult.reason) };
+            if (waVal?.error || !waVal?.messages?.[0]?.id) {
+                console.warn('[Mobile] WhatsApp not accepted for buyer:', JSON.stringify(waVal));
+            }
+
+            const smsVal: any = smsResult.status === 'fulfilled' ? smsResult.value : { error: String(smsResult.reason) };
+            if (smsVal?.error) {
+                console.warn('[Mobile] SMS send error for buyer:', JSON.stringify(smsVal));
             }
         }
 
-        // Logic: Buyer -> MSME (Delivered)
+        // Buyer -> MSME: Delivered only
         if (userRole === 'buyer' && status === 'Delivered' && msmePhone) {
-            const bodyParams = {
-              customer_name: buyerName,
-              order_id: orderIdShort,
-              status: 'DELIVERED'
-            };
-            const res = await sendWhatsAppTemplate(msmePhone, 'order_status_update', bodyParams, orderIdShort);
-            if (res?.error) {
-                sendSMSFallback(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
+            const smsMsg = `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`;
+            const [waResult, smsResult] = await Promise.allSettled([
+                sendAutomatedWhatsApp(msmePhone, buyerName, 'DELIVERED'),
+                sendAutomatedSMS(msmePhone, smsMsg),
+            ]);
+
+            const waVal: any = waResult.status === 'fulfilled' ? waResult.value : { error: String(waResult.reason) };
+            if (waVal?.error || !waVal?.messages?.[0]?.id) {
+                console.warn('[Mobile] WhatsApp not accepted for msme:', JSON.stringify(waVal));
+            }
+
+            const smsVal: any = smsResult.status === 'fulfilled' ? smsResult.value : { error: String(smsResult.reason) };
+            if (smsVal?.error) {
+                console.warn('[Mobile] SMS send error for msme:', JSON.stringify(smsVal));
             }
         }
     }
@@ -306,162 +300,675 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
    const currentStatusIndex = getStatusIndex(order.status);
    const totalUnits = Number(order.printedUnits ?? order.printedunits ?? order.totalUnits ?? order.totalunits ?? 0);
+   const scannedCount = (order.scannedUnits?.length || order.scannedunits?.length || 0);
+   const scanPercent = totalUnits > 0 ? Math.min(scannedCount / totalUnits, 1) : 0;
+   const isVerified = totalUnits === 0 || scannedCount >= totalUnits;
 
-   // Rest of your component JSX here...
+   const buildInvoiceHtml = () => {
+       const item = order.itemName || order.items?.[0]?.productName || 'Item';
+       const qty = totalUnits || 0;
+       const total = order.totalAmount || 0;
+       return `
+      <html>
+        <body style="font-family: Arial; padding: 24px;">
+          <h2>TexConnect Invoice</h2>
+          <p><b>Order ID:</b> ${order.id.substring(0, 8).toUpperCase()}</p>
+          <p><b>Item:</b> ${item}</p>
+          <p><b>Quantity:</b> ${qty}</p>
+          <p><b>Total:</b> ₹${total}</p>
+          <p><b>Status:</b> ${order.status}</p>
+        </body>
+      </html>
+    `;
+   };
+
+   const handleDownloadInvoice = async () => {
+       try {
+           const { uri } = await Print.printToFileAsync({ html: buildInvoiceHtml() });
+           await Sharing.shareAsync(uri);
+       } catch (e: any) {
+           Alert.alert('Invoice Failed', e?.message || 'Could not generate invoice');
+       }
+   };
+
+   const handleOpenScanner = () => {
+       navigation.navigate('Scanning', { orderId });
+   };
+
    return (
        <View style={styles.container}>
            <LinearGradient colors={['#0f172a', '#1e293b']} style={styles.background} />
-           <ScrollView style={styles.scrollView}>
-               <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                   <LucideChevronLeft color="#38bdf8" size={24} />
-                   <Text style={styles.backText}>Back</Text>
-               </TouchableOpacity>
 
-               <Text style={styles.title}>Order #{order.id.substring(0, 8).toUpperCase()}</Text>
-               <Text style={styles.status}>Status: {order.status}</Text>
+           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+               <View style={styles.header}>
+                   <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                       <LucideChevronLeft color="#38bdf8" size={24} />
+                   </TouchableOpacity>
+                   <Text style={styles.headerTitle}>Order Tracking</Text>
+               </View>
 
-               {totalUnits > 0 && (
-                   <View style={styles.progressCard}>
-                       <Text style={styles.progressText}>
-                           Scanned: {(order.scannedUnits?.length || 0)} / {totalUnits} units
+               <View style={styles.summaryCard}>
+                   <Text style={styles.summaryLabel}>ORDER ID</Text>
+                   <Text style={styles.orderId}>{order.id.substring(0, 8).toUpperCase()}</Text>
+
+                   <View style={styles.summaryGrid}>
+                       <View style={styles.summaryRow}>
+                           <Text style={styles.summaryKey}>Item</Text>
+                           <Text style={styles.summaryKey}>Quantity</Text>
+                       </View>
+                       <View style={styles.summaryRow}>
+                           <Text style={styles.summaryValue}>{order.itemName || order.items?.[0]?.productName || '—'}</Text>
+                           <Text style={styles.summaryValue}>{totalUnits || 0}</Text>
+                       </View>
+                       <View style={styles.summaryRow}>
+                           <Text style={styles.summaryKey}>Customer</Text>
+                           <Text style={styles.summaryKey}>Total</Text>
+                       </View>
+                       <View style={styles.summaryRow}>
+                           <Text style={styles.summaryValue}>{order.buyerName || '—'}</Text>
+                           <Text style={styles.summaryValue}>₹{order.totalAmount || 0}</Text>
+                       </View>
+                   </View>
+               </View>
+
+               <View style={styles.scanProgressCard}>
+                   <View style={styles.progressHeader}>
+                       <LucidePackage color="#38bdf8" size={20} />
+                       <Text style={styles.progressTitle}>Package Verification</Text>
+                   </View>
+
+                   <View style={styles.progressBarContainer}>
+                       <View style={[styles.progressBar, { width: `${scanPercent * 100}%` }]} />
+                   </View>
+
+                   <View style={styles.progressFooter}>
+                       <Text style={styles.progressText}>{scannedCount} of {totalUnits || 0} Units Scanned</Text>
+                       <Text style={isVerified ? styles.verifiedText : styles.pendingText}>
+                           {isVerified ? 'FULLY VERIFIED' : 'PENDING'}
                        </Text>
                    </View>
-               )}
 
-               <TouchableOpacity 
+                   <View style={styles.boxGridContainer}>
+                       <View style={styles.boxGridHeader}>
+                           <Text style={styles.boxGridTitle}>BOX SCAN PROGRESS</Text>
+                           <TouchableOpacity style={styles.cameraIconButton} onPress={handleOpenScanner}>
+                               <LucideCamera color="#38bdf8" size={18} />
+                           </TouchableOpacity>
+                       </View>
+
+                       <View style={styles.boxGrid}>
+                           {Array.from({ length: Math.max(totalUnits || 0, 0) }).map((_, i) => {
+                               const scanned = i < scannedCount;
+                               return (
+                                   <View
+                                       key={i}
+                                       style={[
+                                           styles.boxItem,
+                                           scanned ? styles.boxItemScanned : styles.boxItemPending
+                                       ]}
+                                   >
+                                       <Text
+                                           style={[
+                                               styles.boxItemText,
+                                               scanned ? styles.boxItemTextScanned : styles.boxItemTextPending
+                                           ]}
+                                       >
+                                           {scanned ? '✓' : i + 1}
+                                       </Text>
+                                   </View>
+                               );
+                           })}
+                       </View>
+
+                       <View style={styles.checkInStatusWrapper}>
+                           <Text style={styles.checkInStatusLabel}>Check-in Status:</Text>
+                           <View style={[styles.checkInBadge, isVerified ? styles.checkInComplete : styles.checkInIncomplete]}>
+                               <Text style={styles.checkInBadgeText}>{isVerified ? 'COMPLETE' : 'INCOMPLETE'}</Text>
+                           </View>
+                       </View>
+
+                       {!isVerified && totalUnits > 0 ? (
+                           <View style={styles.warningContainer}>
+                               <Text style={styles.warningText}>Please scan all {totalUnits} units before updating status.</Text>
+                               <TouchableOpacity style={styles.scanMoreButton} onPress={handleOpenScanner}>
+                                   <LucideCamera color="#fff" size={18} />
+                                   <Text style={styles.scanMoreButtonText}>Scan QR Stickers</Text>
+                               </TouchableOpacity>
+                           </View>
+                       ) : null}
+                   </View>
+               </View>
+
+               <Text style={styles.sectionTitle}>Tracking Progress</Text>
+
+               <View style={styles.trackingCard}>
+                   {STATUS_STEPS.map((step, index) => {
+                       const isActive = index <= currentStatusIndex;
+                       const isCurrent = index === currentStatusIndex;
+
+                       const icon = step === 'Delivered'
+                           ? <LucideCheckCircle size={22} color={isActive ? '#38bdf8' : '#64748b'} />
+                           : step === 'Out for Delivery' || step === 'Shipped'
+                               ? <LucideTruck size={22} color={isActive ? '#38bdf8' : '#64748b'} />
+                               : step === 'Prepared' || step === 'Accepted'
+                                   ? <LucidePackage size={22} color={isActive ? '#38bdf8' : '#64748b'} />
+                                   : <LucideClock size={22} color={isActive ? '#38bdf8' : '#64748b'} />;
+
+                       return (
+                           <View key={step} style={styles.stepRow}>
+                               <View style={styles.stepIconColumn}>
+                                   <View style={[styles.stepDot, isActive ? styles.activeDot : styles.inactiveDot]}>
+                                       {icon}
+                                   </View>
+                                   {index < STATUS_STEPS.length - 1 && (
+                                       <View style={[styles.stepLine, isActive ? styles.activeLine : styles.inactiveLine]} />
+                                   )}
+                               </View>
+
+                               <View style={styles.stepTextContainer}>
+                                   <Text style={[styles.stepLabel, isActive ? styles.activeStepLabel : styles.inactiveStepLabel]}>
+                                       {step}
+                                   </Text>
+                                   {isCurrent ? (
+                                       <Text style={styles.currentStatusBadge}>Current Status</Text>
+                                   ) : null}
+                               </View>
+                           </View>
+                       );
+                   })}
+               </View>
+
+               <TouchableOpacity style={styles.refreshButton} onPress={() => fetchOrderDetails()}>
+                   <Text style={styles.refreshButtonText}>Refresh Status</Text>
+               </TouchableOpacity>
+
+               <TouchableOpacity
                    style={styles.updateButton}
                    onPress={() => setStatusModalOpen(true)}
                    disabled={updating}
                >
-                   <Text style={styles.updateButtonText}>
-                       {updating ? 'Updating...' : 'Update Status'}
-                   </Text>
+                   <LucideCheckCircle color="#fff" size={20} />
+                   <Text style={styles.updateButtonText}>{updating ? 'Updating...' : 'Update Status'}</Text>
                </TouchableOpacity>
+
+               {userRole === 'buyer' && String(order.status || '').toLowerCase() === 'delivered' ? (
+                   <TouchableOpacity style={styles.invoiceButton} onPress={handleDownloadInvoice}>
+                       <LucideFileText color="#fff" size={20} />
+                       <Text style={styles.invoiceButtonText}>Download Invoice</Text>
+                   </TouchableOpacity>
+               ) : null}
            </ScrollView>
 
            <Modal
                visible={statusModalOpen}
                transparent
-               animationType="slide"
+               animationType="fade"
                onRequestClose={() => setStatusModalOpen(false)}
            >
-               <View style={styles.modalBackdrop}>
-                   <View style={styles.modalCard}>
+               <Pressable style={styles.modalBackdrop} onPress={() => setStatusModalOpen(false)}>
+                   <Pressable style={styles.modalCard}>
                        <Text style={styles.modalTitle}>Update Status</Text>
-                       {getAllowedNextStatuses(order.status, userRole).map((nextStatus) => (
-                           <TouchableOpacity
-                               key={nextStatus}
-                               style={styles.statusOption}
-                               onPress={() => handleUpdateStatus(nextStatus)}
-                           >
-                               <Text style={styles.statusOptionText}>{nextStatus}</Text>
-                           </TouchableOpacity>
-                       ))}
-                       <TouchableOpacity onPress={() => setStatusModalOpen(false)}>
-                           <Text style={styles.cancelText}>Cancel</Text>
+                       <Text style={styles.modalSubtitle}>Select the next stage for this order</Text>
+
+                       <View style={styles.modalList}>
+                           {getAllowedNextStatuses(order.status, userRole).map((nextStatus) => (
+                               <TouchableOpacity
+                                   key={nextStatus}
+                                   style={styles.modalItem}
+                                   onPress={() => handleUpdateStatus(nextStatus)}
+                               >
+                                   <Text style={styles.modalItemText}>{nextStatus}</Text>
+                               </TouchableOpacity>
+                           ))}
+                       </View>
+
+                       <TouchableOpacity style={styles.modalClose} onPress={() => setStatusModalOpen(false)}>
+                           <Text style={styles.modalCloseText}>Close</Text>
                        </TouchableOpacity>
-                   </View>
-               </View>
+                   </Pressable>
+               </Pressable>
            </Modal>
        </View>
    );
 }
 
 const styles = StyleSheet.create({
-   container: {
-       flex: 1,
-       backgroundColor: '#0f172a',
-   },
-   background: {
-       position: 'absolute',
-       left: 0,
-       right: 0,
-       top: 0,
-       bottom: 0,
-   },
-   scrollView: {
-       flex: 1,
-       padding: 20,
-   },
-   loadingContainer: {
-       flex: 1,
-       justifyContent: 'center',
-       alignItems: 'center',
-   },
-   backButton: {
-       flexDirection: 'row',
-       alignItems: 'center',
-       marginBottom: 20,
-   },
-   backText: {
-       color: '#38bdf8',
-       fontSize: 16,
-       marginLeft: 8,
-   },
-   title: {
-       color: '#fff',
-       fontSize: 24,
-       fontWeight: 'bold',
-       marginBottom: 10,
-   },
-   status: {
-       color: '#94a3b8',
-       fontSize: 16,
-       marginBottom: 20,
-   },
-   progressCard: {
-       backgroundColor: 'rgba(56, 189, 248, 0.1)',
-       padding: 16,
-       borderRadius: 12,
-       marginBottom: 20,
-   },
-   progressText: {
-       color: '#38bdf8',
-       fontSize: 14,
-   },
-   updateButton: {
-       backgroundColor: '#10b981',
-       padding: 16,
-       borderRadius: 12,
-       alignItems: 'center',
-   },
-   updateButtonText: {
-       color: '#fff',
-       fontSize: 16,
-       fontWeight: 'bold',
-   },
-   modalBackdrop: {
-       flex: 1,
-       backgroundColor: 'rgba(0,0,0,0.6)',
-       justifyContent: 'center',
-       padding: 20,
-   },
-   modalCard: {
-       backgroundColor: '#1e293b',
-       padding: 20,
-       borderRadius: 16,
-   },
-   modalTitle: {
-       color: '#fff',
-       fontSize: 18,
-       fontWeight: 'bold',
-       marginBottom: 16,
-   },
-   statusOption: {
-       padding: 16,
-       backgroundColor: 'rgba(56, 189, 248, 0.1)',
-       borderRadius: 12,
-       marginBottom: 12,
-   },
-   statusOptionText: {
-       color: '#fff',
-       fontSize: 16,
-       textAlign: 'center',
-   },
-   cancelText: {
-       color: '#94a3b8',
-       fontSize: 14,
-       textAlign: 'center',
-       marginTop: 12,
-   },
+    container: {
+        flex: 1,
+        backgroundColor: '#0f172a',
+    },
+    background: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        padding: 22,
+        paddingBottom: 40,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        paddingHorizontal: 6,
+        gap: 14,
+    },
+    headerTitle: {
+        color: '#f8fafc',
+        fontSize: 18,
+        fontWeight: '800',
+        marginLeft: 6,
+    },
+    backButton: {
+        width: 42,
+        height: 42,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    summaryCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: 22,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        marginBottom: 18,
+    },
+    summaryLabel: {
+        color: '#94a3b8',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 2,
+    },
+    orderId: {
+        color: '#38bdf8',
+        fontSize: 24,
+        fontWeight: '900',
+        marginTop: 6,
+        marginBottom: 14,
+    },
+    summaryGrid: {
+        gap: 6,
+    },
+    summaryRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    summaryKey: {
+        color: '#94a3b8',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    summaryValue: {
+        color: '#f8fafc',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+    sectionTitle: {
+        color: '#f8fafc',
+        fontSize: 20,
+        fontWeight: '900',
+        marginTop: 10,
+        marginBottom: 12,
+    },
+    trackingCard: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 24,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    stepRow: {
+        flexDirection: 'row',
+    },
+    stepIconColumn: {
+        width: 40,
+        alignItems: 'center',
+    },
+    stepDot: {
+        width: 38,
+        height: 38,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    activeDot: {
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    },
+    inactiveDot: {
+        backgroundColor: 'rgba(255,255,255,0.03)',
+    },
+    stepLine: {
+        width: 2,
+        flex: 1,
+        marginVertical: 2,
+    },
+    activeLine: {
+        backgroundColor: '#38bdf8',
+    },
+    inactiveLine: {
+        backgroundColor: '#334155',
+    },
+    stepTextContainer: {
+        marginLeft: 20,
+        paddingTop: 4,
+    },
+    stepLabel: {
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    activeStepLabel: {
+        color: '#f8fafc',
+    },
+    inactiveStepLabel: {
+        color: '#64748b',
+    },
+    currentStatusBadge: {
+        color: '#38bdf8',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginTop: 4,
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+        alignSelf: 'flex-start',
+    },
+    refreshButton: {
+        marginTop: 32,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: 16,
+        padding: 18,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    refreshButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    updateButton: {
+        marginTop: 16,
+        flexDirection: 'row',
+        backgroundColor: '#10b981',
+        borderRadius: 16,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#10b981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    updateButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginLeft: 10,
+    },
+    warningContainer: {
+        marginTop: 16,
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        borderRadius: 16,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(245, 158, 11, 0.2)',
+        alignItems: 'center',
+    },
+    warningText: {
+        color: '#f59e0b',
+        fontSize: 14,
+        fontWeight: '600',
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    scanMoreButton: {
+        flexDirection: 'row',
+        backgroundColor: '#38bdf8',
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+    },
+    scanMoreButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 8,
+    },
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    modalCard: {
+        backgroundColor: '#0f172a',
+        borderRadius: 20,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    modalTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 6,
+    },
+    modalSubtitle: {
+        color: '#94a3b8',
+        fontSize: 13,
+        fontWeight: '600',
+        marginBottom: 14,
+    },
+    modalList: {
+        gap: 10,
+    },
+    modalItem: {
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    modalItemText: {
+        color: '#f8fafc',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    modalClose: {
+        marginTop: 14,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    modalCloseText: {
+        color: '#94a3b8',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    scanProgressCard: {
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        borderRadius: 24,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(56, 189, 248, 0.2)',
+        marginBottom: 24,
+    },
+    progressHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    progressTitle: {
+        color: '#f8fafc',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 10,
+    },
+    progressBarContainer: {
+        height: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 5,
+        overflow: 'hidden',
+        marginBottom: 12,
+    },
+    progressBar: {
+        height: '100%',
+        backgroundColor: '#38bdf8',
+    },
+    progressFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    progressText: {
+        color: '#94a3b8',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    verifiedText: {
+        color: '#10b981',
+        fontSize: 12,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+    },
+    pendingText: {
+        color: '#f59e0b',
+        fontSize: 12,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+    },
+    boxGridContainer: {
+        marginTop: 20,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    boxGridHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    cameraButtonSmall: {
+        padding: 8,
+        backgroundColor: 'rgba(248, 250, 252, 0.05)',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+    },
+    boxGridTitle: {
+        color: '#94a3b8',
+        fontSize: 10,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+    },
+    cameraIconButton: {
+        padding: 8,
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(56, 189, 248, 0.3)',
+    },
+    checkInStatusWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 16,
+        gap: 10,
+    },
+    checkInStatusLabel: {
+        color: '#94a3b8',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    checkInBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    checkInComplete: {
+        backgroundColor: 'rgba(34, 197, 94, 0.15)',
+        borderColor: 'rgba(34, 197, 94, 0.3)',
+    },
+    checkInIncomplete: {
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    checkInBadgeText: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: '#f8fafc',
+        letterSpacing: 0.5,
+    },
+    boxGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    boxItem: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+    },
+    boxItemPending: {
+        backgroundColor: 'rgba(241, 245, 249, 0.05)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    boxItemScanned: {
+        backgroundColor: '#22c55e',
+        borderColor: '#16a34a',
+    },
+    boxItemText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    boxItemTextPending: {
+        color: '#94a3b8',
+    },
+    boxItemTextScanned: {
+        color: '#ffffff',
+    },
+    invoiceButton: {
+        marginTop: 16,
+        flexDirection: 'row',
+        backgroundColor: '#4f46e5',
+        borderRadius: 16,
+        padding: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#4f46e5',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    invoiceButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginLeft: 10,
+    },
 });

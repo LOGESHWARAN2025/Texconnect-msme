@@ -49,22 +49,64 @@ export default function ScanningScreen({ navigation, route }: any) {
         return out;
     };
 
+    const tryParseJson = (input: string): any | null => {
+        const trimmed = (input || '').trim();
+        if (!trimmed) return null;
+        if (!(trimmed.startsWith('{') && trimmed.endsWith('}'))) return null;
+        try {
+            return JSON.parse(trimmed);
+        } catch {
+            return null;
+        }
+    };
+
+    const extractOrderAndUid = (raw: any): { orderId?: string; uid?: string } => {
+        const text = typeof raw === 'string' ? raw.trim() : '';
+        if (!text) return {};
+
+        // 1) URL / querystring format: ...?orderId=...&uid=...
+        if (text.includes('?') && (text.toLowerCase().includes('orderid=') || text.toLowerCase().includes('uid='))) {
+            const params = parseQueryParams(text);
+            const orderId = params.orderId || params.orderid || params.order_id;
+            const uid = params.uid || params.unit || params.unitId || params.unitid;
+            return { orderId, uid };
+        }
+
+        // 2) JSON format: {"orderId":"...","uid":"..."}
+        const j = tryParseJson(text);
+        if (j && typeof j === 'object') {
+            const orderId = j.orderId || j.orderid || j.order_id || j.order;
+            const uid = j.uid || j.unitId || j.unitid || j.unit;
+            return { orderId, uid };
+        }
+
+        // 3) Delimited formats
+        // - orderId:<id>|uid:<uid>
+        // - orderId=<id>;uid=<uid>
+        const mOrder = text.match(/(?:orderid|order_id|order)\s*[:=]\s*([a-zA-Z0-9-]+)/i);
+        const mUid = text.match(/(?:uid|unitid|unit_id|unit)\s*[:=]\s*([a-zA-Z0-9-]+)/i);
+        if (mOrder || mUid) {
+            return { orderId: mOrder?.[1], uid: mUid?.[1] };
+        }
+
+        // 4) If it's just a UID sticker (no orderId), accept uid only
+        // Heuristic: if it looks like a uuid, treat as uid.
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) {
+            return { uid: text };
+        }
+
+        // 5) Fallback: treat as orderId (older QR which only contained orderId)
+        return { orderId: text };
+    };
+
     const handleBarCodeScanned = async ({ type, data }: any) => {
         if (scanned) return;
         setScanned(true);
 
-        let orderIdFromScan = '';
-        let uid = '';
+        const { orderId: orderIdFromScan, uid } = extractOrderAndUid(data);
 
-        if (typeof data === 'string' && data.includes('orderId=')) {
-            const params = parseQueryParams(data);
-            orderIdFromScan = params.orderId || '';
-            uid = params.uid || '';
-        } else {
-            orderIdFromScan = typeof data === 'string' ? data.trim() : '';
-        }
-
-        const effectiveOrderId = orderIdFromScan || route?.params?.orderId;
+        // If we scanned only a UID sticker, we MUST have orderId from route params.
+        const effectiveOrderId = (orderIdFromScan || '').trim() || route?.params?.orderId;
 
         if (!effectiveOrderId) {
             Alert.alert('Invalid Scan', 'Could not extract Order ID.');
@@ -91,8 +133,6 @@ export default function ScanningScreen({ navigation, route }: any) {
                 const currentScanned = order.scannedunits || order.scannedUnits || [];
                 if (!currentScanned.includes(uid)) {
                     const newScanned = [...currentScanned, uid];
-                    const totalUnits = Number(order.printedunits ?? order.printedUnits ?? order.totalunits ?? order.totalUnits ?? 0);
-                    const targetStatus = route?.params?.targetStatus;
 
                     const updatePayload: any = {
                         scannedunits: newScanned,
@@ -100,32 +140,13 @@ export default function ScanningScreen({ navigation, route }: any) {
                         updatedAt: new Date().toISOString()
                     };
 
-                    if (targetStatus && newScanned.length >= totalUnits) {
-                        updatePayload.status = targetStatus;
-                        updatePayload.scannedunits = [];
-                        updatePayload.scannedUnits = [];
-                        updatePayload.updatedAt = new Date().toISOString();
-                        
-                        console.log(`--- ALL UNITS SCANNED (${newScanned.length}/${totalUnits}). UPDATING STATUS TO ${targetStatus} AND RESETTING UNITS ---`);
-                        const { error: updateError } = await supabase
-                            .from('orders')
-                            .update(updatePayload)
-                            .eq('id', effectiveOrderId);
+                    const { error: updateError } = await supabase
+                        .from('orders')
+                        .update(updatePayload)
+                        .eq('id', effectiveOrderId);
 
-                        if (!updateError) {
-                            Alert.alert('Success', `Task Completed! Order updated to ${targetStatus}.`);
-                        } else {
-                            throw updateError;
-                        }
-                    } else {
-                        const { error: updateError } = await supabase
-                            .from('orders')
-                            .update(updatePayload)
-                            .eq('id', effectiveOrderId);
-
-                        if (updateError) {
-                            throw updateError;
-                        }
+                    if (updateError) {
+                        throw updateError;
                     }
                 } else {
                     Alert.alert('Duplicate Scan', 'This unit has already been scanned.');
