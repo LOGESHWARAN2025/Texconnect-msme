@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const { to, templateName, languageCode, parameters } = req.body || {};
+  const { to, templateName, languageCode, parameters, buttons } = req.body || {};
 
   if (!to || !templateName) {
     return res.status(400).json({ error: 'Missing required fields: to, templateName' });
@@ -56,17 +56,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const paramsArray = Array.isArray(parameters) ? parameters : null;
   const paramsObject =
     parameters && typeof parameters === 'object' && !Array.isArray(parameters) ? parameters : null;
+  const buttonsArray = Array.isArray(buttons) ? buttons : null;
 
   console.log('[API] WhatsApp request:', {
     to: formattedPhone,
     templateName,
     language: lang,
-    paramCount: paramsArray ? paramsArray.length : paramsObject ? Object.keys(paramsObject).length : 0
+    paramCount: paramsArray ? paramsArray.length : paramsObject ? Object.keys(paramsObject).length : 0,
+    buttonCount: buttonsArray ? buttonsArray.length : 0
   });
 
   try {
     const apiUrl = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
     
+    const bodyParameters = paramsArray
+      ? paramsArray.map((p: any) => ({
+          type: p?.type || 'text',
+          text: String(p?.text ?? p)
+        }))
+      : paramsObject
+        ? Object.entries(paramsObject)
+            .filter(([key]) => key !== 'button_url')
+            .map(([key, value]) => ({
+              type: 'text',
+              text: String(value),
+              parameter_name: key
+            }))
+        : [];
+
+    const inferredButtonUrl = paramsObject && typeof (paramsObject as any).button_url !== 'undefined'
+      ? String((paramsObject as any).button_url)
+      : null;
+
+    const buttonComponents = buttonsArray
+      ? buttonsArray
+      : inferredButtonUrl
+        ? [{ type: 'url', index: 0, parameters: [{ type: 'text', text: inferredButtonUrl }] }]
+        : [];
+
+    const components: any[] = [
+      {
+        type: 'body',
+        parameters: bodyParameters
+      }
+    ];
+
+    for (const b of buttonComponents) {
+      if (!b) continue;
+      const idx = typeof b.index === 'number' ? b.index : 0;
+      const urlText =
+        Array.isArray(b.parameters) && b.parameters[0]
+          ? String(b.parameters[0]?.text ?? b.parameters[0])
+          : null;
+
+      if (!urlText) continue;
+
+      components.push({
+        type: 'button',
+        sub_type: 'url',
+        index: String(idx),
+        parameters: [{ type: 'text', text: urlText }]
+      });
+    }
+
     const requestBody = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
@@ -75,23 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       template: {
         name: templateName,
         language: { code: lang },
-        components: [
-          {
-            type: 'body',
-            parameters: paramsArray
-              ? paramsArray.map((p: any) => ({
-                  type: p?.type || 'text',
-                  text: String(p?.text ?? p)
-                }))
-              : paramsObject
-                ? Object.entries(paramsObject).map(([key, value]) => ({
-                    type: 'text',
-                    text: String(value),
-                    parameter_name: key
-                  }))
-                : []
-          }
-        ]
+        components
       }
     };
 
