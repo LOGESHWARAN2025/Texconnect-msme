@@ -200,14 +200,49 @@ export default function OrderStatusScreen({ route, navigation }: any) {
            Linking.openURL(url);
        };
 
+       const sendCompanySMS = async (toPhone: string, message: string) => {
+           const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
+           const cleanPhone = toPhone.replace(/\D/g, '');
+           const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : (toPhone.startsWith('+') ? toPhone : `+${cleanPhone}`);
+           const brandedMessage = message.startsWith('TexConnect:') ? message : `TexConnect: ${message}`;
+
+           if (!apiBase) {
+               console.warn('[Mobile] EXPO_PUBLIC_API_BASE_URL not configured. Falling back to local SMS app.');
+               sendSMSFallback(toPhone, brandedMessage);
+               return;
+           }
+
+           try {
+               const response = await fetch(`${apiBase}/api/notifications/sms`, {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({
+                       to: formattedPhone,
+                       message: brandedMessage,
+                       orderId: order.id
+                   })
+               });
+
+               if (!response.ok) {
+                   const text = await response.text();
+                   throw new Error(`SMS API failed: ${response.status} ${text}`);
+               }
+
+               console.log('[Mobile] ✅ Company SMS sent:', formattedPhone);
+           } catch (err) {
+               console.error('[Mobile] Company SMS failed, falling back to local SMS app:', err);
+               sendSMSFallback(toPhone, brandedMessage);
+           }
+       };
+
        // MSME -> Notify Buyer (SMS only)
        if (userRole === 'msme' && buyerPhone) {
-           sendSMSFallback(buyerPhone, `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`);
+           await sendCompanySMS(buyerPhone, `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`);
        }
 
        // Buyer -> Notify MSME (SMS only)
        if (userRole === 'buyer' && status === 'Delivered' && msmePhone) {
-           sendSMSFallback(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
+           await sendCompanySMS(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
        }
    }
 
