@@ -139,112 +139,132 @@ export default function OrderStatusScreen({ route, navigation }: any) {
        }
    }
 
-   async function triggerOrderNotification(status: string) {
-       if (!order) return;
+    async function triggerOrderNotification(status: string) {
+        if (!order) return;
 
-       // Fetch buyer phone from users table
-       let buyerPhone = order.buyerPhone;
-       let buyerName = order.buyerName;
-        
-       if (!buyerPhone || !buyerName) {
-           try {
-               const buyerId = order.buyerId || order.buyer_id || order.buyerid;
-               if (buyerId) {
-                   const { data: buyerData } = await supabase
-                       .from('users')
-                       .select('phone, username, displayname')
-                       .eq('id', buyerId)
-                       .single();
-                    
-                   if (buyerData) {
-                       buyerPhone = buyerData.phone || buyerPhone;
-                       buyerName = buyerData.displayname || buyerData.username || buyerName;
-                   }
-               }
-           } catch (err) {
-               console.error('Failed to fetch buyer:', err);
-           }
-       }
+        // Meta WhatsApp API Configuration (Permanent System User Token)
+        const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRCJraaNkoe018cUvlvzHAuLWSb2ZC08bNi7hbBwNXmBlxrn3pFcRHccrOWUKoIdsPGnQbBYLl3zUexkUZCNxgTNqVNaKJ0cK5SgopoZARmV2VqebTbAizajHVV0NlLUkwHglqbVQGOatfSUZAKm8UtpOVUKox3t1pzno9kE7iZCEZBuZCeRxdREkp5eZBPdnaZA0316Oqtn8lNQPUdxAwL6bZAuD6WWUXRVQ8PYBdYZArZC7fHqwy7LXNxxmTao4OLi4WyTRr5ZAsxYbuvFEa';
+        const PHONE_NUMBER_ID = '1079330375257311';
 
-       // Fetch MSME phone
-       let msmePhone = null;
-       if (order.items && order.items.length > 0) {
-           const firstItem = order.items[0];
-           if (firstItem.productId || firstItem.product_id) {
-               const { data: productData } = await supabase
-                   .from('products')
-                   .select('msmeid')
-                   .eq('id', firstItem.productId || firstItem.product_id)
-                   .single();
+        // 1. Fetch contact details
+        let buyerPhone = null;
+        let buyerName = 'Buyer';
+        let msmePhone = null;
+        let msmeName = 'MSME';
+
+        try {
+            // Fetch Buyer Profile
+            const buyerId = order.buyerId || order.buyer_id || order.buyerid;
+            if (buyerId) {
+                const { data: buyerData } = await supabase
+                    .from('users')
+                    .select('phone, username, displayname')
+                    .eq('id', buyerId)
+                    .single();
                 
-               if (productData?.msmeid) {
-                   const { data: msmeData } = await supabase
-                       .from('users')
-                       .select('phone, username, displayname')
-                       .eq('id', productData.msmeid)
-                       .single();
-                    
-                   if (msmeData) {
-                       msmePhone = msmeData.phone;
-                   }
-               }
-           }
-       }
+                if (buyerData) {
+                    buyerPhone = buyerData.phone;
+                    buyerName = buyerData.displayname || buyerData.username || 'Buyer';
+                }
+            }
 
-       const orderIdShort = order.id.split('-')[0].toUpperCase();
+            // Fetch MSME ID and Profile
+            let msmeId = null;
+            if (order.items && order.items.length > 0) {
+                const firstItem = order.items[0];
+                const pid = firstItem.productId || firstItem.product_id;
+                if (pid) {
+                    const { data: productData } = await supabase
+                        .from('products')
+                        .select('msmeid')
+                        .eq('id', pid)
+                        .single();
+                    msmeId = productData?.msmeid;
+                }
+            }
 
-       const sendSMSFallback = (toPhone: string, message: string) => {
-           const cleanPhone = toPhone.replace(/\D/g, '');
-           const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-           const url = `sms:${formattedPhone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(message)}`;
-           Linking.openURL(url);
-       };
+            if (msmeId) {
+                const { data: msmeData } = await supabase
+                    .from('users')
+                    .select('phone, username, displayname')
+                    .eq('id', msmeId)
+                    .single();
+                
+                if (msmeData) {
+                    msmePhone = msmeData.phone;
+                    msmeName = msmeData.displayname || msmeData.username || 'MSME';
+                }
+            }
+        } catch (err) {
+            console.error('[Mobile] Error fetching profiles:', err);
+        }
 
-       const sendCompanySMS = async (toPhone: string, message: string) => {
-           const apiBase = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
-           const cleanPhone = toPhone.replace(/\D/g, '');
-           const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : (toPhone.startsWith('+') ? toPhone : `+${cleanPhone}`);
-           const brandedMessage = message.startsWith('TexConnect:') ? message : `TexConnect: ${message}`;
+        const orderIdShort = order.id.split('-')[0].toUpperCase();
 
-           if (!apiBase) {
-               console.warn('[Mobile] EXPO_PUBLIC_API_BASE_URL not configured. Falling back to local SMS app.');
-               sendSMSFallback(toPhone, brandedMessage);
-               return;
-           }
+        // Helper to format phone for WhatsApp
+        const formatPhone = (phone: string) => {
+            const clean = phone.replace(/\D/g, '');
+            return clean.length === 10 ? `91${clean}` : clean;
+        };
 
-           try {
-               const response = await fetch(`${apiBase}/api/notifications/sms`, {
-                   method: 'POST',
-                   headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({
-                       to: formattedPhone,
-                       message: brandedMessage,
-                       orderId: order.id
-                   })
-               });
+        const sendWhatsAppTemplate = async (to: string, template: string, params: any[]) => {
+            try {
+                const response = await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messaging_product: 'whatsapp',
+                        to: formatPhone(to),
+                        type: 'template',
+                        template: {
+                            name: template,
+                            language: { code: 'en' },
+                            components: [{ type: 'body', parameters: params }]
+                        }
+                    })
+                });
+                return await response.json();
+            } catch (err) {
+                console.error('[Mobile] WhatsApp Error:', err);
+                return { error: err };
+            }
+        };
 
-               if (!response.ok) {
-                   const text = await response.text();
-                   throw new Error(`SMS API failed: ${response.status} ${text}`);
-               }
+        const sendSMSFallback = (to: string, msg: string) => {
+            const phone = formatPhone(to);
+            const url = `sms:${phone}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
+            Linking.openURL(url).catch(e => console.error('[Mobile] SMS failed:', e));
+        };
 
-               console.log('[Mobile] ✅ Company SMS sent:', formattedPhone);
-           } catch (err) {
-               console.error('[Mobile] Company SMS failed, falling back to local SMS app:', err);
-               sendSMSFallback(toPhone, brandedMessage);
-           }
-       };
+        // Logic: MSME -> Buyer (Accepted to Out for Delivery)
+        if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status) && buyerPhone) {
+            const params = [
+                { type: 'text', text: buyerName },
+                { type: 'text', text: orderIdShort },
+                { type: 'text', text: status.toUpperCase() }
+            ];
+            const res = await sendWhatsAppTemplate(buyerPhone, 'order_status_update', params);
+            if (res?.error) {
+                sendSMSFallback(buyerPhone, `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`);
+            }
+        }
 
-       // MSME -> Notify Buyer (SMS only)
-       if (userRole === 'msme' && buyerPhone) {
-           await sendCompanySMS(buyerPhone, `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`);
-       }
-
-       // Buyer -> Notify MSME (SMS only)
-       if (userRole === 'buyer' && status === 'Delivered' && msmePhone) {
-           await sendCompanySMS(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
-       }
-   }
+        // Logic: Buyer -> MSME (Delivered)
+        if (userRole === 'buyer' && status === 'Delivered' && msmePhone) {
+            const params = [
+                { type: 'text', text: buyerName },
+                { type: 'text', text: orderIdShort },
+                { type: 'text', text: 'DELIVERED' }
+            ];
+            const res = await sendWhatsAppTemplate(msmePhone, 'order_status_update', params);
+            if (res?.error) {
+                sendSMSFallback(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
+            }
+        }
+    }
 
    const getStatusIndex = (status: string) => {
        return STATUS_STEPS.findIndex(s => s.toLowerCase() === status.toLowerCase());
