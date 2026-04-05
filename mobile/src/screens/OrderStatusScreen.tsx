@@ -19,7 +19,7 @@ import { RoleContext } from '../../App';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-const STATUS_STEPS = ['Pending', 'Accepted', 'Prepared', 'Shiped', 'Out for Delivery', 'Delivered', 'Cancelled'];
+const STATUS_STEPS = ['Pending', 'Accepted', 'Prepared', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
 
 export default function OrderStatusScreen({ route, navigation }: any) {
    const { orderId } = route.params || {};
@@ -141,9 +141,6 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
    async function triggerOrderNotification(status: string) {
        if (!order) return;
-        
-       const WHATSAPP_TOKEN = 'EAA3t8IAfi6kBRCJraNkoe018cUvlvzHAuLWSb2ZC08bNi7hbBwNXmBlxrn3pFcRHccrOWUKoIdsPGnQbBYLl3zUexkUZCNxgTNqVNaKJ0cK5SgopoZARmV2VqebTbAizajHVV0NlLUkwHglqbVQGOatfSUZAKm8UtpOVUKox3t1pzno9kE7iZCEZBuZCeRxdREkp5eZBPdnaZA0316Oqtn8lNQPUdxAwL6bZAuD6WWUXRVQ8PYBdYZArZC7fHqwy7LXNxxmTao4OLi4WyTRr5ZAsxYbuvFEa';
-       const PHONE_NUMBER_ID = '107933037525731';
 
        // Fetch buyer phone from users table
        let buyerPhone = order.buyerPhone;
@@ -171,8 +168,6 @@ export default function OrderStatusScreen({ route, navigation }: any) {
 
        // Fetch MSME phone
        let msmePhone = null;
-       let msmeName = null;
-        
        if (order.items && order.items.length > 0) {
            const firstItem = order.items[0];
            if (firstItem.productId || firstItem.product_id) {
@@ -191,44 +186,12 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                     
                    if (msmeData) {
                        msmePhone = msmeData.phone;
-                       msmeName = msmeData.displayname || msmeData.username;
                    }
                }
            }
        }
 
        const orderIdShort = order.id.split('-')[0].toUpperCase();
-
-       const sendWhatsAppAPI = async (toPhone: string, templateName: string, components: any[]) => {
-           try {
-               const cleanPhone = toPhone.replace(/\D/g, '');
-               const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-                
-               const response = await fetch(`https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
-                   method: 'POST',
-                   headers: {
-                       'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-                       'Content-Type': 'application/json',
-                   },
-                   body: JSON.stringify({
-                       messaging_product: 'whatsapp',
-                       recipient_type: 'individual',
-                       to: formattedPhone,
-                       type: 'template',
-                       template: {
-                           name: templateName,
-                           language: { code: 'en' },
-                           components: [{ type: 'body', parameters: components }]
-                       }
-                   })
-               });
-                
-               return await response.json();
-           } catch (err) {
-               console.error('WhatsApp API Error:', err);
-               return null;
-           }
-       };
 
        const sendSMSFallback = (toPhone: string, message: string) => {
            const cleanPhone = toPhone.replace(/\D/g, '');
@@ -237,34 +200,14 @@ export default function OrderStatusScreen({ route, navigation }: any) {
            Linking.openURL(url);
        };
 
-       // MSME -> Notify Buyer
+       // MSME -> Notify Buyer (SMS only)
        if (userRole === 'msme' && buyerPhone) {
-           const params = [
-               { type: 'text', text: buyerName },
-               { type: 'text', text: orderIdShort },
-               { type: 'text', text: status.toUpperCase() }
-           ];
-            
-           const result = await sendWhatsAppAPI(buyerPhone, 'order_status_update', params);
-            
-           if (result?.error || !result?.messages) {
-               sendSMSFallback(buyerPhone, `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`);
-           }
+           sendSMSFallback(buyerPhone, `TexConnect: Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}.`);
        }
 
-       // Buyer -> Notify MSME
+       // Buyer -> Notify MSME (SMS only)
        if (userRole === 'buyer' && status === 'Delivered' && msmePhone) {
-           const params = [
-               { type: 'text', text: buyerName },
-               { type: 'text', text: orderIdShort },
-               { type: 'text', text: 'DELIVERED' }
-           ];
-            
-           const result = await sendWhatsAppAPI(msmePhone, 'order_status_update', params);
-            
-           if (result?.error || !result?.messages) {
-               sendSMSFallback(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
-           }
+           sendSMSFallback(msmePhone, `TexConnect: Order #${orderIdShort} from ${buyerName} has been DELIVERED.`);
        }
    }
 

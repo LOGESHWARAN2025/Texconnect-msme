@@ -429,51 +429,32 @@ export const sendDetailedStatusWhatsApp = async (
  */
 
 /**
- * Send automated WhatsApp notification using Meta API (Template based)
- * NOTE: Browsers block direct calls to Meta API due to CORS.
- * On Web, this will use the SMS fallback unless a proxy/backend is used.
- * Mobile (React Native) is NOT affected by CORS and will work directly.
+ * Send automated SMS via backend API (Twilio/server provider)
  */
-const sendAutomatedWhatsApp = async (toPhone: string, templateName: string, components: any[]) => {
-  try {
-    // Check if we are in a browser environment
-    const isBrowser = typeof window !== 'undefined' && !window.navigator.userAgent.includes('ReactNative');
-    
-    if (isBrowser) {
-      // Use serverless proxy to avoid CORS and keep token secret
-      const response = await fetch('/api/whatsapp/send-template', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: toPhone,
-          templateName,
-          languageCode: 'en_US',
-          parameters: components,
-        }),
-      });
-
-      const data = await response.json();
-      return data;
-    }
-
-    // Non-browser environments aren't expected here for the Vite web app.
-    // If this ever runs (tests/SSR), return a clear error.
-    return { success: false, reason: 'NON_BROWSER_ENV_NOT_SUPPORTED' };
-  } catch (err) {
-    console.error('Meta WhatsApp API Error:', err);
-    return null;
-  }
-};
-
-/**
- * Send automated SMS fallback (via protocol handler on web)
- */
-const sendAutomatedSMS = (toPhone: string, message: string) => {
+const sendAutomatedSMS = async (toPhone: string, message: string, orderId: string) => {
   const cleanPhone = toPhone.replace(/\D/g, '');
-  const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-  window.location.href = `sms:${formattedPhone}?body=${encodeURIComponent(message)}`;
+  const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : (toPhone.startsWith('+') ? toPhone : `+${cleanPhone}`);
+
+  const smsMessage = message.startsWith('TexConnect:') ? message : `TexConnect: ${message}`;
+
+  const response = await fetch('/api/notifications/sms', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to: formattedPhone,
+      message: smsMessage,
+      orderId
+    })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`SMS API failed: ${response.status} ${text}`);
+  }
+
+  return response.json();
 };
 
 /**
@@ -558,59 +539,21 @@ export const triggerAutomatedOrderNotification = async (
     const buyerMsg = `Hello ${buyerName}, your order #${orderIdShort} is now ${status.toUpperCase()}. Thank you for choosing TexConnect!`;
     const msmeMsg = `Order #${orderIdShort} from ${buyerName} has been DELIVERED successfully via TexConnect.`;
 
-    // Template parameters for 'order_status_update'
-    // Matches template: "Hello {{customer_name}}, your order #{{order_id}} is now {{status}}."
-    const buyerParams = [
-      { type: 'text', text: buyerName },
-      { type: 'text', text: orderIdShort },
-      { type: 'text', text: status.toUpperCase() }
-    ];
-
-    // 2. Logic: MSME -> Buyer (Accepted to Out for Delivery)
+    // 2. Logic: MSME -> Buyer (Accepted to Out for Delivery) - SMS only
     if (userRole === 'msme' && ['Accepted', 'Prepared', 'Shipped', 'Out for Delivery'].includes(status)) {
       if (buyerPhone) {
-        console.log(`[Web] Sending automated notification to Buyer: ${buyerPhone} for status: ${status}`);
-        
-        // Use the actual template instead of hello_world
-        const result = await sendAutomatedWhatsApp(buyerPhone, 'order_status_update', buyerParams);
-        
-        // CRITICAL DEBUG: If message is not received, this log will show the Meta API error
-        console.log('[Web] WhatsApp API Full Response:', JSON.stringify(result, null, 2));
-        
-        if (result?.error) {
-          console.error('[Web] Meta WhatsApp API Error:', result.error.message, 'Code:', result.error.code);
-          if (result.error.code === 131030) {
-            console.error('[Web] Hint: This error usually means you must use a pre-approved TEMPLATE for business-initiated messages.');
-          }
-        }
-
-        if (!result?.messaging_product) {
-          console.log('[Web] WhatsApp API failed, attempting SMS fallback');
-          sendAutomatedSMS(buyerPhone, buyerMsg);
-        }
+        console.log(`[Web] Sending SMS notification to Buyer: ${buyerPhone} for status: ${status}`);
+        await sendAutomatedSMS(buyerPhone, buyerMsg, order.id);
       } else {
         console.warn('[Web] No buyer phone found for order:', order.id);
       }
     }
 
-    // 3. Logic: Buyer -> MSME (Delivered)
+    // 3. Logic: Buyer -> MSME (Delivered) - SMS only
     if (userRole === 'buyer' && status === 'Delivered') {
       if (msmePhone) {
-        console.log(`[Web] Sending automated notification to MSME: ${msmePhone} for status: Delivered`);
-        
-        // Template parameters for 'order_status_update' (MSME notification)
-        const msmeParams = [
-          { type: 'text', text: buyerName },
-          { type: 'text', text: orderIdShort },
-          { type: 'text', text: 'DELIVERED' }
-        ];
-
-        const result = await sendAutomatedWhatsApp(msmePhone, 'order_status_update', msmeParams);
-        console.log('[Web] WhatsApp API Result:', JSON.stringify(result, null, 2));
-        if (!result?.messaging_product) {
-          console.log('[Web] WhatsApp API failed, attempting SMS fallback');
-          sendAutomatedSMS(msmePhone, msmeMsg);
-        }
+        console.log(`[Web] Sending SMS notification to MSME: ${msmePhone} for status: Delivered`);
+        await sendAutomatedSMS(msmePhone, msmeMsg, order.id);
       } else {
         console.warn('[Web] No MSME phone found for order:', order.id);
       }
