@@ -1,12 +1,12 @@
 {
   "expo": {
     "name": "TexConnect",
-    "slug": "mobile",
+    "slug": "texconnect",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -30,8 +30,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "f17d146d-1017-4acc-beb6-f0e47cdbc5ab"
+        "projectId": "63673be1-13d6-4843-afda-695195846181"
       }
-    }
+    },
+    "owner": "gokulsaravanakumars-organization"
   }
 }
