@@ -110,7 +110,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                return;
            }
 
-           const { error } = await supabase
+           const { data: updatedRows, error } = await supabase
                .from('orders')
                .update({ 
                    status: targetStatus, 
@@ -118,10 +118,16 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                    scannedUnits: [],
                    updatedAt: new Date().toISOString()
                })
-               .eq('id', order.id);
+               .eq('id', order.id)
+               .select('id,status');
 
            if (error) {
                Alert.alert('Update Failed', error.message);
+               return;
+           }
+
+           if (!updatedRows || updatedRows.length === 0) {
+               Alert.alert('Update Blocked', 'Database security (RLS) blocked this status update. Please check your Supabase RLS policies for orders updates.');
                return;
            }
 

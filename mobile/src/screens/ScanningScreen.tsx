@@ -99,6 +99,13 @@ export default function ScanningScreen({ navigation, route }: any) {
         return { orderId: text };
     };
 
+    const getScannedUnits = (order: any): string[] => {
+        const a = Array.isArray(order?.scannedunits) ? order.scannedunits : [];
+        const b = Array.isArray(order?.scannedUnits) ? order.scannedUnits : [];
+        const merged = [...a, ...b].filter((x) => typeof x === 'string' && x.trim().length > 0);
+        return Array.from(new Set(merged));
+    };
+
     const handleBarCodeScanned = async ({ type, data }: any) => {
         if (scanned) return;
         setScanned(true);
@@ -115,7 +122,7 @@ export default function ScanningScreen({ navigation, route }: any) {
         }
 
         try {
-            // 1. Fetch current order data
+            // 1. Fetch current order data (must be fresh to avoid overwriting scanned list)
             const { data: order, error: fetchError } = await supabase
                 .from('orders')
                 .select('*')
@@ -130,23 +137,27 @@ export default function ScanningScreen({ navigation, route }: any) {
 
             // 2. If it was a unit scan (sticker), update the scannedUnits array
             if (uid) {
-                const currentScanned = order.scannedunits || order.scannedUnits || [];
+                const currentScanned = getScannedUnits(order);
                 if (!currentScanned.includes(uid)) {
                     const newScanned = [...currentScanned, uid];
 
                     const updatePayload: any = {
                         scannedunits: newScanned,
-                        scannedUnits: newScanned,
                         updatedAt: new Date().toISOString()
                     };
 
-                    const { error: updateError } = await supabase
+                    const { data: updatedRows, error: updateError } = await supabase
                         .from('orders')
                         .update(updatePayload)
-                        .eq('id', effectiveOrderId);
+                        .eq('id', effectiveOrderId)
+                        .select('id');
 
                     if (updateError) {
                         throw updateError;
+                    }
+
+                    if (!updatedRows || updatedRows.length === 0) {
+                        throw new Error('Update blocked by database security (RLS) or order not found.');
                     }
                 } else {
                     Alert.alert('Duplicate Scan', 'This unit has already been scanned.');
