@@ -28,6 +28,25 @@ const AppRouter: React.FC = () => {
   });
   const [userToVerify, setUserToVerify] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (isLoading) return;
+    if (currentUser) return;
+    if (authView === 'adminLogin') {
+      handleSetAuthView('landing');
+    }
+  }, [currentUser, authView, isLoading]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!currentUser) return;
+
+    const isAdminRole = currentUser.role === 'admin' || currentUser.role === 'sub-admin';
+    const desiredView = isAdminRole ? 'adminLogin' : 'login';
+    if (authView !== desiredView) {
+      handleSetAuthView(desiredView);
+    }
+  }, [currentUser, authView, isLoading]);
+
   const handleSetAuthView = (view: 'login' | 'register' | 'adminLogin' | 'verifyEmail' | 'landing') => {
     try {
       window.localStorage.setItem('tex_authView', view);
@@ -94,7 +113,7 @@ const AppRouter: React.FC = () => {
 
   useEffect(() => {
     setMinSplashDone(false);
-    const t = setTimeout(() => setMinSplashDone(true), 10_000);
+    const t = setTimeout(() => setMinSplashDone(true), 4_000);
     return () => clearTimeout(t);
   }, []);
   
