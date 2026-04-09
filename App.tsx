@@ -24,7 +24,7 @@ const AppRouter: React.FC = () => {
         return stored as any;
       }
     } catch (e) {}
-    return 'landing';
+    return 'login';
   });
   const [userToVerify, setUserToVerify] = useState<string | null>(null);
 
