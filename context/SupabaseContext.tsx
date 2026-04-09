@@ -3,6 +3,11 @@ import { supabase } from '../src/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { InventoryItem, Product, Order, OrderStatus, User, AuditLogEntry, Issue } from '../types';
 
+type CacheEntry<T> = {
+  data: T;
+  expiresAt: number;
+};
+
 type LoginResult = {
   success: boolean;
   reason?: 'WRONG_PASSWORD' | 'NOT_VERIFIED' | 'USER_NOT_FOUND' | 'UNKNOWN_ERROR';
@@ -172,6 +177,32 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
   const initializedRef = useRef(false);
   const channelsRef = useRef<any[]>([]);
+
+  const cacheRef = useRef<Record<string, CacheEntry<any>>>({});
+  const inflightRef = useRef<Record<string, Promise<any> | null>>({});
+  const lastFetchAtRef = useRef<Record<string, number>>({});
+
+  const getCache = useCallback(<T,>(key: string): T | null => {
+    const entry = cacheRef.current[key] as CacheEntry<T> | undefined;
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      delete cacheRef.current[key];
+      return null;
+    }
+    return entry.data;
+  }, []);
+
+  const setCache = useCallback(<T,>(key: string, data: T, ttlMs: number) => {
+    cacheRef.current[key] = { data, expiresAt: Date.now() + ttlMs };
+  }, []);
+
+  const shouldThrottle = useCallback((key: string, minIntervalMs: number) => {
+    const last = lastFetchAtRef.current[key] || 0;
+    const now = Date.now();
+    if (now - last < minIntervalMs) return true;
+    lastFetchAtRef.current[key] = now;
+    return false;
+  }, []);
 
   // Listen for browser online/offline events
   useEffect(() => {
@@ -353,6 +384,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const channel = supabase
       .channel('users-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
+        if (shouldThrottle('users_refresh', 1500)) return;
         fetchUsers();
       })
       .subscribe();
@@ -367,21 +399,39 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, [currentUser]);
 
   const fetchUsers = async () => {
-    console.log('🔄 Fetching users...');
-    const { data, error } = await supabase.from('users').select('*');
-    if (data && !error) {
-      console.log('✅ Raw users data from DB:', data.length, 'users');
-      // Map database fields to TypeScript types
-      const mappedUsers = data.map(mapDatabaseUserToType);
-      console.log('✅ Mapped users:', mappedUsers.map(u => ({
-        email: u.email,
-        role: u.role,
-        isEmailVerified: u.isEmailVerified,
-        isMainAdmin: u.isMainAdmin
-      })));
-      setUsers(mappedUsers);
-    } else if (error) {
+    const cacheKey = 'users_all';
+    const cached = getCache<User[]>(cacheKey);
+    if (cached) {
+      setUsers(cached);
+      return;
+    }
+
+    const inflight = inflightRef.current[cacheKey];
+    if (inflight) {
+      try {
+        const data = (await inflight) as User[];
+        setUsers(data);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    inflightRef.current[cacheKey] = (async () => {
+      const { data, error } = await supabase.from('users').select('*');
+      if (error) throw error;
+      const mappedUsers = (data || []).map(mapDatabaseUserToType);
+      setCache(cacheKey, mappedUsers, 5 * 60 * 1000);
+      return mappedUsers;
+    })();
+
+    try {
+      const data = (await inflightRef.current[cacheKey]) as User[];
+      setUsers(data);
+    } catch (error) {
       console.error('❌ Error fetching users:', error);
+    } finally {
+      inflightRef.current[cacheKey] = null;
     }
   };
 
@@ -395,6 +445,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const channel = supabase
       .channel('inventory-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
+        if (shouldThrottle('inventory_refresh', 1500)) return;
         fetchInventory();
       })
       .subscribe();
@@ -414,50 +465,48 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       return;
     }
 
-    console.log('🔄 Fetching inventory for user:', {
-      id: currentUser.id,
-      role: currentUser.role,
-      username: currentUser.username
-    });
-
-    let query = supabase.from('inventory').select('*');
-
-    if (currentUser.role === 'msme') {
-      console.log('📦 Filtering inventory by msmeid:', currentUser.id);
-      query = query.eq('msmeid', currentUser.id);
-    } else if (currentUser.role === 'buyer') {
-      console.log('📦 Filtering inventory by status: active');
-      query = query.eq('status', 'active');
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('❌ Error fetching inventory:', error);
+    const cacheKey = `inventory_${currentUser.role}_${currentUser.id}`;
+    const cached = getCache<InventoryItem[]>(cacheKey);
+    if (cached) {
+      setInventory(cached);
       return;
     }
 
-    if (data) {
-      console.log('✅ Inventory fetched:', data.length, 'items');
-      console.log('📦 Raw inventory data:', data.map(i => ({
-        id: i.id,
-        name: i.name,
-        msmeid: i.msmeid,
-        stock: i.stock,
-        reserved: i.reserved
-      })));
-      const mappedInventory = data.map(mapDatabaseInventoryToType);
-      console.log('📦 Mapped inventory:', mappedInventory.map(i => ({
-        id: i.id,
-        name: i.name,
-        msmeId: i.msmeId,
-        stock: i.stock,
-        reserved: i.reserved
-      })));
-      setInventory(mappedInventory);
-    } else {
-      console.log('⚠️ No inventory data returned');
-      setInventory([]);
+    const inflight = inflightRef.current[cacheKey];
+    if (inflight) {
+      try {
+        const data = (await inflight) as InventoryItem[];
+        setInventory(data);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    inflightRef.current[cacheKey] = (async () => {
+      let query = supabase.from('inventory').select('*');
+
+      if (currentUser.role === 'msme') {
+        query = query.eq('msmeid', currentUser.id);
+      } else if (currentUser.role === 'buyer') {
+        query = query.eq('status', 'active');
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const mappedInventory = (data || []).map(mapDatabaseInventoryToType);
+      setCache(cacheKey, mappedInventory, 5 * 60 * 1000);
+      return mappedInventory;
+    })();
+
+    try {
+      const data = (await inflightRef.current[cacheKey]) as InventoryItem[];
+      setInventory(data);
+    } catch (error) {
+      console.error('❌ Error fetching inventory:', error);
+    } finally {
+      inflightRef.current[cacheKey] = null;
     }
   };
 
@@ -471,6 +520,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const channel = supabase
       .channel('products-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+        if (shouldThrottle('products_refresh', 1500)) return;
         fetchProducts();
       })
       .subscribe();
@@ -485,27 +535,41 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, [currentUser]);
 
   const fetchProducts = async () => {
-    console.log('🔄 Fetching products...');
-    const { data, error } = await supabase.from('products').select('*');
-    if (error) {
-      console.error('❌ Error fetching products:', error);
+    if (!currentUser) return;
+
+    const cacheKey = `products_${currentUser.role}_${currentUser.id}`;
+    const cached = getCache<Product[]>(cacheKey);
+    if (cached) {
+      setProducts(cached);
       return;
     }
-    if (data) {
-      console.log('✅ Products fetched:', data.length, 'products');
-      console.log('📦 Raw products from database:', data.map(p => ({
-        id: p.id,
-        name: p.name,
-        msmeid: p.msmeid,
-        msmeId: p.msmeId
-      })));
-      const mappedProducts = data.map(mapDatabaseProductToType);
-      console.log('📦 Mapped products:', mappedProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        msmeId: p.msmeId
-      })));
-      setProducts(mappedProducts);
+
+    const inflight = inflightRef.current[cacheKey];
+    if (inflight) {
+      try {
+        const data = (await inflight) as Product[];
+        setProducts(data);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    inflightRef.current[cacheKey] = (async () => {
+      const { data, error } = await supabase.from('products').select('*');
+      if (error) throw error;
+      const mappedProducts = (data || []).map(mapDatabaseProductToType);
+      setCache(cacheKey, mappedProducts, 5 * 60 * 1000);
+      return mappedProducts;
+    })();
+
+    try {
+      const data = (await inflightRef.current[cacheKey]) as Product[];
+      setProducts(data);
+    } catch (error) {
+      console.error('❌ Error fetching products:', error);
+    } finally {
+      inflightRef.current[cacheKey] = null;
     }
   };
 
@@ -519,14 +583,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const channel = supabase
       .channel('orders-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-        console.log('🔔 Orders real-time event:', payload.eventType, payload);
-        if (payload.eventType === 'DELETE') {
-          console.log('🗑️ Order deleted:', payload.old);
-        } else if (payload.eventType === 'INSERT') {
-          console.log('➕ New order:', payload.new);
-        } else if (payload.eventType === 'UPDATE') {
-          console.log('✏️ Order updated:', payload.new);
-        }
+        if (shouldThrottle('orders_refresh', 1500)) return;
         fetchOrders();
       })
       .subscribe();
@@ -546,40 +603,35 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       return;
     }
 
-    console.log('🔄 Fetching orders for user:', {
-      id: currentUser.id,
-      role: currentUser.role,
-      username: currentUser.username
-    });
-
-    let query = supabase.from('orders').select('*');
-
-    if (currentUser.role === 'buyer') {
-      console.log('📦 Filtering orders by buyerId:', currentUser.id);
-      query = query.eq('buyerId', currentUser.id);
-    } else if (currentUser.role === 'msme') {
-      console.log('📦 Fetching all orders (will filter by product ownership in component)');
-    }
-    // For MSME users, fetch all orders (filtering will be done in the component based on product ownership)
-    // For admin, fetch all orders
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('❌ Error fetching orders:', error);
+    const cacheKey = `orders_${currentUser.role}_${currentUser.id}`;
+    const cached = getCache<Order[]>(cacheKey);
+    if (cached) {
+      setOrders(cached);
       return;
     }
 
-    if (data) {
-      console.log('✅ Orders fetched:', data.length, 'orders for role:', currentUser.role);
-      console.log('📦 Orders data:', data.map(o => ({
-        id: o.id,
-        buyerId: o.buyerId,
-        buyerName: o.buyerName,
-        status: o.status,
-        items: o.items
-      })));
-      const mappedOrders = (data as any[]).map((o) => ({
+    const inflight = inflightRef.current[cacheKey];
+    if (inflight) {
+      try {
+        const data = (await inflight) as Order[];
+        setOrders(data);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    inflightRef.current[cacheKey] = (async () => {
+      let query = supabase.from('orders').select('*');
+
+      if (currentUser.role === 'buyer') {
+        query = query.eq('buyerId', currentUser.id);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const mappedOrders = (data || []).map((o: any) => ({
         ...o,
         totalUnits: o.totalunits ?? o.totalUnits ?? o.total_units ?? 0,
         printedUnits: o.printedunits ?? o.printedUnits ?? o.printed_units ?? 0,
@@ -587,11 +639,19 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         buyerPhone: o.buyerphone ?? o.buyerPhone ?? '',
         createdAt: o.createdat ?? o.createdAt,
         updatedAt: o.updatedat ?? o.updatedAt,
-      }));
-      setOrders(mappedOrders as Order[]);
-    } else {
-      console.log('⚠️ No orders data returned');
-      setOrders([]);
+      })) as Order[];
+
+      setCache(cacheKey, mappedOrders, 3 * 60 * 1000);
+      return mappedOrders;
+    })();
+
+    try {
+      const data = (await inflightRef.current[cacheKey]) as Order[];
+      setOrders(data);
+    } catch (error) {
+      console.error('❌ Error fetching orders:', error);
+    } finally {
+      inflightRef.current[cacheKey] = null;
     }
   };
 
