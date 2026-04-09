@@ -70,7 +70,10 @@ export default function ModernBuyerDashboard() {
     const handleLogout = async () => {
         try {
             await logout();
-            window.location.href = '/';
+            try {
+                window.localStorage.setItem('tex_authView', 'login');
+            } catch (_) {}
+            window.location.reload();
         } catch (error) {
             console.error('Logout failed:', error);
             alert('Logout failed. Please try again.');
