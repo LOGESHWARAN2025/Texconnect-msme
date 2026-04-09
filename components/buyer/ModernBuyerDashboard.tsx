@@ -44,7 +44,6 @@ export default function ModernBuyerDashboard() {
     const switchView = async (view: BuyerView) => {
         setIsViewTransitionLoading(true);
         setSidebarOpen(false);
-        await new Promise((r) => setTimeout(r, 10_000));
         setCurrentView(view);
         setIsViewTransitionLoading(false);
     };

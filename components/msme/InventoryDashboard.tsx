@@ -6,6 +6,7 @@ import { useTranslate } from '../../hooks/useTranslator';
 import type { Product } from '../../types';
 import { InventoryService, type InventoryStats } from '../../services/inventoryService';
 import { supabase } from '../../src/lib/supabase';
+import LoadingSpinner from '../common/LoadingSpinner';
 import InventoryProgressBar from '../common/InventoryProgressBar';
 import Modal from '../common/Modal';
 
@@ -33,6 +34,8 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
   const { t } = useLocalization();
   const { products, currentUser, addInventoryItem, inventory } = useAppContext();
   const [inventoryStats, setInventoryStats] = useState<InventoryStats | null>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
   const [isAddInventoryModalOpen, setIsAddInventoryModalOpen] = useState(false);
@@ -73,6 +76,8 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
       console.log('📦 Available products:', products.length);
 
       try {
+        setIsStatsLoading(true);
+        setStatsError(null);
         const [stats, lowStock] = await Promise.all([
           InventoryService.getInventoryStats(currentUser.id),
           InventoryService.getLowStockProducts(currentUser.id, 10)
@@ -85,6 +90,9 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
         setLowStockProducts(lowStock);
       } catch (error) {
         console.error('❌ Error loading inventory stats:', error);
+        setStatsError(error instanceof Error ? error.message : 'Unable to load inventory statistics');
+      } finally {
+        setIsStatsLoading(false);
       }
     };
 
@@ -97,6 +105,8 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
 
     const reload = async () => {
       try {
+        setIsStatsLoading(true);
+        setStatsError(null);
         const [stats, lowStock] = await Promise.all([
           InventoryService.getInventoryStats(currentUser.id),
           InventoryService.getLowStockProducts(currentUser.id, 10)
@@ -105,6 +115,9 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
         setLowStockProducts(lowStock);
       } catch (e) {
         console.error('❌ Error refreshing inventory stats (realtime):', e);
+        setStatsError(e instanceof Error ? e.message : 'Unable to load inventory statistics');
+      } finally {
+        setIsStatsLoading(false);
       }
     };
 
@@ -262,10 +275,14 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
     return 'Good';
   };
 
+  if (isStatsLoading && !inventoryStats) {
+    return <LoadingSpinner fullScreen text="Loading..." />;
+  }
+
   if (!inventoryStats) {
     return (
       <div className="text-center py-8">
-        <p className="text-slate-600 font-bold">{t('unable_load_stats')}</p>
+        <p className="text-slate-600 font-bold">{statsError ? statsError : t('unable_load_stats')}</p>
       </div>
     );
   }

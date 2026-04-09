@@ -44,7 +44,6 @@ export default function ModernAdminDashboard() {
     const switchView = async (view: AdminView) => {
         setIsViewTransitionLoading(true);
         setSidebarOpen(false);
-        await new Promise((r) => setTimeout(r, 10_000));
         setCurrentView(view);
         setIsViewTransitionLoading(false);
     };

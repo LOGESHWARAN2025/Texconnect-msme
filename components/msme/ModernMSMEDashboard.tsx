@@ -79,7 +79,6 @@ export default function ModernMSMEDashboard() {
   const switchView = async (view: View) => {
     setIsViewTransitionLoading(true);
     setSidebarOpen(false);
-    await new Promise((r) => setTimeout(r, 10_000));
     setCurrentView(view);
     setIsViewTransitionLoading(false);
   };
