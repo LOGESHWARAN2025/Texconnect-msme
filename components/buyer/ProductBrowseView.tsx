@@ -155,21 +155,14 @@ export const ProductBrowseView: React.FC = () => {
             console.log('Users map size:', allUsersMap.size);
         }
 
-        // If users data hasn't loaded yet, return empty array to avoid showing invalid results
-        if (products.length > 0 && allUsersMap.size === 0) {
-            if (process.env.NODE_ENV === 'development') {
-                console.log('⏳ Users data not loaded yet, waiting...');
-            }
-            return [];
-        }
-
         // First filter by valid MSMEs and ensure msmeId exists
         const validProducts = products.filter(item => {
             if (!item.msmeId) {
                 return false;
             }
             const supplier = allUsersMap.get(item.msmeId);
-            return supplier && supplier.role === 'msme';
+            if (!supplier) return true;
+            return supplier.role === 'msme';
         });
 
         if (process.env.NODE_ENV === 'development') {
@@ -192,6 +185,7 @@ export const ProductBrowseView: React.FC = () => {
             ? notOwnProducts.filter(item => {
                 if (!item.msmeId) return false;
                 const supplier = allUsersMap.get(item.msmeId);
+                if (!supplier) return true;
                 // Exclude products from the same domain as the MSME user
                 return supplier?.domain !== currentUserDomain;
             })
@@ -207,6 +201,7 @@ export const ProductBrowseView: React.FC = () => {
             : domainExcludedProducts.filter(item => {
                 if (!item.msmeId) return false; // Skip items without msmeId
                 const supplier = allUsersMap.get(item.msmeId);
+                if (!supplier) return true;
                 return supplier?.domain === domainFilter;
             });
 
@@ -216,11 +211,13 @@ export const ProductBrowseView: React.FC = () => {
                 if (!item.msmeId) return false; // Skip items without msmeId
                 const supplier = allUsersMap.get(item.msmeId);
                 const searchLower = searchQuery.toLowerCase();
+                const supplierCompany = supplier?.companyName?.toLowerCase() || '';
+                const supplierUsername = supplier?.username?.toLowerCase() || '';
                 return (
                     item.name.toLowerCase().includes(searchLower) ||
                     (item.description?.toLowerCase().includes(searchLower) ?? false) ||
-                    supplier?.companyName?.toLowerCase().includes(searchLower) ||
-                    supplier?.username.toLowerCase().includes(searchLower)
+                    supplierCompany.includes(searchLower) ||
+                    supplierUsername.includes(searchLower)
                 );
             })
             : domainFiltered;
@@ -360,13 +357,12 @@ export const ProductBrowseView: React.FC = () => {
                     {filteredProducts.map(item => {
                         if (!item.msmeId) return null; // Skip items without msmeId
                         const supplier = allUsersMap.get(item.msmeId);
-                        if (!supplier) return null;
                         return (
                             <ProductCard
                                 key={item.id}
                                 item={item}
-                                supplierName={supplier.companyName || supplier.username}
-                                supplierDomain={supplier.domain}
+                                supplierName={supplier ? (supplier.companyName || supplier.username) : t('supplier')}
+                                supplierDomain={supplier?.domain}
                                 onOrder={() => handleOrderClick(item)}
                             />
                         );

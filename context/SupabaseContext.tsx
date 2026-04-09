@@ -885,7 +885,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.log('🔐 Signing out from Supabase');
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('❌ Logout error:', error);
+        const msg = String((error as any)?.message || error);
+        const isMissingSession = msg.toLowerCase().includes('auth session missing');
+        if (isMissingSession) {
+          console.warn('⚠️ Logout: session already missing, falling back to local signOut');
+          try {
+            await supabase.auth.signOut({ scope: 'local' });
+          } catch (_) {
+            // ignore
+          }
+        } else {
+          console.error('❌ Logout error:', error);
+        }
       } else {
         console.log('✅ Logout completed successfully');
       }
