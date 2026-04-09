@@ -18,6 +18,7 @@ import EnhancedMarketAnalysisAI from '../ai/EnhancedMarketAnalysisAI';
 import { fetchMarketChatReply } from '../../src/services/market/marketInsightsService';
 import { optimizedDataService } from '../../src/services/optimizedDataService';
 import cacheService from '../../src/services/cacheService';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 export default function ModernMSMEDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -26,6 +27,7 @@ export default function ModernMSMEDashboard() {
     const saved = localStorage.getItem('msme-current-view');
     return (saved as View) || 'dashboard';
   });
+  const [isViewTransitionLoading, setIsViewTransitionLoading] = useState(false);
   const { currentUser, logout, inventory, orders, requestProfileUpdate } = useAppContext();
   const [salesView, setSalesView] = useState<'week' | 'month' | 'market'>('market');
   const [isAddInventoryModalOpen, setIsAddInventoryModalOpen] = useState(false);
@@ -73,6 +75,14 @@ export default function ModernMSMEDashboard() {
   useEffect(() => {
     localStorage.setItem('msme-current-view', currentView);
   }, [currentView]);
+
+  const switchView = async (view: View) => {
+    setIsViewTransitionLoading(true);
+    setSidebarOpen(false);
+    await new Promise((r) => setTimeout(r, 10_000));
+    setCurrentView(view);
+    setIsViewTransitionLoading(false);
+  };
 
   useEffect(() => {
     if (inventory && orders) {
@@ -231,18 +241,18 @@ export default function ModernMSMEDashboard() {
   const maxSales = 100; // Mock
 
   const quickActions = [
-    { label: 'Market Trends', icon: TrendingUp, color: 'bg-purple-600', onClick: () => setCurrentView('market') },
+    { label: 'Market Trends', icon: TrendingUp, color: 'bg-purple-600', onClick: () => switchView('market') },
     { label: 'Add Stock', icon: Plus, color: 'bg-indigo-600', onClick: handleAddInventory },
-    { label: 'New Order', icon: ShoppingCart, color: 'bg-emerald-600', onClick: handleNewOrder },
+    { label: 'New Order', icon: ShoppingCart, color: 'bg-emerald-600', onClick: () => switchView('orders') },
     { label: 'Export All', icon: Download, color: 'bg-amber-600', onClick: handleExportReport },
   ];
 
   const renderMainContent = () => {
     switch (currentView) {
-      case 'inventory': return <InventoryPage onBack={() => setCurrentView('dashboard')} />;
-      case 'orders': return <OrdersPage onBack={() => setCurrentView('dashboard')} />;
-      case 'products': return <ProductsPage onBack={() => setCurrentView('dashboard')} />;
-      case 'issues': return <IssuesPage onBack={() => setCurrentView('dashboard')} />;
+      case 'inventory': return <InventoryPage onBack={() => switchView('dashboard')} />;
+      case 'orders': return <OrdersPage onBack={() => switchView('dashboard')} />;
+      case 'products': return <ProductsPage onBack={() => switchView('dashboard')} />;
+      case 'issues': return <IssuesPage onBack={() => switchView('dashboard')} />;
       case 'profile':
         return <ProfileView />;
       case 'market':
@@ -403,6 +413,7 @@ export default function ModernMSMEDashboard() {
 
   return (
     <div className="h-screen bg-slate-50 font-outfit overflow-hidden flex">
+      {isViewTransitionLoading && <LoadingSpinner fullScreen text="Loading..." />}
       {/* Persistent Sidebar (Desktop) */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-[70] w-80 bg-white/95 backdrop-blur-3xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-500 border-r border-slate-200 overflow-y-auto custom-scrollbar`}>
         <div className="p-10 space-y-12 h-screen flex flex-col">
@@ -433,7 +444,7 @@ export default function ModernMSMEDashboard() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => { setCurrentView(item.id as View); setSidebarOpen(false); }}
+                  onClick={() => { switchView(item.id as View); }}
                   className={`w-full flex items-center gap-5 px-6 py-5 rounded-[1.5rem] transition-all relative group ${isActive ? 'bg-slate-900 text-white shadow-2xl translate-x-3' : 'text-slate-500 hover:bg-slate-50 hover:text-indigo-600'
                     }`}
                 >
@@ -495,7 +506,7 @@ export default function ModernMSMEDashboard() {
               { id: 'orders', icon: ShoppingCart },
               { id: 'profile', icon: Users },
             ].map((item) => (
-              <button key={item.id} onClick={() => setCurrentView(item.id as View)} className={`flex flex-col items-center gap-1 ${currentView === item.id ? 'text-indigo-600' : 'text-slate-400'}`}>
+              <button key={item.id} onClick={() => switchView(item.id as View)} className={`flex flex-col items-center gap-1 ${currentView === item.id ? 'text-indigo-600' : 'text-slate-400'}`}>
                 <item.icon className="h-6 w-6" />
                 <span className="text-[8px] font-black uppercase tracking-widest">{item.id}</span>
               </button>

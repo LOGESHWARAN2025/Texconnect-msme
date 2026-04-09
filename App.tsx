@@ -16,6 +16,7 @@ import ScanStatusModal from './components/ScanStatusModal';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isLoading, logout, notifyAdminOfError } = useAppContext();
+  const [minSplashDone, setMinSplashDone] = useState(false);
   const [authView, setAuthView] = useState<'login' | 'register' | 'adminLogin' | 'verifyEmail' | 'landing'>(() => {
     try {
       const stored = window.localStorage.getItem('tex_authView');
@@ -90,17 +91,16 @@ const AppRouter: React.FC = () => {
     setUserToVerify(email);
     handleSetAuthView('verifyEmail');
   }
+
+  useEffect(() => {
+    setMinSplashDone(false);
+    const t = setTimeout(() => setMinSplashDone(true), 10_000);
+    return () => clearTimeout(t);
+  }, []);
   
-  if (isLoading) {
+  if (isLoading || !minSplashDone) {
     console.log('AppRouter: Showing loading spinner');
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
-          <span className="text-sm font-semibold text-slate-600">Loading...</span>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen text="Loading..." />;
   }
 
   if (!currentUser) {

@@ -14,6 +14,7 @@ import { TranslatedText } from '../common/TranslatedText';
 import BuyerInsights from './BuyerInsights';
 import MarketSalesBot from '../common/MarketSalesBot';
 import EnhancedMarketAnalysisAI from '../ai/EnhancedMarketAnalysisAI';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 type BuyerView = 'browse' | 'orders' | 'issues' | 'profile' | 'dashboard' | 'market';
 
@@ -24,6 +25,7 @@ export default function ModernBuyerDashboard() {
         const saved = localStorage.getItem('buyer-current-view');
         return (saved as BuyerView) || 'dashboard';
     });
+    const [isViewTransitionLoading, setIsViewTransitionLoading] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [hasReadNotifications, setHasReadNotifications] = useState(false);
     const { currentUser, logout, orders } = useAppContext();
@@ -38,6 +40,14 @@ export default function ModernBuyerDashboard() {
     useEffect(() => {
         localStorage.setItem('buyer-current-view', currentView);
     }, [currentView]);
+
+    const switchView = async (view: BuyerView) => {
+        setIsViewTransitionLoading(true);
+        setSidebarOpen(false);
+        await new Promise((r) => setTimeout(r, 10_000));
+        setCurrentView(view);
+        setIsViewTransitionLoading(false);
+    };
 
     // Calculate buyer stats
     useEffect(() => {
@@ -115,13 +125,17 @@ export default function ModernBuyerDashboard() {
     ];
 
     const quickActions = [
-        { icon: ShoppingBag, label: t('browse_products_title'), color: 'bg-indigo-600 hover:bg-indigo-700', onClick: () => setCurrentView('browse') },
-        { icon: TrendingUp, label: 'Market Insights', color: 'bg-purple-600 hover:bg-purple-700', onClick: () => setCurrentView('market') },
-        { icon: Package, label: t('my_orders_title'), color: 'bg-green-600 hover:bg-green-700', onClick: () => setCurrentView('orders') },
-        { icon: AlertCircle, label: t('report_issue_title'), color: 'bg-orange-600 hover:bg-orange-700', onClick: () => setCurrentView('issues') },
+        { icon: ShoppingBag, label: t('browse_products_title'), color: 'bg-indigo-600 hover:bg-indigo-700', onClick: () => switchView('browse') },
+        { icon: TrendingUp, label: 'Market Insights', color: 'bg-purple-600 hover:bg-purple-700', onClick: () => switchView('market') },
+        { icon: Package, label: t('my_orders_title'), color: 'bg-green-600 hover:bg-green-700', onClick: () => switchView('orders') },
+        { icon: AlertCircle, label: t('report_issue_title'), color: 'bg-orange-600 hover:bg-orange-700', onClick: () => switchView('issues') },
     ];
 
     const renderContent = () => {
+        if (isViewTransitionLoading) {
+            return <LoadingSpinner fullScreen text="Loading..." />;
+        }
+
         switch (currentView) {
             case 'browse':
                 return <ProductBrowseView />;
@@ -174,7 +188,7 @@ export default function ModernBuyerDashboard() {
                         <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl shadow-lg p-8 text-white">
                             <h2 className="text-3xl font-bold mb-2">{t('welcome_back')}, {currentUser?.firstname}! 👋</h2>
                             <p className="text-indigo-100 mb-6">{t('discover_quality_products')}</p>
-                            <button onClick={() => setCurrentView('browse')} className="bg-white text-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-indigo-50 transition shadow-lg">
+                            <button onClick={() => switchView('browse')} className="bg-white text-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-indigo-50 transition shadow-lg">
                                 {t('start_shopping')}
                             </button>
                         </div>
@@ -269,7 +283,7 @@ export default function ModernBuyerDashboard() {
                                     </div>
                                     {recentNotifications.length > 0 && (
                                         <button 
-                                            onClick={() => { setCurrentView('orders'); setShowNotifications(false); }}
+                                            onClick={() => { switchView('orders'); setShowNotifications(false); }}
                                             className="w-full mt-4 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 transition-colors text-center"
                                         >
                                             View All Orders
@@ -323,24 +337,24 @@ export default function ModernBuyerDashboard() {
 
                     {/* Navigation */}
                     <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                        <button onClick={() => { setCurrentView('dashboard'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'dashboard' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'dashboard' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+                        <button onClick={() => { switchView('dashboard'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'dashboard' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'dashboard' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <Grid className="h-5 w-5" />
                             <span className="font-semibold">{t('dashboard')}</span>
                             {currentView === 'dashboard' && <ChevronRight className="h-4 w-4 ml-auto" />}
                         </button>
-                        <button onClick={() => { setCurrentView('browse'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'browse' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'browse' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+                        <button onClick={() => { switchView('browse'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'browse' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'browse' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <ShoppingBag className="h-5 w-5" />
                             <span className="font-medium">{t('browse_products_title')}</span>
                         </button>
-                        <button onClick={() => { setCurrentView('market'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'market' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'market' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+                        <button onClick={() => { switchView('market'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'market' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'market' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <TrendingUp className="h-5 w-5" />
                             <span className="font-medium">Market Trends</span>
                         </button>
-                        <button onClick={() => { setCurrentView('orders'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'orders' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'orders' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+                        <button onClick={() => { switchView('orders'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'orders' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'orders' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <Package className="h-5 w-5" />
                             <span className="font-medium">{t('my_orders_title')}</span>
                         </button>
-                        <button onClick={() => { setCurrentView('issues'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'issues' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'issues' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+                        <button onClick={() => { switchView('issues'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'issues' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'issues' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <AlertCircle className="h-5 w-5" />
                             <span className="font-medium">{t('issues')}</span>
                         </button>
@@ -348,7 +362,7 @@ export default function ModernBuyerDashboard() {
 
                     {/* Profile Link */}
                     <div className="p-4 border-t border-gray-200">
-                        <button onClick={() => { setCurrentView('profile'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'profile' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'profile' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
+                        <button onClick={() => { switchView('profile'); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === 'profile' ? 'text-white shadow-lg' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'}`} style={currentView === 'profile' ? { background: 'linear-gradient(135deg, rgb(79, 70, 229) 0%, rgb(99, 102, 241) 100%)' } : {}}>
                             <User className="h-5 w-5" />
                             <span className="font-medium">{t('profile')}</span>
                         </button>

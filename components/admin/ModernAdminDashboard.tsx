@@ -14,6 +14,7 @@ import IssueLogView from './IssueLogView';
 import ResolvedIssuesView from './ResolvedIssuesView';
 import PerformanceDashboard from './PerformanceDashboard';
 import { TranslatedText } from '../common/TranslatedText';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 type AdminView = 'dashboard' | 'users' | 'profile' | 'audit' | 'feedback' | 'issues' | 'resolved' | 'performance';
 
@@ -23,6 +24,7 @@ export default function ModernAdminDashboard() {
         const saved = localStorage.getItem('admin-current-view');
         return (saved as AdminView) || 'dashboard';
     });
+    const [isViewTransitionLoading, setIsViewTransitionLoading] = useState(false);
     const { currentUser, logout, users } = useAppContext();
     const { t, setLanguage, currentLanguage } = useLocalization();
 
@@ -38,6 +40,14 @@ export default function ModernAdminDashboard() {
     useEffect(() => {
         localStorage.setItem('admin-current-view', currentView);
     }, [currentView]);
+
+    const switchView = async (view: AdminView) => {
+        setIsViewTransitionLoading(true);
+        setSidebarOpen(false);
+        await new Promise((r) => setTimeout(r, 10_000));
+        setCurrentView(view);
+        setIsViewTransitionLoading(false);
+    };
 
     // Calculate Stats
     useEffect(() => {
@@ -110,13 +120,17 @@ export default function ModernAdminDashboard() {
     ];
 
     const quickActions = [
-        { label: t('manage_users'), icon: Users, color: 'bg-indigo-600', onClick: () => setCurrentView('users') },
-        { label: t('view_issues'), icon: AlertTriangle, color: 'bg-orange-600', onClick: () => setCurrentView('issues') },
-        { label: t('system_performance'), icon: Activity, color: 'bg-cyan-600', onClick: () => setCurrentView('performance') },
-        { label: t('user_feedback'), icon: MessageSquare, color: 'bg-pink-600', onClick: () => setCurrentView('feedback') }
+        { label: t('manage_users'), icon: Users, color: 'bg-indigo-600', onClick: () => switchView('users') },
+        { label: t('view_issues'), icon: AlertTriangle, color: 'bg-orange-600', onClick: () => switchView('issues') },
+        { label: t('system_performance'), icon: Activity, color: 'bg-cyan-600', onClick: () => switchView('performance') },
+        { label: t('user_feedback'), icon: MessageSquare, color: 'bg-pink-600', onClick: () => switchView('feedback') }
     ];
 
     const renderContent = () => {
+        if (isViewTransitionLoading) {
+            return <LoadingSpinner fullScreen text="Loading..." />;
+        }
+
         switch (currentView) {
             case 'users':
                 return <UserManagementView />;
@@ -179,7 +193,7 @@ export default function ModernAdminDashboard() {
                                     </div>
                                     <div
                                         className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100 cursor-pointer hover:bg-blue-100 transition"
-                                        onClick={() => setCurrentView('performance')}
+                                        onClick={() => switchView('performance')}
                                     >
                                         <div className="flex items-center gap-3">
                                             <Activity className="h-5 w-5 text-blue-600" />
@@ -192,7 +206,7 @@ export default function ModernAdminDashboard() {
                                     <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">{t('pending_tasks')}</h3>
                                     <div className="space-y-3">
                                         {stats.totalUsers - stats.activeUsers > 0 ? (
-                                            <div className="flex items-center gap-3 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-100 cursor-pointer hover:bg-yellow-100 transition" onClick={() => setCurrentView('users')}>
+                                            <div className="flex items-center gap-3 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-100 cursor-pointer hover:bg-yellow-100 transition" onClick={() => switchView('users')}>
                                                 <AlertTriangle className="h-4 w-4" />
                                                 <span>{stats.totalUsers - stats.activeUsers} {t('users_pending_verification')}</span>
                                             </div>
@@ -224,18 +238,18 @@ export default function ModernAdminDashboard() {
 
                 <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-80px)]">
                     <div className="text-xs font-semibold text-slate-500 uppercase mb-2 px-4 mt-4">Main</div>
-                    <NavButton view="dashboard" icon={LayoutDashboard} label={t('dashboard')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
-                    <NavButton view="users" icon={Users} label={t('user_management')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
+                    <NavButton view="dashboard" icon={LayoutDashboard} label={t('dashboard')} current={currentView} onClick={switchView} closeSidebar={() => setSidebarOpen(false)} />
+                    <NavButton view="users" icon={Users} label={t('user_management')} current={currentView} onClick={switchView} closeSidebar={() => setSidebarOpen(false)} />
 
                     <div className="text-xs font-semibold text-slate-500 uppercase mb-2 px-4 mt-6">Monitoring</div>
-                    <NavButton view="performance" icon={Activity} label={t('system_performance')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
-                    <NavButton view="audit" icon={FileText} label={t('audit_logs')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
-                    <NavButton view="issues" icon={AlertTriangle} label={t('issue_logs')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
-                    <NavButton view="resolved" icon={CheckCircle} label={t('resolved_issues')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
-                    <NavButton view="feedback" icon={MessageSquare} label={t('user_feedback')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
+                    <NavButton view="performance" icon={Activity} label={t('system_performance')} current={currentView} onClick={switchView} closeSidebar={() => setSidebarOpen(false)} />
+                    <NavButton view="audit" icon={FileText} label={t('audit_logs')} current={currentView} onClick={switchView} closeSidebar={() => setSidebarOpen(false)} />
+                    <NavButton view="issues" icon={AlertTriangle} label={t('issue_logs')} current={currentView} onClick={switchView} closeSidebar={() => setSidebarOpen(false)} />
+                    <NavButton view="resolved" icon={CheckCircle} label={t('resolved_issues')} current={currentView} onClick={switchView} closeSidebar={() => setSidebarOpen(false)} />
+                    <NavButton view="feedback" icon={MessageSquare} label={t('user_feedback')} current={currentView} onClick={switchView} closeSidebar={() => setSidebarOpen(false)} />
 
                     <div className="text-xs font-semibold text-slate-500 uppercase mb-2 px-4 mt-6">{t('settings')}</div>
-                    <NavButton view="profile" icon={User} label={t('profile')} current={currentView} onClick={setCurrentView} closeSidebar={() => setSidebarOpen(false)} />
+                    <NavButton view="profile" icon={User} label={t('profile')} current={currentView} onClick={switchView} closeSidebar={() => setSidebarOpen(false)} />
                 </nav>
             </aside>
 
