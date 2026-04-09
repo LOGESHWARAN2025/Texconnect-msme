@@ -888,21 +888,22 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.log('🔐 Signing out from Supabase');
       const { error } = await supabase.auth.signOut();
       if (error) {
-        const msg = String((error as any)?.message || error);
-        const isMissingSession = msg.toLowerCase().includes('auth session missing');
-        if (isMissingSession) {
-          console.warn('⚠️ Logout: session already missing, falling back to local signOut');
-          try {
-            await supabase.auth.signOut({ scope: 'local' });
-          } catch (_) {
-            // ignore
-          }
-        } else {
-          console.error('❌ Logout error:', error);
-        }
+        console.error('❌ Logout error:', error);
       } else {
         console.log('✅ Logout completed successfully');
       }
+
+      try {
+        const projectRef = 'qjbtnlhndoddbxqznkpw';
+        const authKey = `sb-${projectRef}-auth-token`;
+        localStorage.removeItem(authKey);
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(`sb-${projectRef}`)) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch (_) {}
 
       try {
         await supabase.auth.getSession();
