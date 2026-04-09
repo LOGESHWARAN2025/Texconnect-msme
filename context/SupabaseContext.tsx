@@ -177,6 +177,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
   const initializedRef = useRef(false);
   const channelsRef = useRef<any[]>([]);
+  const logoutInProgressRef = useRef(false);
 
   const cacheRef = useRef<Record<string, CacheEntry<any>>>({});
   const inflightRef = useRef<Record<string, Promise<any> | null>>({});
@@ -298,6 +299,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('SupabaseContext: Auth state changed:', event, session, 'initialized:', initializedRef.current);
+
+      if (logoutInProgressRef.current) {
+        if (event === 'SIGNED_IN' || session?.user) {
+          console.log('SupabaseContext: Ignoring auth change during logout');
+          return;
+        }
+      }
 
       // Skip the initial SIGNED_IN event if we're still initializing
       if (!initializedRef.current && event === 'SIGNED_IN') {
@@ -866,6 +874,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.log('🔄 Starting logout cleanup...');
 
       setIsLoading(true);
+      logoutInProgressRef.current = true;
 
       try {
         localStorage.removeItem('tex_isLoggedIn');
@@ -920,6 +929,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setAuditLogs([]);
       setIssues([]);
       setIsLoading(false);
+      logoutInProgressRef.current = false;
     } catch (error) {
       console.error('❌ Logout failed:', error);
       // Ensure state is cleared even if logout fails
@@ -931,6 +941,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setAuditLogs([]);
       setIssues([]);
       setIsLoading(false);
+      logoutInProgressRef.current = false;
     }
   };
 
