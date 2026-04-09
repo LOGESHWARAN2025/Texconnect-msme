@@ -498,6 +498,13 @@ export const translations: Record<Language, Record<string, string>> = {
     'product': 'Product',
     'scan_units': 'Scan Units',
     'prepared': 'Prepared',
+    'manage_catalog' : 'Manage Catalog',
+    'track_and_manage_your_tickets' : 'Track and Manage Your Tickets',
+    'live_market_assistant' : 'Live Market Assistant',
+    'regional_insights' : 'Regional Insights',
+    'market_insights' : 'Market Insights',
+    'analyze_market' : 'Analyze Market',
+    'update_photo' : 'Upload Photo',
   },
   ta: {
     // General
