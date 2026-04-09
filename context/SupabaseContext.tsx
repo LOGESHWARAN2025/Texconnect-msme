@@ -865,9 +865,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     try {
       console.log('🔄 Starting logout cleanup...');
 
+      setIsLoading(true);
+
       try {
         localStorage.removeItem('tex_isLoggedIn');
         localStorage.removeItem('tex_lastLoggedInRole');
+        localStorage.removeItem('tex_authView');
       } catch (_) {}
 
       // 1. Unsubscribe from all real-time channels immediately
@@ -901,6 +904,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         console.log('✅ Logout completed successfully');
       }
 
+      try {
+        await supabase.auth.getSession();
+      } catch (_) {
+        // ignore
+      }
+
       // 3. Clear all state data immediately
       setCurrentUser(null);
       setInventory([]);
@@ -909,6 +918,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setUsers([]);
       setAuditLogs([]);
       setIssues([]);
+      setIsLoading(false);
     } catch (error) {
       console.error('❌ Logout failed:', error);
       // Ensure state is cleared even if logout fails
@@ -919,6 +929,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setUsers([]);
       setAuditLogs([]);
       setIssues([]);
+      setIsLoading(false);
     }
   };
 
