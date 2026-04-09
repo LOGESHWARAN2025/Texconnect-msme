@@ -30,14 +30,6 @@ const AppRouter: React.FC = () => {
 
   useEffect(() => {
     if (isLoading) return;
-    if (currentUser) return;
-    if (authView === 'adminLogin') {
-      handleSetAuthView('landing');
-    }
-  }, [currentUser, authView, isLoading]);
-
-  useEffect(() => {
-    if (isLoading) return;
     if (!currentUser) return;
 
     const isAdminRole = currentUser.role === 'admin' || currentUser.role === 'sub-admin';
