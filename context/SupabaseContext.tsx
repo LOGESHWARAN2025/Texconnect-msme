@@ -865,6 +865,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     try {
       console.log('🔄 Starting logout cleanup...');
 
+      try {
+        localStorage.removeItem('tex_isLoggedIn');
+        localStorage.removeItem('tex_lastLoggedInRole');
+      } catch (_) {}
+
       // 1. Unsubscribe from all real-time channels immediately
       console.log('🔌 Unsubscribing from', channelsRef.current.length, 'channels');
       for (const channel of channelsRef.current) {
@@ -876,16 +881,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
       channelsRef.current = [];
 
-      // 2. Clear all state data immediately (non-blocking)
-      setCurrentUser(null);
-      setInventory([]);
-      setProducts([]);
-      setOrders([]);
-      setUsers([]);
-      setAuditLogs([]);
-      setIssues([]);
-
-      // 3. Sign out from Supabase (async but doesn't block UI)
+      // 2. Sign out from Supabase first to prevent auth listener from rehydrating state
       console.log('🔐 Signing out from Supabase');
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -893,6 +889,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       } else {
         console.log('✅ Logout completed successfully');
       }
+
+      // 3. Clear all state data immediately
+      setCurrentUser(null);
+      setInventory([]);
+      setProducts([]);
+      setOrders([]);
+      setUsers([]);
+      setAuditLogs([]);
+      setIssues([]);
     } catch (error) {
       console.error('❌ Logout failed:', error);
       // Ensure state is cleared even if logout fails

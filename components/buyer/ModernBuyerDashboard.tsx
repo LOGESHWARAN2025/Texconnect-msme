@@ -72,8 +72,11 @@ export default function ModernBuyerDashboard() {
             await logout();
             try {
                 window.localStorage.setItem('tex_authView', 'login');
+                window.localStorage.removeItem('buyer-current-view');
+                window.localStorage.removeItem('tex_isLoggedIn');
+                window.localStorage.removeItem('tex_lastLoggedInRole');
             } catch (_) {}
-            window.location.reload();
+            window.location.href = '/';
         } catch (error) {
             console.error('Logout failed:', error);
             alert('Logout failed. Please try again.');
