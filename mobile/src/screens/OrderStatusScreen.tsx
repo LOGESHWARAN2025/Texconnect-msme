@@ -40,7 +40,7 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                .on(
                    'postgres_changes',
                    { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
-                   () => fetchOrderDetails()
+                   () => fetchOrderDetails(false)
                )
                .subscribe();
 
@@ -131,15 +131,17 @@ export default function OrderStatusScreen({ route, navigation }: any) {
                return;
            }
 
+           const updated = updatedRows[0];
+
            setOrder((prev: any) => prev ? { 
                ...prev, 
-               status: targetStatus, 
+               status: updated?.status ?? targetStatus, 
                scannedunits: [], 
                scannedUnits: [],
                updatedAt: new Date().toISOString()
            } : null);
 
-           fetchOrderDetails(false);
+           await fetchOrderDetails(false);
            triggerOrderNotification(targetStatus);
            setStatusModalOpen(false);
        } finally {
