@@ -887,9 +887,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       // 3. Sign out from Supabase (async but doesn't block UI)
       console.log('🔐 Signing out from Supabase');
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) {
-        console.error('❌ Logout error:', error);
+        const msg = String((error as any)?.message || error);
+        if (msg.toLowerCase().includes('auth session missing')) {
+          console.warn('⚠️ Logout skipped: session already missing');
+        } else {
+          console.error('❌ Logout error:', error);
+        }
       } else {
         console.log('✅ Logout completed successfully');
       }
