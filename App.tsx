@@ -93,7 +93,14 @@ const AppRouter: React.FC = () => {
   
   if (isLoading) {
     console.log('AppRouter: Showing loading spinner');
-    return <LoadingSpinner fullScreen text="Loading..." />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
+          <span className="text-sm font-semibold text-slate-600">Loading...</span>
+        </div>
+      </div>
+    );
   }
 
   if (!currentUser) {
