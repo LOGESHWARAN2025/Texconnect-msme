@@ -38,7 +38,6 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
   const [isAddInventoryModalOpen, setIsAddInventoryModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [restockQuantity, setRestockQuantity] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<InventoryFormData>({
     name: '',
@@ -74,7 +73,6 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
       console.log('📦 Available products:', products.length);
 
       try {
-        setIsLoading(true);
         const [stats, lowStock] = await Promise.all([
           InventoryService.getInventoryStats(currentUser.id),
           InventoryService.getLowStockProducts(currentUser.id, 10)
@@ -87,8 +85,6 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
         setLowStockProducts(lowStock);
       } catch (error) {
         console.error('❌ Error loading inventory stats:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -265,18 +261,6 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ onAddProduct })
     if (stockPercentage <= 30) return 'Low';
     return 'Good';
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-slate-600 font-bold">{t('loading_inventory_data')}</p>
-          <p className="text-xs text-slate-500 mt-2">{t('this_may_take_seconds')}</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!inventoryStats) {
     return (
