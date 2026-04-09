@@ -615,7 +615,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const cached = getCache<Order[]>(cacheKey);
     if (cached) {
       setOrders(cached);
-      return;
     }
 
     const inflight = inflightRef.current[cacheKey];
@@ -1279,18 +1278,25 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const updateOrderScannedUnits = async (orderId: string, scannedUnits: string[]) => {
     console.log('🔄 Updating order scanned units:', orderId, scannedUnits);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('orders')
       .update({
         scannedunits: scannedUnits,
         scannedUnits: scannedUnits, // Keep both for safety
         updatedAt: new Date().toISOString()
       })
-      .eq('id', orderId);
+      .eq('id', orderId)
+      .select('id');
 
     if (error) {
       console.error('❌ Error updating order scanned units:', error);
       throw error;
+    }
+
+    if (!data || data.length === 0) {
+      const msg = 'Database Security Blocked Update! (Row Level Security policy blocked scanned units update). Please check your Supabase RLS policies for orders updates.';
+      console.error('❌', msg);
+      throw new Error(msg);
     }
 
     // Optional: Notify on significant progress
